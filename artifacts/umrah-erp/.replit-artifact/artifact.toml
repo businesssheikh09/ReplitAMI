@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Umrah Travel ERP"
+version = "1.0.0"
+id = "artifacts/umrah-erp"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18964
+
+[services.development]
+run = "pnpm --filter @workspace/umrah-erp run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/umrah-erp", "run", "build" ]
+publicDir = "artifacts/umrah-erp/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18964"
+BASE_PATH = "/"

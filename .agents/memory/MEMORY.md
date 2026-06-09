@@ -1,0 +1,2 @@
+- [Umrah ERP stack](umrah-erp-stack.md) — Express 5 + Drizzle + PostgreSQL backend; React+Vite frontend; wouter routing; all 12 modules live
+- [Auth pattern](umrah-erp-auth.md) — Simple token (token_userId_timestamp), password stored as plain text in dev; login at admin@umrah.com / admin123
