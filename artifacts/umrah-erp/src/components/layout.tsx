@@ -14,7 +14,8 @@ import {
   Receipt, 
   CreditCard, 
   ShieldCheck, 
-  Files 
+  Files,
+  Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -62,6 +63,7 @@ const navGroups = [
     items: [
       { title: "Users", href: "/users", icon: ShieldCheck },
       { title: "Documents", href: "/documents", icon: Files },
+      { title: "GDS Settings", href: "/gds-settings", icon: Settings2 },
     ],
   },
 ];

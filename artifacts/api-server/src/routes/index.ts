@@ -8,6 +8,8 @@ import quotationsRouter from "./quotations";
 import transportRouter from "./transport";
 import visaRouter from "./visa";
 import flightsRouter from "./flights";
+import flightSearchRouter from "./flight-search";
+import gdsSettingsRouter from "./gds-settings";
 import accountingRouter from "./accounting";
 import dashboardRouter from "./dashboard";
 
@@ -22,6 +24,8 @@ router.use(quotationsRouter);
 router.use(transportRouter);
 router.use(visaRouter);
 router.use(flightsRouter);
+router.use(flightSearchRouter);
+router.use(gdsSettingsRouter);
 router.use(accountingRouter);
 router.use(dashboardRouter);
 

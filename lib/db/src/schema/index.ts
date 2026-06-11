@@ -6,3 +6,4 @@ export * from "./transport";
 export * from "./visa";
 export * from "./flights";
 export * from "./accounting";
+export * from "./gds-settings";
