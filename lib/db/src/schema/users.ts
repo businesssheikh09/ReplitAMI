@@ -10,6 +10,8 @@ export const usersTable = pgTable("users", {
   role: text("role").notNull().default("sales"),
   phone: text("phone"),
   isActive: boolean("is_active").notNull().default(true),
+  canIssueTickets: boolean("can_issue_tickets").notNull().default(false),
+  ticketingPin: text("ticketing_pin"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
