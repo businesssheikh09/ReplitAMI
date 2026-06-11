@@ -12,6 +12,7 @@ import flightSearchRouter from "./flight-search";
 import gdsSettingsRouter from "./gds-settings";
 import accountingRouter from "./accounting";
 import dashboardRouter from "./dashboard";
+import currencySettingsRouter from "./currency-settings";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(flightSearchRouter);
 router.use(gdsSettingsRouter);
 router.use(accountingRouter);
 router.use(dashboardRouter);
+router.use(currencySettingsRouter);
 
 export default router;

@@ -7,3 +7,4 @@ export * from "./visa";
 export * from "./flights";
 export * from "./accounting";
 export * from "./gds-settings";
+export * from "./currency";

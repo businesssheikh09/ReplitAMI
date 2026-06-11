@@ -15,7 +15,8 @@ import {
   CreditCard, 
   ShieldCheck, 
   Files,
-  Settings2
+  Settings2,
+  ArrowRightLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -56,6 +57,7 @@ const navGroups = [
       { title: "Accounting", href: "/accounting", icon: Calculator },
       { title: "Invoices", href: "/accounting/invoices", icon: Receipt },
       { title: "Expenses", href: "/accounting/expenses", icon: CreditCard },
+      { title: "Currency", href: "/currency-settings", icon: ArrowRightLeft },
     ],
   },
   {

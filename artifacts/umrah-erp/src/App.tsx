@@ -20,6 +20,7 @@ import AccountingPage from "@/pages/accounting";
 import UsersPage from "@/pages/users";
 import DocumentsPage from "@/pages/documents";
 import GdsSettingsPage from "@/pages/gds-settings";
+import CurrencySettingsPage from "@/pages/currency-settings";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -79,6 +80,7 @@ function Router() {
         <ProtectedRoute path="/users" component={UsersPage} />
         <ProtectedRoute path="/documents" component={DocumentsPage} />
         <ProtectedRoute path="/gds-settings" component={GdsSettingsPage} />
+        <ProtectedRoute path="/currency-settings" component={CurrencySettingsPage} />
 
         <Route component={NotFound} />
       </Switch>
