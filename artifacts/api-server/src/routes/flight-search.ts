@@ -47,28 +47,79 @@ interface FlightResult {
 
 // ── Currency rates cache ─────────────────────────────────────────────────────
 
-let ratesCache: { rates: Record<string, number>; timestamp: number } | null = null;
+let ratesCache: { rates: Record<string, number>; timestamp: number; source?: string } | null = null;
 
-// Comprehensive fallback covering all displayed currencies
+// Fallback rates (USD-base) used when forex.pk is unreachable
 const FALLBACK_RATES: Record<string, number> = {
-  USD: 1, GBP: 0.79, EUR: 0.92, AED: 3.67, SAR: 3.75,
-  PKR: 278.5, TRY: 32.5, OMR: 0.385, KWD: 0.307, BHD: 0.377,
-  QAR: 3.64, JOD: 0.709, EGP: 30.9, CAD: 1.36, AUD: 1.53,
+  USD: 1, GBP: 0.7900, EUR: 0.9200, AED: 3.6700, SAR: 3.7500,
+  PKR: 278.50, TRY: 32.50, OMR: 0.3850, KWD: 0.3070, BHD: 0.3770,
+  QAR: 3.6400, JOD: 0.7090, EGP: 30.90, CAD: 1.3600, AUD: 1.5300,
+  CNY: 7.25, INR: 83.50, MYR: 4.72, NZD: 1.64, NOK: 10.54,
 };
+
+// ── Forex.pk scraper ─────────────────────────────────────────────────────────
+// forex.pk open market page pattern:
+//   <a href="...currency-XXX-to-pkr...">XXX</a></td>
+//   <td align="center">BUYING</td>
+//   <td align="center">SELLING</td>
+// We use the mid-rate: (buying + selling) / 2
+
+function parseForexPk(html: string): Record<string, number> {
+  const pkrRates: Record<string, number> = {};
+
+  // Match: CODE</a></td> then buying rate then selling rate
+  const rowRe = />([A-Z]{2,4}(?:-[A-Z]{2})?)<\/a><\/td>[\s\S]*?<td[^>]*align="center"[^>]*>([\d.]+)<\/td>[\s\S]*?<td[^>]*align="center"[^>]*>([\d.]+)<\/td>/g;
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(html)) !== null) {
+    const code = m[1].replace(/-DD$|-TT$/, ""); // normalize USD-DD/TT → USD
+    const buying = parseFloat(m[2]);
+    const selling = parseFloat(m[3]);
+    if (!isNaN(buying) && !isNaN(selling) && buying > 0) {
+      const mid = (buying + selling) / 2;
+      // Keep first occurrence (USD-DD comes before USD, skip duplicates)
+      if (!pkrRates[code]) pkrRates[code] = mid;
+    }
+  }
+
+  if (!pkrRates["USD"] || Object.keys(pkrRates).length < 5) return {};
+
+  // Convert PKR-base → USD-base
+  // pkrRates[code] = PKR per 1 unit of code
+  // usdRates[code] = how many units of code per 1 USD = pkrRates[USD] / pkrRates[code]
+  const pkrPerUsd = pkrRates["USD"];
+  const usdRates: Record<string, number> = { USD: 1, PKR: pkrPerUsd };
+  for (const [code, pkrRate] of Object.entries(pkrRates)) {
+    if (code !== "USD" && pkrRate > 0) {
+      usdRates[code] = pkrPerUsd / pkrRate;
+    }
+  }
+  return usdRates;
+}
 
 async function getExchangeRates(): Promise<Record<string, number>> {
   const now = Date.now();
   if (ratesCache && now - ratesCache.timestamp < 3600_000) return ratesCache.rates;
   try {
-    const res = await axios.get("https://api.frankfurter.app/latest?from=USD", { timeout: 5000 });
-    // Merge API rates with fallback so currencies not in feed (SAR, PKR, etc.) still work
-    const rates = { ...FALLBACK_RATES, ...res.data.rates, USD: 1 };
-    ratesCache = { rates, timestamp: now };
-    return rates;
-  } catch {
-    // Use cached or fallback if API unreachable
+    const res = await axios.get("https://www.forex.pk/open_market_rates.asp", {
+      timeout: 8000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    const parsed = parseForexPk(res.data as string);
+    if (Object.keys(parsed).length >= 5) {
+      // Merge with fallback so any missing currencies still have a value
+      const rates = { ...FALLBACK_RATES, ...parsed, USD: 1 };
+      ratesCache = { rates, timestamp: now, source: "forex.pk" };
+      return rates;
+    }
+    throw new Error("forex.pk parse returned too few rates");
+  } catch (e: any) {
+    // Silently fall back — use cached if available, otherwise hardcoded
     const rates = ratesCache?.rates || FALLBACK_RATES;
-    ratesCache = { rates, timestamp: now };
+    ratesCache = { rates, timestamp: now, source: "fallback" };
     return rates;
   }
 }
@@ -240,7 +291,7 @@ async function searchGalileo(setting: any, params: SearchParams, legIndex = 0): 
 router.get("/currency/rates", async (req, res) => {
   try {
     const rates = await getExchangeRates();
-    return res.json({ base: "USD", rates, timestamp: ratesCache?.timestamp || Date.now() });
+    return res.json({ base: "USD", rates, timestamp: ratesCache?.timestamp || Date.now(), source: ratesCache?.source || "unknown" });
   } catch (err) {
     req.log.error({ err }, "Currency rates error");
     return res.status(500).json({ error: "Could not fetch rates" });
