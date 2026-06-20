@@ -9,7 +9,7 @@ const FINANCE_OPS: UserRole[] = ["accounts", "management", "operations", "admin"
 // Dashboard: management only (each other role lands on their own first page)
 // accounts: Finance only; sales: CRM+Sales+Ops; operations: CRM+Sales+Ops+Finance invoices/expenses
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
-  "/dashboard": ADMIN_MGMT,
+  "/dashboard": ALL,
   "/crm": NOT_ACCOUNTS,
   "/crm/follow-ups": NOT_ACCOUNTS,
   "/quotations": NOT_ACCOUNTS,
@@ -47,7 +47,7 @@ export function canAccess(role: string | undefined, route: string): boolean {
 
 // Nav items reflect same access as routes
 export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
-  "/dashboard": ADMIN_MGMT,
+  "/dashboard": ALL,
   "/crm": NOT_ACCOUNTS,
   "/crm/follow-ups": NOT_ACCOUNTS,
   "/quotations": NOT_ACCOUNTS,

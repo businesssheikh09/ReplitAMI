@@ -214,15 +214,15 @@ export default function HotelInvoiceFormPage() {
       </div>
 
       {/* DN Invoice Form */}
-      <div className="border border-gray-400 bg-white print:border-black" style={{ fontFamily: "Arial, sans-serif", fontSize: "13px" }}>
+      <div className="border border-blue-200 bg-white print:border-gray-400 rounded-sm overflow-hidden shadow-sm" style={{ fontFamily: "Arial, sans-serif", fontSize: "13px" }}>
 
         {/* Title */}
-        <div className="text-center py-2 border-b border-gray-400 bg-[#d4e4a4]">
-          <span className="text-xl font-bold tracking-widest">DN &nbsp; I N V O I C E - ( Hotel Entry ) {isEdit ? "EDIT" : "NEW"}</span>
+        <div className="text-center py-3 border-b border-blue-700 bg-blue-900">
+          <span className="text-xl font-bold tracking-widest text-white">DN &nbsp; I N V O I C E &nbsp;— Hotel Entry &nbsp;{isEdit ? "[ EDIT ]" : "[ NEW ]"}</span>
         </div>
 
         {/* Header row: date + DN number */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-300 bg-[#f5f0d8]">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-blue-100 bg-blue-50">
           <div className="flex items-center gap-2">
             <span className="font-semibold">Invoice Date</span>
             <input
@@ -237,7 +237,7 @@ export default function HotelInvoiceFormPage() {
 
         {/* ── Passenger Information ── */}
         <SectionHeader title="Passenger Information" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-4 py-2 bg-[#f5f0d8]">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-4 py-2 bg-slate-50">
           <FormRow label="Party">
             <select
               className="border border-gray-400 px-1 py-0.5 text-sm bg-white w-full"
@@ -280,7 +280,7 @@ export default function HotelInvoiceFormPage() {
 
         {/* ── Hotel Voucher ── */}
         <SectionHeader title="Hotel Voucher" />
-        <div className="px-4 py-2 bg-[#f5f0d8] space-y-1.5">
+        <div className="px-4 py-2 bg-slate-50 space-y-1.5">
           {/* Type */}
           <div className="flex items-center gap-2">
             <label className="w-28 font-semibold text-sm">Type</label>
@@ -361,7 +361,7 @@ export default function HotelInvoiceFormPage() {
 
         {/* ── Calculation ── */}
         <SectionHeader title="Calculation (Per Night Per Room Rate)" />
-        <div className="px-4 py-2 bg-[#f5f0d8] space-y-1.5">
+        <div className="px-4 py-2 bg-slate-50 space-y-1.5">
           <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">
             <FormRow label="Receivable Amount (SAR)">
               <input type="number" step="0.01" className="border border-gray-400 px-2 py-0.5 text-sm bg-white w-full" value={form.receivableSar} onChange={f("receivableSar")} />
@@ -411,9 +411,9 @@ export default function HotelInvoiceFormPage() {
 
         {/* Accept / Clear buttons — write roles only */}
         {canWrite ? (
-          <div className="flex justify-center gap-4 py-4 border-t border-gray-300 bg-[#f5f0d8] print:hidden">
+          <div className="flex justify-center gap-4 py-4 border-t border-blue-100 bg-blue-50 print:hidden">
             <Button
-              className="bg-green-700 hover:bg-green-800 text-white px-10 py-2 text-base font-semibold"
+              className="bg-blue-900 hover:bg-blue-800 text-white px-10 py-2 text-base font-semibold"
               onClick={handleAccept}
               disabled={save.isPending}
             >
@@ -428,7 +428,7 @@ export default function HotelInvoiceFormPage() {
             </Button>
           </div>
         ) : (
-          <div className="flex justify-center py-4 border-t border-gray-300 bg-[#f5f0d8] print:hidden">
+          <div className="flex justify-center py-4 border-t border-blue-100 bg-blue-50 print:hidden">
             <span className="text-sm text-muted-foreground italic">View-only — your role cannot create or edit invoices</span>
           </div>
         )}
@@ -449,7 +449,7 @@ export default function HotelInvoiceFormPage() {
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="text-center py-1 border-y border-gray-300 bg-[#b8d4e4] font-semibold tracking-widest text-sm">
+    <div className="text-center py-1.5 border-y border-blue-700 bg-blue-800 font-semibold tracking-widest text-sm text-white">
       {title.split("").join(" ")}
     </div>
   );

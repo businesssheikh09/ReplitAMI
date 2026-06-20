@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useListInvoices, useCreateInvoice, useListExpenses, useCreateExpense, useListClients } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown, Hotel, ExternalLink } from "lucide-react";
+import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown, Hotel, ExternalLink, BarChart2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 
@@ -28,6 +28,245 @@ const INV_STATUS: Record<string, string> = {
 
 const WRITE_ROLES = ["accounts", "management", "admin"];
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getWeekBounds() {
+  const now = new Date();
+  const day = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - ((day + 6) % 7));
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: fmt(mon), to: fmt(sun) };
+}
+
+function fmt(n: number | null | undefined) {
+  if (n == null) return "—";
+  return Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+// ── Report section header (navy band) ────────────────────────────────────────
+function ReportHeader({ title }: { title: string }) {
+  return (
+    <div className="bg-blue-900 text-white text-center text-sm font-bold py-2 tracking-widest rounded-t">
+      {title}
+    </div>
+  );
+}
+
+// ── Analysis tab content ──────────────────────────────────────────────────────
+function AnalysisTab({ dnInvs }: { dnInvs: any[] }) {
+  const wb = getWeekBounds();
+  const [from, setFrom] = useState(wb.from);
+  const [to, setTo]     = useState(wb.to);
+
+  // ── Booking Summary by status ──────────────────────────────────────────────
+  const statusGroups = useMemo(() => {
+    const statuses = ["draft", "confirmed", "cancelled", "invoiced"];
+    return statuses.map(s => {
+      const rows = dnInvs.filter(inv => inv.status === s);
+      return {
+        status: s,
+        count: rows.length,
+        nights: rows.reduce((acc, r) => acc + (r.noOfNights ?? 0), 0),
+        recvSar: rows.reduce((acc, r) => acc + (Number(r.receivableSar) || 0), 0),
+        paySar: rows.reduce((acc, r) => acc + (Number(r.payableSar) || 0), 0),
+      };
+    });
+  }, [dnInvs]);
+
+  // ── Check-In Schedule (filtered by date range on checkIn) ─────────────────
+  const schedule = useMemo(() => {
+    return dnInvs
+      .filter(inv => {
+        if (!inv.checkIn) return false;
+        return inv.checkIn >= from && inv.checkIn <= to;
+      })
+      .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  }, [dnInvs, from, to]);
+
+  // ── Financial P&L by party ────────────────────────────────────────────────
+  const pnl = useMemo(() => {
+    const map = new Map<string, { recv: number; pay: number; nights: number; count: number }>();
+    for (const inv of dnInvs) {
+      const party = inv.partyName || "Unknown";
+      const cur = map.get(party) ?? { recv: 0, pay: 0, nights: 0, count: 0 };
+      map.set(party, {
+        recv:   cur.recv   + (Number(inv.receivableSar) || 0),
+        pay:    cur.pay    + (Number(inv.payableSar)    || 0),
+        nights: cur.nights + (inv.noOfNights ?? 0),
+        count:  cur.count  + 1,
+      });
+    }
+    return Array.from(map.entries())
+      .map(([party, v]) => ({ party, ...v, profit: v.recv - v.pay }))
+      .sort((a, b) => b.recv - a.recv);
+  }, [dnInvs]);
+
+  const totalPnl = pnl.reduce((acc, r) => ({
+    recv: acc.recv + r.recv, pay: acc.pay + r.pay, profit: acc.profit + r.profit, nights: acc.nights + r.nights,
+  }), { recv: 0, pay: 0, profit: 0, nights: 0 });
+
+  const totalBooking = statusGroups.reduce((acc, r) => ({
+    count: acc.count + r.count, nights: acc.nights + r.nights,
+    recvSar: acc.recvSar + r.recvSar, paySar: acc.paySar + r.paySar,
+  }), { count: 0, nights: 0, recvSar: 0, paySar: 0 });
+
+  return (
+    <div className="space-y-6">
+      {/* Date range filter */}
+      <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+        <span className="text-sm font-semibold text-blue-900">Date Range (Check-In)</span>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">From</Label>
+          <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-8 text-sm w-36" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">To</Label>
+          <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-8 text-sm w-36" />
+        </div>
+        <Button variant="outline" size="sm" onClick={() => { const w = getWeekBounds(); setFrom(w.from); setTo(w.to); }} className="text-xs">
+          This Week
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ── Booking Summary ── */}
+        <div className="border border-blue-200 rounded overflow-hidden shadow-sm">
+          <ReportHeader title="BOOKING SUMMARY" />
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-blue-50">
+                <TableHead className="font-bold text-blue-900">Status</TableHead>
+                <TableHead className="text-center font-bold text-blue-900">Count</TableHead>
+                <TableHead className="text-center font-bold text-blue-900">Nights</TableHead>
+                <TableHead className="text-right font-bold text-blue-900">Recv SAR</TableHead>
+                <TableHead className="text-right font-bold text-blue-900">Pay SAR</TableHead>
+                <TableHead className="text-right font-bold text-blue-900">Profit</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {statusGroups.map((r, i) => (
+                <TableRow key={r.status} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
+                  <TableCell>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${INV_STATUS[r.status] || "bg-gray-100"}`}>
+                      {r.status.toUpperCase()}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center font-semibold">{r.count}</TableCell>
+                  <TableCell className="text-center">{r.nights}</TableCell>
+                  <TableCell className="text-right">{fmt(r.recvSar)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.paySar)}</TableCell>
+                  <TableCell className={`text-right font-semibold ${r.recvSar - r.paySar >= 0 ? "text-green-700" : "text-red-600"}`}>
+                    {fmt(r.recvSar - r.paySar)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {/* Totals */}
+              <TableRow className="bg-blue-900 text-white font-bold">
+                <TableCell className="text-white">Total ({totalBooking.count})</TableCell>
+                <TableCell className="text-center text-white">{totalBooking.count}</TableCell>
+                <TableCell className="text-center text-white">{totalBooking.nights}</TableCell>
+                <TableCell className="text-right text-white">{fmt(totalBooking.recvSar)}</TableCell>
+                <TableCell className="text-right text-white">{fmt(totalBooking.paySar)}</TableCell>
+                <TableCell className="text-right text-white">{fmt(totalBooking.recvSar - totalBooking.paySar)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* ── Financial P&L by Party ── */}
+        <div className="border border-blue-200 rounded overflow-hidden shadow-sm">
+          <ReportHeader title="FINANCIAL P&L BY PARTY (SAR)" />
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-blue-50">
+                <TableHead className="font-bold text-blue-900">S#</TableHead>
+                <TableHead className="font-bold text-blue-900">Party</TableHead>
+                <TableHead className="text-center font-bold text-blue-900">Inv</TableHead>
+                <TableHead className="text-right font-bold text-blue-900">Recv</TableHead>
+                <TableHead className="text-right font-bold text-blue-900">Pay</TableHead>
+                <TableHead className="text-right font-bold text-blue-900">Profit</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pnl.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">No invoice data yet</TableCell></TableRow>
+              ) : pnl.map((r, i) => (
+                <TableRow key={r.party} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
+                  <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
+                  <TableCell className="font-medium">{r.party}</TableCell>
+                  <TableCell className="text-center text-sm">{r.count}</TableCell>
+                  <TableCell className="text-right">{fmt(r.recv)}</TableCell>
+                  <TableCell className="text-right">{fmt(r.pay)}</TableCell>
+                  <TableCell className={`text-right font-semibold ${r.profit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                    {fmt(r.profit)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="bg-blue-900 text-white font-bold">
+                <TableCell className="text-white" colSpan={2}>Grand Total</TableCell>
+                <TableCell className="text-center text-white">{pnl.reduce((a, r) => a + r.count, 0)}</TableCell>
+                <TableCell className="text-right text-white">{fmt(totalPnl.recv)}</TableCell>
+                <TableCell className="text-right text-white">{fmt(totalPnl.pay)}</TableCell>
+                <TableCell className={`text-right font-bold ${totalPnl.profit >= 0 ? "text-green-300" : "text-red-300"}`}>{fmt(totalPnl.profit)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* ── Hotel Check-In Schedule ── */}
+      <div className="border border-blue-200 rounded overflow-hidden shadow-sm">
+        <ReportHeader title={`HOTEL CHECK-IN SCHEDULE  ·  ${from} to ${to}`} />
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-blue-50">
+              {["S#","DN#","Party","Passenger","Hotel","Check In","Check Out","N#","Room Type","Status"].map(h => (
+                <TableHead key={h} className="font-bold text-blue-900 text-xs py-2">{h}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {schedule.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center h-24 text-muted-foreground">
+                  No check-ins found for the selected date range
+                </TableCell>
+              </TableRow>
+            ) : schedule.map((inv, i) => (
+              <TableRow key={inv.id} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/40"}>
+                <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
+                <TableCell className="font-mono text-xs font-semibold text-blue-700">{inv.dnNumber}</TableCell>
+                <TableCell className="text-sm font-medium">{inv.partyName || "—"}</TableCell>
+                <TableCell className="text-sm">{inv.passengerName || "—"}</TableCell>
+                <TableCell className="text-sm">{inv.hotelName || "—"}</TableCell>
+                <TableCell className="text-sm font-medium text-blue-900">{inv.checkIn}</TableCell>
+                <TableCell className="text-sm">{inv.checkOut}</TableCell>
+                <TableCell className="text-center text-sm font-semibold">{inv.noOfNights ?? "—"}</TableCell>
+                <TableCell className="text-sm">{inv.roomType || "—"}</TableCell>
+                <TableCell>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${INV_STATUS[inv.status] || "bg-gray-100"}`}>
+                    {inv.status}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+            {schedule.length > 0 && (
+              <TableRow className="bg-blue-900 text-white">
+                <TableCell colSpan={7} className="text-white font-bold">Total HV {schedule.length}</TableCell>
+                <TableCell className="text-center text-white font-bold">
+                  {schedule.reduce((a, r) => a + (r.noOfNights ?? 0), 0)}
+                </TableCell>
+                <TableCell colSpan={2} />
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AccountingPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -67,7 +306,7 @@ export default function AccountingPage() {
         </div>
         <div className="flex gap-2">
           {canWrite && (
-            <Button onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
+            <Button onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-900 hover:bg-blue-800 text-white">
               <Hotel className="mr-2 h-4 w-4" /> New Hotel Invoice (DN)
             </Button>
           )}
@@ -141,15 +380,18 @@ export default function AccountingPage() {
 
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-green-600" },
+          { label: "Total Revenue",  value: `$${totalRevenue.toLocaleString()}`,  icon: TrendingUp,  color: "text-green-600" },
           { label: "Total Expenses", value: `$${totalExpenses.toLocaleString()}`, icon: TrendingDown, color: "text-red-600" },
-          { label: "Net Profit", value: `$${profit.toLocaleString()}`, icon: DollarSign, color: profit >= 0 ? "text-green-600" : "text-red-600" },
-          { label: "Outstanding", value: `$${outstanding.toLocaleString()}`, icon: Receipt, color: "text-amber-600" },
+          { label: "Net Profit",     value: `$${profit.toLocaleString()}`,         icon: DollarSign,  color: profit >= 0 ? "text-green-600" : "text-red-600" },
+          { label: "Outstanding",    value: `$${outstanding.toLocaleString()}`,    icon: Receipt,     color: "text-amber-600" },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="pt-6 flex items-start gap-3">
               <s.icon className={`h-5 w-5 mt-0.5 ${s.color}`} />
-              <div><div className="text-xs text-muted-foreground">{s.label}</div><div className={`text-xl font-bold ${s.color}`}>{s.value}</div></div>
+              <div>
+                <div className="text-xs text-muted-foreground">{s.label}</div>
+                <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -160,6 +402,9 @@ export default function AccountingPage() {
           <TabsTrigger value="hotel-invoices">Hotel Invoices DN ({dnInvs.length})</TabsTrigger>
           <TabsTrigger value="invoices">General Invoices ({invs.length})</TabsTrigger>
           <TabsTrigger value="expenses">Expenses ({exps.length})</TabsTrigger>
+          <TabsTrigger value="analysis" className="flex items-center gap-1">
+            <BarChart2 className="h-3.5 w-3.5" /> Analysis
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Hotel DN Invoices tab ── */}
@@ -177,7 +422,7 @@ export default function AccountingPage() {
                   />
                 </div>
                 {canWrite && (
-                  <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
+                  <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-900 hover:bg-blue-800 text-white">
                     <Plus className="mr-1 h-4 w-4" /> New DN Invoice
                   </Button>
                 )}
@@ -318,6 +563,11 @@ export default function AccountingPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Analysis / Progress Report ── */}
+        <TabsContent value="analysis" className="mt-4">
+          <AnalysisTab dnInvs={dnInvs} />
         </TabsContent>
       </Tabs>
     </div>
