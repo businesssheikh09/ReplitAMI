@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, groupTicketsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, ilike, and, SQL } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { scrapeAndUpsert } from "../services/scheduler.js";
 import { getConnectionStatus } from "../services/whatsapp.js";
@@ -10,14 +10,17 @@ const router = Router();
 router.get("/group-tickets", requireAuth, async (req, res) => {
   try {
     const { origin, destination, date } = req.query as Record<string, string>;
-    let rows = await db
+
+    const conditions: SQL[] = [];
+    if (origin) conditions.push(ilike(groupTicketsTable.origin, origin));
+    if (destination) conditions.push(ilike(groupTicketsTable.destination, destination));
+    if (date) conditions.push(eq(groupTicketsTable.flightDate, date));
+
+    const rows = await db
       .select()
       .from(groupTicketsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(groupTicketsTable.flightDate));
-
-    if (origin) rows = rows.filter((r) => r.origin.toLowerCase() === origin.toLowerCase());
-    if (destination) rows = rows.filter((r) => r.destination.toLowerCase() === destination.toLowerCase());
-    if (date) rows = rows.filter((r) => r.flightDate === date);
 
     return res.json(
       rows.map((r) => ({

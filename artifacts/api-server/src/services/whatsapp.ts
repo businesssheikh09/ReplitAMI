@@ -55,9 +55,25 @@ async function loadBaileys() {
   return import("@whiskeysockets/baileys") as Promise<typeof import("@whiskeysockets/baileys")>;
 }
 
+/**
+ * OPERATING MODEL — "always-on buffer":
+ * This service does NOT fetch historical chat history from WhatsApp servers.
+ * Instead it listens to real-time `messages.upsert` events and persists every
+ * incoming group message to `whatsapp-session/message-buffer.json` (48 h window,
+ * pruned on each write).  The daily 1 PM scrape and manual "Sync Now" both read
+ * from this local buffer, so they work correctly as long as the API server has
+ * been running continuously.  If the server was down for a period, messages
+ * received during that outage will be absent from the buffer and will not be
+ * retro-scraped.  To minimise this risk, keep the API server running 24/7 and
+ * ensure the WhatsApp session stays linked.
+ */
 export async function initWhatsApp(dir: string): Promise<void> {
   sessionDir = dir;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  logger.info(
+    "WhatsApp scraper uses always-on local buffer (message-buffer.json). " +
+    "Messages received while the server is offline will NOT be captured.",
+  );
 
   const {
     default: makeWASocket,
