@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown, Hotel, ExternalLink } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/lib/auth";
 
 const INV_STATUS: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -25,10 +26,14 @@ const INV_STATUS: Record<string, string> = {
   invoiced: "bg-blue-100 text-blue-700",
 };
 
+const WRITE_ROLES = ["accounts", "management", "admin"];
+
 export default function AccountingPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const canWrite = WRITE_ROLES.includes(user?.role ?? "");
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [invForm, setInvForm] = useState({ clientId: "", amount: "", currency: "USD", dueDate: "", notes: "" });
@@ -61,9 +66,11 @@ export default function AccountingPage() {
           <p className="text-muted-foreground">Invoices, payments, and expenses overview.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
-            <Hotel className="mr-2 h-4 w-4" /> New Hotel Invoice (DN)
-          </Button>
+          {canWrite && (
+            <Button onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
+              <Hotel className="mr-2 h-4 w-4" /> New Hotel Invoice (DN)
+            </Button>
+          )}
           <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
             <DialogTrigger asChild><Button variant="outline"><Plus className="mr-2 h-4 w-4" />New Invoice</Button></DialogTrigger>
             <DialogContent>
@@ -169,9 +176,11 @@ export default function AccountingPage() {
                     className="h-8 text-sm"
                   />
                 </div>
-                <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
-                  <Plus className="mr-1 h-4 w-4" /> New DN Invoice
-                </Button>
+                {canWrite && (
+                  <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
+                    <Plus className="mr-1 h-4 w-4" /> New DN Invoice
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="pt-0">

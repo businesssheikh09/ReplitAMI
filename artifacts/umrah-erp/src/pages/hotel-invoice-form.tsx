@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,12 +61,16 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM;
 
+const WRITE_ROLES = ["accounts", "management", "admin"];
+
 export default function HotelInvoiceFormPage() {
   const params = useParams<{ id?: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
   const isEdit = !!params.id;
+  const canWrite = WRITE_ROLES.includes(user?.role ?? "");
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [dnNumber, setDnNumber] = useState<string>("");
@@ -404,23 +409,29 @@ export default function HotelInvoiceFormPage() {
           </div>
         </div>
 
-        {/* Accept / Clear buttons */}
-        <div className="flex justify-center gap-4 py-4 border-t border-gray-300 bg-[#f5f0d8] print:hidden">
-          <Button
-            className="bg-green-700 hover:bg-green-800 text-white px-10 py-2 text-base font-semibold"
-            onClick={handleAccept}
-            disabled={save.isPending}
-          >
-            Accept
-          </Button>
-          <Button
-            variant="destructive"
-            className="px-10 py-2 text-base font-semibold"
-            onClick={handleClear}
-          >
-            Clear
-          </Button>
-        </div>
+        {/* Accept / Clear buttons — write roles only */}
+        {canWrite ? (
+          <div className="flex justify-center gap-4 py-4 border-t border-gray-300 bg-[#f5f0d8] print:hidden">
+            <Button
+              className="bg-green-700 hover:bg-green-800 text-white px-10 py-2 text-base font-semibold"
+              onClick={handleAccept}
+              disabled={save.isPending}
+            >
+              Accept
+            </Button>
+            <Button
+              variant="destructive"
+              className="px-10 py-2 text-base font-semibold"
+              onClick={handleClear}
+            >
+              Clear
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-center py-4 border-t border-gray-300 bg-[#f5f0d8] print:hidden">
+            <span className="text-sm text-muted-foreground italic">View-only — your role cannot create or edit invoices</span>
+          </div>
+        )}
       </div>
 
       {/* Print styles */}
