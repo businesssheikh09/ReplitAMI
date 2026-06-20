@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -12,39 +13,48 @@ router.post("/auth/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password required" });
     }
-    const user = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-    if (!user.length || !user[0].isActive) {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (!user || !user.isActive) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    // Simple password check (in production use bcrypt)
-    if (user[0].passwordHash !== password && password !== "admin123") {
+    if (user.passwordHash !== password) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const { passwordHash: _, ...safeUser } = user[0];
-    return res.json({
-      user: { ...safeUser },
-      token: `token_${user[0].id}_${Date.now()}`,
-    });
+
+    const token = randomBytes(32).toString("hex");
+    await db.update(usersTable).set({ sessionToken: token }).where(eq(usersTable.id, user.id));
+
+    const { passwordHash: _, sessionToken: __, ...safeUser } = user;
+    return res.json({ user: safeUser, token });
   } catch (err) {
     req.log.error({ err }, "Login error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/auth/logout", (_req, res) => {
+router.post("/auth/logout", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      await db.update(usersTable).set({ sessionToken: null }).where(eq(usersTable.sessionToken, token));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Logout cleanup error");
+  }
   return res.json({ message: "Logged out" });
 });
 
 router.get("/auth/me", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
-    const tokenParts = authHeader.replace("Bearer ", "").split("_");
-    const userId = parseInt(tokenParts[1]);
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const user = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    if (!user.length) return res.status(401).json({ error: "User not found" });
-    const { passwordHash: _, ...safeUser } = user[0];
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const token = authHeader.slice(7);
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.sessionToken, token)).limit(1);
+    if (!user || !user.isActive) return res.status(401).json({ error: "Unauthorized" });
+    const { passwordHash: _, sessionToken: __, ...safeUser } = user;
     return res.json(safeUser);
   } catch (err) {
     req.log.error({ err }, "Get me error");

@@ -20,20 +20,14 @@ declare global {
   }
 }
 
-function parseUserIdFromToken(authHeader: string | undefined): number | null {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const parts = authHeader.slice(7).split("_");
-  if (parts.length < 3 || parts[0] !== "token") return null;
-  const id = parseInt(parts[1], 10);
-  return Number.isNaN(id) || id <= 0 ? null : id;
-}
-
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const userId = parseUserIdFromToken(req.headers.authorization);
-  if (!userId) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  const token = authHeader.slice(7);
+
   const [user] = await db.select({
     id: usersTable.id,
     name: usersTable.name,
@@ -42,7 +36,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     isActive: usersTable.isActive,
     canIssueTickets: usersTable.canIssueTickets,
     ticketingPin: usersTable.ticketingPin,
-  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  }).from(usersTable).where(eq(usersTable.sessionToken, token)).limit(1);
 
   if (!user || !user.isActive) {
     res.status(401).json({ error: "Unauthorized" });

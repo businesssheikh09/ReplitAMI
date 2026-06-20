@@ -171,12 +171,17 @@ export default function FlightsPage() {
   };
 
   const handleIssueTicket = async () => {
-    if (!issueBookingId || !issueEmail || !issuePin) { toast({ title: "Fill all fields", variant: "destructive" }); return; }
+    if (!issueBookingId || !issuePin) { toast({ title: "Fill all fields", variant: "destructive" }); return; }
     setIssuing(true);
+    const token = localStorage.getItem("umrah_token");
     try {
       const res = await fetch("/api/flights/issue-ticket", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: issueBookingId, userEmail: issueEmail, pin: issuePin }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId: issueBookingId, pin: issuePin }),
       });
       const data = await res.json();
       if (!res.ok) { toast({ title: data.error || "Issue failed", variant: "destructive" }); return; }

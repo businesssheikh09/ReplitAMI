@@ -13,6 +13,7 @@ export const usersTable = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),
   canIssueTickets: boolean("can_issue_tickets").notNull().default(false),
   ticketingPin: text("ticketing_pin"),
+  sessionToken: text("session_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, () => [

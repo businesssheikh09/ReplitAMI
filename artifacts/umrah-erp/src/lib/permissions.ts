@@ -4,6 +4,7 @@ const ALL: UserRole[] = ["sales", "accounts", "management", "operations", "admin
 const ADMIN_MGMT: UserRole[] = ["management", "admin"];
 const NOT_ACCOUNTS: UserRole[] = ["sales", "management", "operations", "admin"];
 const FINANCE_FULL: UserRole[] = ["accounts", "management", "admin"];
+const FINANCE_OPS: UserRole[] = ["accounts", "management", "operations", "admin"];
 
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/dashboard": ALL,
@@ -17,8 +18,8 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/flights": NOT_ACCOUNTS,
   "/visa": NOT_ACCOUNTS,
   "/accounting": FINANCE_FULL,
-  "/accounting/invoices": FINANCE_FULL,
-  "/accounting/expenses": [...FINANCE_FULL, "operations"],
+  "/accounting/invoices": FINANCE_OPS,
+  "/accounting/expenses": FINANCE_OPS,
   "/currency-settings": FINANCE_FULL,
   "/users": ADMIN_MGMT,
   "/documents": NOT_ACCOUNTS,
@@ -51,8 +52,8 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/flights": NOT_ACCOUNTS,
   "/visa": NOT_ACCOUNTS,
   "/accounting": FINANCE_FULL,
-  "/accounting/invoices": FINANCE_FULL,
-  "/accounting/expenses": [...FINANCE_FULL, "operations"],
+  "/accounting/invoices": FINANCE_OPS,
+  "/accounting/expenses": FINANCE_OPS,
   "/currency-settings": FINANCE_FULL,
   "/users": ADMIN_MGMT,
   "/documents": NOT_ACCOUNTS,
