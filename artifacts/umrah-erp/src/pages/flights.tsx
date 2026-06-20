@@ -110,7 +110,6 @@ export default function FlightsPage() {
   // Ticket issuance
   const [issueOpen, setIssueOpen] = useState(false);
   const [issueBookingId, setIssueBookingId] = useState<number | null>(null);
-  const [issueEmail, setIssueEmail] = useState("");
   const [issuePin, setIssuePin] = useState("");
   const [issuing, setIssuing] = useState(false);
 
@@ -605,10 +604,6 @@ export default function FlightsPage() {
               Ticket issuance requires a <strong>ticketing PIN</strong> from an authorised staff member. This action is irreversible.
             </div>
             <div className="space-y-1">
-              <Label>Authorised Staff Email</Label>
-              <Input type="email" value={issueEmail} onChange={e => setIssueEmail(e.target.value)} placeholder="staff@agency.com" />
-            </div>
-            <div className="space-y-1">
               <Label>Ticketing PIN</Label>
               <Input type="password" value={issuePin} onChange={e => setIssuePin(e.target.value)} placeholder="Enter PIN" maxLength={10} />
             </div>
@@ -618,7 +613,7 @@ export default function FlightsPage() {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIssueOpen(false)}>Cancel</Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleIssueTicket} disabled={issuing || !issueEmail || !issuePin}>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleIssueTicket} disabled={issuing || !issuePin}>
               {issuing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Issuing…</> : <><TicketCheck className="h-4 w-4 mr-2" />Issue Ticket</>}
             </Button>
           </div>
