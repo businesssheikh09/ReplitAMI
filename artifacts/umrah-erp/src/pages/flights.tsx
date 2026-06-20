@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Plane, Trash2, Search, Loader2, ArrowRight, Clock,
   AlertCircle, CheckCircle2, Star, TicketCheck, PlusCircle,
-  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap, ScanLine,
+  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap, ScanLine, ChevronDown,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -78,6 +78,7 @@ interface LiveGroup {
   jid: string;
   name: string;
   participantCount: number;
+  lastActivityTimestamp: number | null;
 }
 
 interface MonitoredGroup {
@@ -122,6 +123,7 @@ function GroupTicketsTab() {
   const [liveGroups, setLiveGroups] = useState<LiveGroup[]>([]);
   const [monitoredJids, setMonitoredJids] = useState<Set<string>>(new Set());
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(false);
 
   // QR modal state
   const [qrOpen, setQrOpen] = useState(false);
@@ -498,64 +500,93 @@ function GroupTicketsTab() {
         </CardContent>
       </Card>
 
-      {/* WhatsApp Groups Panel — group browse & selection for scraping */}
+      {/* WhatsApp Groups Panel — collapsible, group browse & selection for scraping */}
       {canSync && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users2 className="h-4 w-4 text-green-600" />
-                WhatsApp Groups
+              <button
+                type="button"
+                className="flex items-center gap-2 text-left flex-1 min-w-0"
+                onClick={() => setGroupsOpen((v) => !v)}
+              >
+                <Users2 className="h-4 w-4 text-green-600 shrink-0" />
+                <CardTitle className="text-base">WhatsApp Groups</CardTitle>
                 {liveGroups.length > 0 && (
-                  <span className="text-xs font-normal text-muted-foreground ml-1">
-                    — {monitoredJids.size} of {liveGroups.length} selected for scraping
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {monitoredJids.size}/{liveGroups.length} monitored
                   </span>
                 )}
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchLiveGroups}
-                disabled={groupsLoading || whatsappStatus !== "connected"}
-              >
-                <RefreshCw className={`h-4 w-4 mr-1.5 ${groupsLoading ? "animate-spin" : ""}`} />
-                {liveGroups.length === 0 ? "Load Groups" : "Refresh"}
-              </Button>
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground ml-auto shrink-0 transition-transform ${groupsOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {groupsOpen && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-2 shrink-0"
+                  onClick={fetchLiveGroups}
+                  disabled={groupsLoading || whatsappStatus !== "connected"}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${groupsLoading ? "animate-spin" : ""}`} />
+                  {liveGroups.length === 0 ? "Load Groups" : "Refresh"}
+                </Button>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
-            {whatsappStatus !== "connected" ? (
-              <div className="text-sm text-muted-foreground py-2 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                Connect WhatsApp first to browse and select groups.
-              </div>
-            ) : groupsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Loading groups from your phone…
-              </div>
-            ) : liveGroups.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-2">
-                Click <strong>Load Groups</strong> to see all WhatsApp groups your linked phone is in.
-              </div>
-            ) : (
-              <div className="divide-y max-h-80 overflow-y-auto -mx-2 px-2">
-                {liveGroups.map((g) => (
-                  <div key={g.jid} className="flex items-center justify-between py-2.5 gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{g.name}</p>
-                      <p className="text-xs text-muted-foreground">{g.participantCount} members</p>
-                    </div>
-                    <Switch
-                      checked={monitoredJids.has(g.jid)}
-                      onCheckedChange={(checked) => toggleGroup(g.jid, g.name, checked)}
-                      aria-label={`Monitor ${g.name}`}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+
+          {groupsOpen && (
+            <CardContent className="pt-0">
+              {whatsappStatus !== "connected" ? (
+                <div className="text-sm text-muted-foreground py-2 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                  Connect WhatsApp first to browse and select groups.
+                </div>
+              ) : groupsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Loading groups from your phone…
+                </div>
+              ) : liveGroups.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-2">
+                  Click <strong>Load Groups</strong> to fetch all WhatsApp groups your linked phone is in.
+                </div>
+              ) : (
+                <div className="divide-y max-h-80 overflow-y-auto -mx-2 px-2">
+                  {liveGroups.map((g) => {
+                    const lastTs = g.lastActivityTimestamp;
+                    const lastLabel = lastTs
+                      ? (() => {
+                          const diffSec = Math.floor(Date.now() / 1000) - lastTs;
+                          if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+                          if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+                          return `${Math.floor(diffSec / 86400)}d ago`;
+                        })()
+                      : null;
+                    return (
+                      <div key={g.jid} className="flex items-center justify-between py-2.5 gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{g.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {g.participantCount} members
+                            {lastLabel && (
+                              <span className="ml-2 text-green-600">· last ticket {lastLabel}</span>
+                            )}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={monitoredJids.has(g.jid)}
+                          onCheckedChange={(checked) => toggleGroup(g.jid, g.name, checked)}
+                          aria-label={`Monitor ${g.name}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
       )}
 

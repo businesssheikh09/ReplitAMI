@@ -49,6 +49,8 @@ export interface LiveGroup {
   jid: string;
   name: string;
   participantCount: number;
+  /** Unix seconds of the most recent stored message in this group; null if none buffered. */
+  lastActivityTimestamp: number | null;
 }
 
 let sessionDir: string | null = null;
@@ -261,6 +263,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
         const stored = loadStore();
         return stored
           .filter((m) => {
+            if (!m.remoteJid.endsWith("@g.us")) return false; // groups only — never personal chats
             if (m.timestamp < sinceTs) return false;
             if (targetJids !== null && !targetJids.includes(m.remoteJid)) return false;
             return true;
@@ -281,12 +284,24 @@ export async function initWhatsApp(dir: string): Promise<void> {
           logger.error({ err }, "Failed to fetch live WhatsApp groups");
           throw err;
         }
+
+        // Build last-activity map from the buffered message store
+        const lastMsgTs: Record<string, number> = {};
+        for (const m of loadStore()) {
+          if (m.remoteJid.endsWith("@g.us")) {
+            if (!lastMsgTs[m.remoteJid] || m.timestamp > lastMsgTs[m.remoteJid]) {
+              lastMsgTs[m.remoteJid] = m.timestamp;
+            }
+          }
+        }
+
         return Object.entries(groups)
           .filter(([jid]) => jid.endsWith("@g.us"))
           .map(([jid, meta]) => ({
             jid,
             name: meta.subject,
             participantCount: Array.isArray(meta.participants) ? meta.participants.length : 0,
+            lastActivityTimestamp: lastMsgTs[jid] ?? null,
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
       };
@@ -339,10 +354,10 @@ export async function getRecentGroupMessages(
     return [];
   }
 
-  // No filter configured — safe to return all buffered group messages
+  // No filter configured — return all buffered group messages; @g.us guard is mandatory
   const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
   return loadStore()
-    .filter((m) => m.timestamp >= sinceTs)
+    .filter((m) => m.remoteJid.endsWith("@g.us") && m.timestamp >= sinceTs)
     .map((m) => ({ groupName: m.remoteJid, text: m.text, timestamp: m.timestamp }));
 }
 
