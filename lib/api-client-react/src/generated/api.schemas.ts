@@ -1012,6 +1012,38 @@ export interface DocumentGenerateInput {
   entityId: number;
 }
 
+export interface WebsiteConfig {
+  siteName: string;
+  heroBadge: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  aboutTitle: string;
+  aboutBody: string;
+  packagesTitle: string;
+  packagesSubtitle: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactWhatsapp: string;
+  announcementBanner: string;
+  announcementEnabled: boolean;
+}
+
+export interface WebsiteConfigInput {
+  siteName?: string;
+  heroBadge?: string;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  aboutTitle?: string;
+  aboutBody?: string;
+  packagesTitle?: string;
+  packagesSubtitle?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  contactWhatsapp?: string;
+  announcementBanner?: string;
+  announcementEnabled?: boolean;
+}
+
 export type ListUsersParams = {
 role?: string;
 search?: string;

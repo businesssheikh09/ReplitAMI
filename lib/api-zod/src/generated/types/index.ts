@@ -111,3 +111,5 @@ export * from './visaApplicationInput';
 export * from './visaApplicationStatus';
 export * from './visaApplicationUpdate';
 export * from './visaApplicationUpdateStatus';
+export * from './websiteConfig';
+export * from './websiteConfigInput';

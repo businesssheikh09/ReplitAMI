@@ -13,6 +13,7 @@ import gdsSettingsRouter from "./gds-settings";
 import accountingRouter from "./accounting";
 import dashboardRouter from "./dashboard";
 import currencySettingsRouter from "./currency-settings";
+import websiteConfigRouter from "./website-config";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(gdsSettingsRouter);
 router.use(accountingRouter);
 router.use(dashboardRouter);
 router.use(currencySettingsRouter);
+router.use(websiteConfigRouter);
 
 export default router;

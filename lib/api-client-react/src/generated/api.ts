@@ -90,7 +90,9 @@ import type {
   VendorUpdate,
   VisaApplication,
   VisaApplicationInput,
-  VisaApplicationUpdate
+  VisaApplicationUpdate,
+  WebsiteConfig,
+  WebsiteConfigInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -5446,5 +5448,153 @@ export const useGenerateDocument = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGenerateDocumentMutationOptions(options));
+    }
+
+export const getGetWebsiteConfigUrl = () => {
+
+
+
+
+  return `/api/website-config`
+}
+
+/**
+ * @summary Get all website configuration values
+ */
+export const getWebsiteConfig = async ( options?: RequestInit): Promise<WebsiteConfig> => {
+
+  return customFetch<WebsiteConfig>(getGetWebsiteConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWebsiteConfigQueryKey = () => {
+    return [
+    `/api/website-config`
+    ] as const;
+    }
+
+
+export const getGetWebsiteConfigQueryOptions = <TData = Awaited<ReturnType<typeof getWebsiteConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWebsiteConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWebsiteConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWebsiteConfig>>> = ({ signal }) => getWebsiteConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWebsiteConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWebsiteConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getWebsiteConfig>>>
+export type GetWebsiteConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get all website configuration values
+ */
+
+export function useGetWebsiteConfig<TData = Awaited<ReturnType<typeof getWebsiteConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWebsiteConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWebsiteConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateWebsiteConfigUrl = () => {
+
+
+
+
+  return `/api/website-config`
+}
+
+/**
+ * @summary Update website configuration (admin only)
+ */
+export const updateWebsiteConfig = async (websiteConfigInput: WebsiteConfigInput, options?: RequestInit): Promise<WebsiteConfig> => {
+
+  return customFetch<WebsiteConfig>(getUpdateWebsiteConfigUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      websiteConfigInput,)
+  }
+);}
+
+
+
+
+export const getUpdateWebsiteConfigMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWebsiteConfig>>, TError,{data: BodyType<WebsiteConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWebsiteConfig>>, TError,{data: BodyType<WebsiteConfigInput>}, TContext> => {
+
+const mutationKey = ['updateWebsiteConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWebsiteConfig>>, {data: BodyType<WebsiteConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateWebsiteConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWebsiteConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateWebsiteConfig>>>
+    export type UpdateWebsiteConfigMutationBody = BodyType<WebsiteConfigInput>
+    export type UpdateWebsiteConfigMutationError = ErrorType<void>
+
+    /**
+ * @summary Update website configuration (admin only)
+ */
+export const useUpdateWebsiteConfig = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWebsiteConfig>>, TError,{data: BodyType<WebsiteConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWebsiteConfig>>,
+        TError,
+        {data: BodyType<WebsiteConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWebsiteConfigMutationOptions(options));
     }
 

@@ -1544,3 +1544,59 @@ export const GenerateDocumentBody = zod.object({
 })
 
 
+/**
+ * @summary Get all website configuration values
+ */
+export const GetWebsiteConfigResponse = zod.object({
+  "siteName": zod.string(),
+  "heroBadge": zod.string(),
+  "heroTitle": zod.string(),
+  "heroSubtitle": zod.string(),
+  "aboutTitle": zod.string(),
+  "aboutBody": zod.string(),
+  "packagesTitle": zod.string(),
+  "packagesSubtitle": zod.string(),
+  "contactEmail": zod.string(),
+  "contactPhone": zod.string(),
+  "contactWhatsapp": zod.string(),
+  "announcementBanner": zod.string(),
+  "announcementEnabled": zod.boolean()
+})
+
+
+/**
+ * @summary Update website configuration (admin only)
+ */
+export const UpdateWebsiteConfigBody = zod.object({
+  "siteName": zod.string().optional(),
+  "heroBadge": zod.string().optional(),
+  "heroTitle": zod.string().optional(),
+  "heroSubtitle": zod.string().optional(),
+  "aboutTitle": zod.string().optional(),
+  "aboutBody": zod.string().optional(),
+  "packagesTitle": zod.string().optional(),
+  "packagesSubtitle": zod.string().optional(),
+  "contactEmail": zod.string().optional(),
+  "contactPhone": zod.string().optional(),
+  "contactWhatsapp": zod.string().optional(),
+  "announcementBanner": zod.string().optional(),
+  "announcementEnabled": zod.boolean().optional()
+})
+
+export const UpdateWebsiteConfigResponse = zod.object({
+  "siteName": zod.string(),
+  "heroBadge": zod.string(),
+  "heroTitle": zod.string(),
+  "heroSubtitle": zod.string(),
+  "aboutTitle": zod.string(),
+  "aboutBody": zod.string(),
+  "packagesTitle": zod.string(),
+  "packagesSubtitle": zod.string(),
+  "contactEmail": zod.string(),
+  "contactPhone": zod.string(),
+  "contactWhatsapp": zod.string(),
+  "announcementBanner": zod.string(),
+  "announcementEnabled": zod.boolean()
+})
+
+

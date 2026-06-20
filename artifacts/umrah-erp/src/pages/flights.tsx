@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Plane, Trash2, Search, Loader2, ArrowRight, Clock,
   AlertCircle, CheckCircle2, Star, TicketCheck, PlusCircle,
-  MinusCircle, RefreshCw, Lock,
+  MinusCircle, RefreshCw, Lock, Users2,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ interface RouteLeg { origin: string; destination: string; departureDate: string;
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function FlightsPage() {
-  const [activeTab, setActiveTab] = useState<"search" | "quotations">("search");
+  const [activeTab, setActiveTab] = useState<"search" | "group_tickets" | "quotations">("search");
 
   // Search
   const [tripType, setTripType] = useState<"one_way" | "round_trip" | "multi_city">("one_way");
@@ -207,6 +207,7 @@ export default function FlightsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant={activeTab === "search" ? "default" : "outline"} onClick={() => setActiveTab("search")}><Search className="h-4 w-4 mr-2" />Live Search</Button>
+          <Button variant={activeTab === "group_tickets" ? "default" : "outline"} onClick={() => setActiveTab("group_tickets")}><Users2 className="h-4 w-4 mr-2" />Group Tickets</Button>
           <Button variant={activeTab === "quotations" ? "default" : "outline"} onClick={() => setActiveTab("quotations")}><Plane className="h-4 w-4 mr-2" />Quotations</Button>
         </div>
       </div>
@@ -411,6 +412,36 @@ export default function FlightsPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── GROUP TICKETS ── */}
+      {activeTab === "group_tickets" && (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="py-16 flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <Users2 className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-1">Group Ticket Inventory</h3>
+                <p className="text-muted-foreground max-w-md">
+                  Group ticket blocks and charter inventory will be displayed here. This section is reserved for bulk seat allocations purchased directly from airlines.
+                </p>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <div className="px-3 py-1.5 rounded-md bg-muted text-sm text-muted-foreground border border-dashed border-muted-foreground/30">
+                  <TicketCheck className="inline h-4 w-4 mr-1.5 -mt-0.5" />
+                  Umrah Charter Blocks
+                </div>
+                <div className="px-3 py-1.5 rounded-md bg-muted text-sm text-muted-foreground border border-dashed border-muted-foreground/30">
+                  <Users2 className="inline h-4 w-4 mr-1.5 -mt-0.5" />
+                  Group Seat Allocations
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground/60 mt-2">Coming soon — contact your administrator to configure group inventory.</p>
+            </CardContent>
+          </Card>
         </div>
       )}
 

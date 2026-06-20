@@ -21,6 +21,7 @@ tags:
   - name: accounting
   - name: dashboard
   - name: documents
+  - name: websiteConfig
 
 paths:
   /healthz:
@@ -1511,6 +1512,39 @@ paths:
               schema:
                 $ref: "#/components/schemas/Document"
 
+  # ── WEBSITE CONFIG ─────────────────────────────────────────────────
+  /website-config:
+    get:
+      operationId: getWebsiteConfig
+      tags: [websiteConfig]
+      summary: Get all website configuration values
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteConfig"
+    put:
+      operationId: updateWebsiteConfig
+      tags: [websiteConfig]
+      summary: Update website configuration (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebsiteConfigInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteConfig"
+        "401":
+          description: Unauthorized
+
 components:
   schemas:
     HealthStatus:
@@ -2733,3 +2767,65 @@ components:
           enum: [voucher, invoice, receipt, quotation_pdf]
         entityId:
           type: integer
+
+    # ── WEBSITE CONFIG ──────────────────────────────────────────────
+    WebsiteConfig:
+      type: object
+      required: [siteName, heroBadge, heroTitle, heroSubtitle, aboutTitle, aboutBody, packagesTitle, packagesSubtitle, contactEmail, contactPhone, contactWhatsapp, announcementBanner, announcementEnabled]
+      properties:
+        siteName:
+          type: string
+        heroBadge:
+          type: string
+        heroTitle:
+          type: string
+        heroSubtitle:
+          type: string
+        aboutTitle:
+          type: string
+        aboutBody:
+          type: string
+        packagesTitle:
+          type: string
+        packagesSubtitle:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        contactWhatsapp:
+          type: string
+        announcementBanner:
+          type: string
+        announcementEnabled:
+          type: boolean
+
+    WebsiteConfigInput:
+      type: object
+      properties:
+        siteName:
+          type: string
+        heroBadge:
+          type: string
+        heroTitle:
+          type: string
+        heroSubtitle:
+          type: string
+        aboutTitle:
+          type: string
+        aboutBody:
+          type: string
+        packagesTitle:
+          type: string
+        packagesSubtitle:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        contactWhatsapp:
+          type: string
+        announcementBanner:
+          type: string
+        announcementEnabled:
+          type: boolean
