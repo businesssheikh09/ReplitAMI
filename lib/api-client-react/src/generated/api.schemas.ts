@@ -22,11 +22,10 @@ export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 
 export const UserRole = {
-  admin: 'admin',
+  management: 'management',
   sales: 'sales',
-  visa: 'visa',
   accounts: 'accounts',
-  support: 'support',
+  operations: 'operations',
 } as const;
 
 export interface User {

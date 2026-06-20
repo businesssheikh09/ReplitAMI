@@ -29,7 +29,7 @@ export const LoginResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
@@ -53,7 +53,7 @@ export const GetMeResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
@@ -72,7 +72,7 @@ export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
@@ -103,7 +103,7 @@ export const GetUserResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
@@ -129,7 +129,7 @@ export const UpdateUserResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']),
   "phone": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()

@@ -1593,7 +1593,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, sales, visa, accounts, support]
+          enum: [management, sales, accounts, operations]
         phone:
           type: ["string", "null"]
         isActive:
