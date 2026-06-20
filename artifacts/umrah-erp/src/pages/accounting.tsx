@@ -41,6 +41,7 @@ export default function AccountingPage() {
     queryKey: ["/api/invoices/hotel"],
     queryFn: () => fetch("/api/invoices/hotel").then(r => r.json()),
   });
+  const [hotelSearch, setHotelSearch] = useState("");
   const createInvoice = useCreateInvoice({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/invoices"] }); setInvoiceOpen(false); toast({ title: "Invoice created" }); } } });
   const createExpense = useCreateExpense({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/expenses"] }); setExpenseOpen(false); toast({ title: "Expense recorded" }); } } });
 
@@ -158,8 +159,16 @@ export default function AccountingPage() {
         <TabsContent value="hotel-invoices" className="mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-base">Hotel DN Invoices</CardTitle>
+                <div className="flex items-center gap-2 flex-1 max-w-sm">
+                  <Input
+                    placeholder="Search DN#, party, hotel, passenger…"
+                    value={hotelSearch}
+                    onChange={e => setHotelSearch(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
                 <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
                   <Plus className="mr-1 h-4 w-4" /> New DN Invoice
                 </Button>
@@ -168,54 +177,68 @@ export default function AccountingPage() {
             <CardContent className="pt-0">
               {hotelInvLoading ? (
                 <div className="h-40 flex items-center justify-center text-muted-foreground">Loading...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>DN #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Passenger</TableHead>
-                      <TableHead>Hotel</TableHead>
-                      <TableHead>Check In</TableHead>
-                      <TableHead>Check Out</TableHead>
-                      <TableHead>Nights</TableHead>
-                      <TableHead>Recv SAR</TableHead>
-                      <TableHead>Pay SAR</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dnInvs.length === 0 ? (
+              ) : (() => {
+                const q = hotelSearch.toLowerCase();
+                const filtered = q
+                  ? dnInvs.filter((inv: any) =>
+                      (inv.dnNumber || "").toLowerCase().includes(q) ||
+                      (inv.partyName || "").toLowerCase().includes(q) ||
+                      (inv.passengerName || "").toLowerCase().includes(q) ||
+                      (inv.hotelName || "").toLowerCase().includes(q) ||
+                      (inv.status || "").toLowerCase().includes(q)
+                    )
+                  : dnInvs;
+                return (
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center h-32 text-muted-foreground">
-                          No hotel invoices yet. Click "New DN Invoice" to create one.
-                        </TableCell>
+                        <TableHead>DN #</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Party/Client</TableHead>
+                        <TableHead>Passenger</TableHead>
+                        <TableHead>Hotel</TableHead>
+                        <TableHead>Check In</TableHead>
+                        <TableHead>Check Out</TableHead>
+                        <TableHead>Nights</TableHead>
+                        <TableHead className="text-right">Recv SAR</TableHead>
+                        <TableHead className="text-right">Pay SAR</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
-                    ) : dnInvs.map((inv: any) => (
-                      <TableRow key={inv.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setLocation(`/accounting/hotel-invoice/${inv.id}`)}>
-                        <TableCell className="font-mono font-semibold text-blue-700">{inv.dnNumber}</TableCell>
-                        <TableCell className="text-sm">{inv.invoiceDate}</TableCell>
-                        <TableCell>{inv.passengerName || "—"}</TableCell>
-                        <TableCell className="text-sm">{inv.hotelName || "—"}</TableCell>
-                        <TableCell className="text-sm">{inv.checkIn || "—"}</TableCell>
-                        <TableCell className="text-sm">{inv.checkOut || "—"}</TableCell>
-                        <TableCell className="text-center">{inv.noOfNights ?? "—"}</TableCell>
-                        <TableCell className="text-right font-medium">{inv.receivableSar != null ? Number(inv.receivableSar).toLocaleString() : "—"}</TableCell>
-                        <TableCell className="text-right font-medium">{inv.payableSar != null ? Number(inv.payableSar).toLocaleString() : "—"}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${INV_STATUS[inv.status] || "bg-gray-100"}`}>{inv.status}</span>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setLocation(`/accounting/hotel-invoice/${inv.id}`); }}>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={12} className="text-center h-32 text-muted-foreground">
+                            {q ? "No matching invoices." : "No hotel invoices yet. Click \"New DN Invoice\" to create one."}
+                          </TableCell>
+                        </TableRow>
+                      ) : filtered.map((inv: any) => (
+                        <TableRow key={inv.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setLocation(`/accounting/hotel-invoice/${inv.id}`)}>
+                          <TableCell className="font-mono font-semibold text-blue-700">{inv.dnNumber}</TableCell>
+                          <TableCell className="text-sm">{inv.invoiceDate}</TableCell>
+                          <TableCell className="font-medium">{inv.partyName || "—"}</TableCell>
+                          <TableCell className="text-sm">{inv.passengerName || "—"}</TableCell>
+                          <TableCell className="text-sm">{inv.hotelName || "—"}</TableCell>
+                          <TableCell className="text-sm">{inv.checkIn || "—"}</TableCell>
+                          <TableCell className="text-sm">{inv.checkOut || "—"}</TableCell>
+                          <TableCell className="text-center">{inv.noOfNights ?? "—"}</TableCell>
+                          <TableCell className="text-right font-medium">{inv.receivableSar != null ? Number(inv.receivableSar).toLocaleString() : "—"}</TableCell>
+                          <TableCell className="text-right font-medium">{inv.payableSar != null ? Number(inv.payableSar).toLocaleString() : "—"}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${INV_STATUS[inv.status] || "bg-gray-100"}`}>{inv.status}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setLocation(`/accounting/hotel-invoice/${inv.id}`); }}>
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
