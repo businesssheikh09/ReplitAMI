@@ -1,0 +1,32 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "zwMvLE6rnjKDktCAMV7ZH"
+uri = "file://artifacts/frontend/src/assets/hero.png"
+type = "image"
+title = "Cinematic view of Kaaba at dawn"
+
+[[generated]]
+id = "EszgzZmdHC5dFU1O9c8aH"
+uri = "file://artifacts/frontend/src/assets/about.png"
+type = "image"
+title = "Latticed window light on stone"
+
+[[generated]]
+id = "pEV62oVnmF48_0P5--SR3"
+uri = "file://artifacts/frontend/src/assets/madinah.png"
+type = "image"
+title = "Masjid al-Nabawi green dome"
+
+[[generated]]
+id = "tl0upAPz1_RWuNagZmkwv"
+uri = "file://artifacts/frontend/src/assets/dates.png"
+type = "image"
+title = "Dates and Zamzam water"
+
+[[generated]]
+id = "9y3q03R7PQ9gnuZlEJYjR"
+uri = "file://artifacts/frontend/src/assets/pattern.png"
+type = "image"
+title = "Islamic geometric pattern background"
