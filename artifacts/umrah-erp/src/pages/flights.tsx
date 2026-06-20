@@ -16,8 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Plane, Trash2, Search, Loader2, ArrowRight, Clock,
   AlertCircle, CheckCircle2, Star, TicketCheck, PlusCircle,
-  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap,
+  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap, ScanLine,
 } from "lucide-react";
+import QRCode from "qrcode";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,11 @@ function GroupTicketsTab() {
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDest, setFilterDest] = useState("");
 
+  // QR modal state
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+
   const canSync = ["admin", "management", "accounts"].includes(user?.role ?? "");
 
   const authHeaders = { Authorization: `Bearer ${token}` };
@@ -131,12 +137,46 @@ function GroupTicketsTab() {
     } catch { /* silent */ }
   }, [token]);
 
+  const fetchQR = useCallback(async () => {
+    setQrLoading(true);
+    try {
+      const res = await fetch("/api/group-tickets/qr", { headers: authHeaders });
+      if (!res.ok) return;
+      const data = await res.json();
+      // Auto-close if WhatsApp just connected
+      if (data.status === "connected") {
+        setWhatsappStatus("connected");
+        setQrOpen(false);
+        setQrDataUrl(null);
+        toast({ title: "WhatsApp linked!", description: "Your phone is now connected. Click Sync Now to fetch tickets." });
+        return;
+      }
+      setWhatsappStatus(data.status);
+      if (data.qr) {
+        const dataUrl = await QRCode.toDataURL(data.qr, { width: 280, margin: 2 });
+        setQrDataUrl(dataUrl);
+      } else {
+        setQrDataUrl(null);
+      }
+    } catch { /* silent */ } finally {
+      setQrLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchTickets();
     fetchStatus();
     const iv = setInterval(fetchStatus, 30_000);
     return () => clearInterval(iv);
   }, [fetchTickets, fetchStatus]);
+
+  // Poll for new QR while the modal is open (Baileys refreshes QR every ~60 s)
+  useEffect(() => {
+    if (!qrOpen) return;
+    fetchQR();
+    const iv = setInterval(fetchQR, 15_000);
+    return () => clearInterval(iv);
+  }, [qrOpen, fetchQR]);
 
   async function handleSync() {
     setSyncing(true);
@@ -169,6 +209,43 @@ function GroupTicketsTab() {
 
   return (
     <div className="space-y-4">
+      {/* QR Code Dialog */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ScanLine className="h-5 w-5 text-blue-900" />
+              Link WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            {qrLoading && !qrDataUrl ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="text-sm">Generating QR code…</p>
+              </div>
+            ) : qrDataUrl ? (
+              <>
+                <img src={qrDataUrl} alt="WhatsApp QR Code" className="rounded-lg border border-gray-200" width={280} height={280} />
+                <p className="text-xs text-muted-foreground text-center">
+                  Open WhatsApp on your phone → <strong>Settings → Linked Devices → Link a Device</strong>, then point your camera at this code.
+                </p>
+                <p className="text-xs text-blue-700 bg-blue-50 rounded px-3 py-1.5 text-center">
+                  QR refreshes automatically every 15 s · Dialog closes once linked
+                </p>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+                <AlertCircle className="h-8 w-8 text-amber-500" />
+                <p className="text-sm text-center">
+                  QR code not ready yet. The server may still be starting up — wait a few seconds and try again.
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -183,6 +260,13 @@ function GroupTicketsTab() {
                 <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
+              {whatsappStatus !== "connected" && (
+                <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}
+                  className="border-green-600 text-green-700 hover:bg-green-50">
+                  <ScanLine className="h-4 w-4 mr-1.5" />
+                  Scan QR
+                </Button>
+              )}
               {canSync && (
                 <Button size="sm" onClick={handleSync} disabled={syncing}
                   className="bg-blue-900 hover:bg-blue-800 text-white">
@@ -233,15 +317,24 @@ function GroupTicketsTab() {
                 <p className="text-sm text-muted-foreground max-w-sm">
                   {whatsappStatus === "connected"
                     ? 'Click "Sync Now" to pull the latest group allocations from WhatsApp.'
-                    : 'Link your WhatsApp by scanning the QR code in the server console, then click "Sync Now".'}
+                    : 'Click "Scan QR" to link your WhatsApp, then click "Sync Now".'}
                 </p>
               </div>
-              {canSync && (
-                <Button size="sm" onClick={handleSync} disabled={syncing} className="bg-blue-900 hover:bg-blue-800 text-white">
-                  <Zap className="h-4 w-4 mr-1.5" />
-                  {syncing ? "Syncing…" : "Sync Now"}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {whatsappStatus !== "connected" && (
+                  <Button size="sm" variant="outline" onClick={() => setQrOpen(true)}
+                    className="border-green-600 text-green-700 hover:bg-green-50">
+                    <ScanLine className="h-4 w-4 mr-1.5" />
+                    Scan QR
+                  </Button>
+                )}
+                {canSync && (
+                  <Button size="sm" onClick={handleSync} disabled={syncing} className="bg-blue-900 hover:bg-blue-800 text-white">
+                    <Zap className="h-4 w-4 mr-1.5" />
+                    {syncing ? "Syncing…" : "Sync Now"}
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -306,16 +399,21 @@ function GroupTicketsTab() {
         </CardContent>
       </Card>
 
-      {/* Setup instructions (always visible if not connected) */}
+      {/* Setup instructions (visible when not connected) */}
       {whatsappStatus !== "connected" && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="py-4 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-            <div className="text-sm text-amber-800">
+            <div className="text-sm text-amber-800 flex-1">
               <p className="font-semibold mb-1">WhatsApp session not linked</p>
-              <p>The API server prints a QR code to the console on startup. Open the <strong>API Server</strong> workflow logs, scan the QR code with WhatsApp → Linked Devices → Link a Device, then click <strong>Sync Now</strong>.</p>
-              <p className="mt-1 text-xs text-amber-700">Session credentials are saved — you only need to scan once. Set <code>WHATSAPP_TARGET_GROUPS</code> in Secrets to filter which groups are scraped (e.g. "SV LABOR GROUP,SV UMRAH GROUP").</p>
+              <p>Click <strong>Scan QR</strong> above, then scan the code with WhatsApp → <strong>Settings → Linked Devices → Link a Device</strong>. You only need to scan once — credentials are saved automatically.</p>
+              <p className="mt-1 text-xs text-amber-700">Set <code>WHATSAPP_TARGET_GROUPS</code> in Secrets to filter which groups are scraped (e.g. "SV LABOR GROUP,SV UMRAH GROUP").</p>
             </div>
+            <Button size="sm" variant="outline" onClick={() => setQrOpen(true)}
+              className="shrink-0 border-amber-600 text-amber-700 hover:bg-amber-100">
+              <ScanLine className="h-4 w-4 mr-1.5" />
+              Scan QR
+            </Button>
           </CardContent>
         </Card>
       )}

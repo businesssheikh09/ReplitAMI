@@ -3,7 +3,7 @@ import { db, groupTicketsTable } from "@workspace/db";
 import { eq, desc, ilike, and, SQL } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { scrapeAndUpsert } from "../services/scheduler.js";
-import { getConnectionStatus } from "../services/whatsapp.js";
+import { getConnectionStatus, getQRCode } from "../services/whatsapp.js";
 
 const router = Router();
 
@@ -56,6 +56,10 @@ router.post(
 
 router.get("/group-tickets/status", requireAuth, (_req, res) => {
   res.json({ whatsappStatus: getConnectionStatus() });
+});
+
+router.get("/group-tickets/qr", requireAuth, (_req, res) => {
+  res.json({ qr: getQRCode(), status: getConnectionStatus() });
 });
 
 export default router;

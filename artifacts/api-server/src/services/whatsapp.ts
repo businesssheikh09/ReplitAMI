@@ -85,6 +85,17 @@ function appendMessages(incoming: StoredMessage[]): void {
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
 let connectionStatus: ConnectionStatus = "disconnected";
 
+/** Latest QR code string from Baileys; null once connected or before first generation. */
+let currentQR: string | null = null;
+
+export function getConnectionStatus(): ConnectionStatus {
+  return connectionStatus;
+}
+
+export function getQRCode(): string | null {
+  return currentQR;
+}
+
 /**
  * Resolver set when the socket is open.
  * Accepts target-group name substrings and returns filtered, timestamped messages.
@@ -92,10 +103,6 @@ let connectionStatus: ConnectionStatus = "disconnected";
 let _resolveMessages:
   | ((targetGroups: string[], sinceHours: number) => Promise<{ groupName: string; text: string; timestamp: number }[]>)
   | null = null;
-
-export function getConnectionStatus(): ConnectionStatus {
-  return connectionStatus;
-}
 
 async function loadBaileys() {
   return import("@whiskeysockets/baileys") as Promise<typeof import("@whiskeysockets/baileys")>;
@@ -195,9 +202,16 @@ export async function initWhatsApp(dir: string): Promise<void> {
   });
 
   sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    // Capture the QR string so the API can serve it to the UI
+    if (qr) {
+      currentQR = qr;
+      logger.info("WhatsApp QR code refreshed — available at GET /api/group-tickets/qr");
+    }
 
     if (connection === "open") {
+      currentQR = null; // clear QR once linked
       connectionStatus = "connected";
       logger.info("WhatsApp session connected");
 
