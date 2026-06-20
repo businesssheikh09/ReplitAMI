@@ -58,11 +58,19 @@ function AnalysisTab({ dnInvs }: { dnInvs: any[] }) {
   const [from, setFrom] = useState(wb.from);
   const [to, setTo]     = useState(wb.to);
 
-  // ── Booking Summary by status ──────────────────────────────────────────────
+  // ── Date-filtered invoice set (drives both Booking Summary and Schedule) ───
+  const filteredByRange = useMemo(() => {
+    return dnInvs.filter(inv => {
+      if (!inv.checkIn) return false;
+      return inv.checkIn >= from && inv.checkIn <= to;
+    });
+  }, [dnInvs, from, to]);
+
+  // ── Booking Summary by status (uses date-filtered set) ────────────────────
   const statusGroups = useMemo(() => {
     const statuses = ["draft", "confirmed", "cancelled", "invoiced"];
     return statuses.map(s => {
-      const rows = dnInvs.filter(inv => inv.status === s);
+      const rows = filteredByRange.filter(inv => inv.status === s);
       return {
         status: s,
         count: rows.length,
@@ -71,17 +79,12 @@ function AnalysisTab({ dnInvs }: { dnInvs: any[] }) {
         paySar: rows.reduce((acc, r) => acc + (Number(r.payableSar) || 0), 0),
       };
     });
-  }, [dnInvs]);
+  }, [filteredByRange]);
 
-  // ── Check-In Schedule (filtered by date range on checkIn) ─────────────────
+  // ── Check-In Schedule (same date-filtered set, sorted) ────────────────────
   const schedule = useMemo(() => {
-    return dnInvs
-      .filter(inv => {
-        if (!inv.checkIn) return false;
-        return inv.checkIn >= from && inv.checkIn <= to;
-      })
-      .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-  }, [dnInvs, from, to]);
+    return [...filteredByRange].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  }, [filteredByRange]);
 
   // ── Financial P&L by party ────────────────────────────────────────────────
   const pnl = useMemo(() => {

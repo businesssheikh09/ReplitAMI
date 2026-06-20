@@ -27,10 +27,11 @@ interface TileData {
   label: string;
   gradient: string;
   route: string;
+  tileRoles?: string[]; // optional override — restricts tile visibility independently of route permissions
 }
 
-function LaunchTile({ href, icon: Icon, label, gradient, route, role }: TileData & { role: string | undefined }) {
-  if (!canAccess(role, route)) return null;
+function LaunchTile({ href, icon: Icon, label, gradient, route, role, tileRoles }: TileData & { role: string | undefined }) {
+  if (tileRoles ? !tileRoles.includes(role ?? "") : !canAccess(role, route)) return null;
   return (
     <Link href={href}>
       <div className="flex flex-col items-center gap-3 cursor-pointer group">
@@ -79,8 +80,8 @@ const TILES: Array<{ section: string } | TileData> = [
   { href: "/hotels",                      icon: Building2,     label: "Hotels",             gradient: "bg-gradient-to-br from-purple-700 to-purple-500",  route: "/hotels" },
 
   { section: "Admin" },
-  { href: "/vendors",                     icon: Store,         label: "Vendors",            gradient: "bg-gradient-to-br from-pink-700 to-pink-500",      route: "/vendors" },
-  { href: "/users",                       icon: ShieldCheck,   label: "Users",              gradient: "bg-gradient-to-br from-gray-700 to-gray-500",      route: "/users" },
+  { href: "/vendors",   icon: Store,      label: "Vendors", gradient: "bg-gradient-to-br from-pink-700 to-pink-500",  route: "/vendors", tileRoles: ["management", "admin"] },
+  { href: "/users",     icon: ShieldCheck,label: "Users",   gradient: "bg-gradient-to-br from-gray-700 to-gray-500",  route: "/users",   tileRoles: ["management", "admin"] },
 ];
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -125,7 +126,7 @@ export default function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-6 gap-y-5 justify-items-center">
+          <div className="grid grid-cols-3 gap-x-6 gap-y-5 justify-items-center">
             {TILES.map((item, i) => {
               if ("section" in item) {
                 return <SectionLabel key={`sec-${i}`} title={item.section} />;
@@ -139,6 +140,7 @@ export default function Dashboard() {
                   label={t.label}
                   gradient={t.gradient}
                   route={t.route}
+                  tileRoles={t.tileRoles}
                   role={role}
                 />
               );
