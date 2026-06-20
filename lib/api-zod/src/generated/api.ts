@@ -1448,6 +1448,178 @@ export const CreateExpenseBody = zod.object({
 
 
 /**
+ * @summary Get home currency setting
+ */
+export const GetCurrencySettingsResponse = zod.object({
+  "id": zod.number(),
+  "homeCurrency": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update home currency setting
+ */
+export const UpdateCurrencySettingsBody = zod.object({
+  "homeCurrency": zod.string()
+})
+
+export const UpdateCurrencySettingsResponse = zod.object({
+  "id": zod.number(),
+  "homeCurrency": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List daily rates, optionally filtered by date
+ */
+export const ListCurrencyDailyRatesQueryParams = zod.object({
+  "date": zod.coerce.string().optional().describe('Filter by date (YYYY-MM-DD)')
+})
+
+export const ListCurrencyDailyRatesResponseItem = zod.object({
+  "id": zod.number(),
+  "currency": zod.string(),
+  "date": zod.string(),
+  "vendorRate": zod.number().describe('Rate paid to buy from vendor (lowest)'),
+  "guestRate": zod.number().describe('Rate charged to walk-in guests'),
+  "clientRate": zod.number().describe('Rate charged to subagent\/client partners'),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListCurrencyDailyRatesResponse = zod.array(ListCurrencyDailyRatesResponseItem)
+
+
+/**
+ * @summary Save (upsert) a 3-tier daily rate for a currency
+ */
+export const SaveCurrencyDailyRateBody = zod.object({
+  "currency": zod.string(),
+  "date": zod.string(),
+  "vendorRate": zod.number(),
+  "guestRate": zod.number(),
+  "clientRate": zod.number(),
+  "notes": zod.string().optional()
+})
+
+export const SaveCurrencyDailyRateResponse = zod.object({
+  "id": zod.number(),
+  "currency": zod.string(),
+  "date": zod.string(),
+  "vendorRate": zod.number().describe('Rate paid to buy from vendor (lowest)'),
+  "guestRate": zod.number().describe('Rate charged to walk-in guests'),
+  "clientRate": zod.number().describe('Rate charged to subagent\/client partners'),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update a daily rate entry by id
+ */
+export const UpdateCurrencyDailyRateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateCurrencyDailyRateBody = zod.object({
+  "vendorRate": zod.number(),
+  "guestRate": zod.number(),
+  "clientRate": zod.number(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateCurrencyDailyRateResponse = zod.object({
+  "id": zod.number(),
+  "currency": zod.string(),
+  "date": zod.string(),
+  "vendorRate": zod.number().describe('Rate paid to buy from vendor (lowest)'),
+  "guestRate": zod.number().describe('Rate charged to walk-in guests'),
+  "clientRate": zod.number().describe('Rate charged to subagent\/client partners'),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a daily rate entry
+ */
+export const DeleteCurrencyDailyRateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCurrencyDailyRateResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List all forex transactions
+ */
+export const ListCurrencyTransactionsResponseItem = zod.object({
+  "id": zod.number(),
+  "currency": zod.string(),
+  "amount": zod.number(),
+  "vendorRate": zod.number(),
+  "clientRate": zod.number(),
+  "vendorCost": zod.number(),
+  "clientRevenue": zod.number(),
+  "profit": zod.number(),
+  "date": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListCurrencyTransactionsResponse = zod.array(ListCurrencyTransactionsResponseItem)
+
+
+/**
+ * @summary Record a forex transaction
+ */
+export const CreateCurrencyTransactionBody = zod.object({
+  "currency": zod.string(),
+  "amount": zod.number(),
+  "vendorRate": zod.number(),
+  "clientRate": zod.number(),
+  "rateTier": zod.enum(['vendor', 'guest', 'client']).optional().describe('Which rate tier this transaction uses (recorded in notes)'),
+  "date": zod.string(),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary Delete a forex transaction
+ */
+export const DeleteCurrencyTransactionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCurrencyTransactionResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get aggregate forex profit report
+ */
+export const GetCurrencyProfitReportResponse = zod.object({
+  "summary": zod.array(zod.object({
+  "currency": zod.string(),
+  "totalAmount": zod.number(),
+  "totalVendorCost": zod.number(),
+  "totalClientRevenue": zod.number(),
+  "totalProfit": zod.number(),
+  "count": zod.number()
+})),
+  "totalProfit": zod.number(),
+  "totalVendorCost": zod.number(),
+  "totalClientRevenue": zod.number()
+})
+
+
+/**
  * @summary Get dashboard summary statistics
  */
 export const GetDashboardStatsResponse = zod.object({

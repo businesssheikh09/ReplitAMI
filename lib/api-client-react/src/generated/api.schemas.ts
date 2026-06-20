@@ -929,6 +929,102 @@ export interface ExpenseInput {
   notes?: string;
 }
 
+export interface CurrencySetting {
+  id: number;
+  homeCurrency: string;
+  updatedAt: string;
+}
+
+export interface CurrencySettingInput {
+  homeCurrency: string;
+}
+
+export interface CurrencyDailyRate {
+  id: number;
+  currency: string;
+  date: string;
+  /** Rate paid to buy from vendor (lowest) */
+  vendorRate: number;
+  /** Rate charged to walk-in guests */
+  guestRate: number;
+  /** Rate charged to subagent/client partners */
+  clientRate: number;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CurrencyDailyRateInput {
+  currency: string;
+  date: string;
+  vendorRate: number;
+  guestRate: number;
+  clientRate: number;
+  notes?: string;
+}
+
+export interface CurrencyDailyRateUpdate {
+  vendorRate: number;
+  guestRate: number;
+  clientRate: number;
+  notes?: string;
+}
+
+export interface CurrencyTransaction {
+  id: number;
+  currency: string;
+  amount: number;
+  vendorRate: number;
+  clientRate: number;
+  vendorCost: number;
+  clientRevenue: number;
+  profit: number;
+  date: string;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+/**
+ * Which rate tier this transaction uses (recorded in notes)
+ */
+export type CurrencyTransactionInputRateTier = typeof CurrencyTransactionInputRateTier[keyof typeof CurrencyTransactionInputRateTier];
+
+
+export const CurrencyTransactionInputRateTier = {
+  vendor: 'vendor',
+  guest: 'guest',
+  client: 'client',
+} as const;
+
+export interface CurrencyTransactionInput {
+  currency: string;
+  amount: number;
+  vendorRate: number;
+  clientRate: number;
+  /** Which rate tier this transaction uses (recorded in notes) */
+  rateTier?: CurrencyTransactionInputRateTier;
+  date: string;
+  notes?: string;
+}
+
+export interface CurrencyProfitSummary {
+  currency: string;
+  totalAmount: number;
+  totalVendorCost: number;
+  totalClientRevenue: number;
+  totalProfit: number;
+  count: number;
+}
+
+export interface CurrencyProfitReport {
+  summary: CurrencyProfitSummary[];
+  totalProfit: number;
+  totalVendorCost: number;
+  totalClientRevenue: number;
+}
+
 export type DashboardStatsRevenueByService = {[key: string]: number};
 
 export interface DashboardStats {
@@ -1107,6 +1203,13 @@ export type ListExpensesParams = {
 category?: string;
 from?: string;
 to?: string;
+};
+
+export type ListCurrencyDailyRatesParams = {
+/**
+ * Filter by date (YYYY-MM-DD)
+ */
+date?: string;
 };
 
 export type GetRecentActivityParams = {

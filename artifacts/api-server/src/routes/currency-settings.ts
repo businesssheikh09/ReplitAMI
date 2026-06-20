@@ -172,7 +172,10 @@ router.post("/currency/transactions", async (req, res) => {
     }
     const amt = parseNum(amount);
     const vr = parseNum(vendorRate);
-    const cr = parseNum(clientRate);
+    // For vendor-buy transactions (rateTier="vendor"), clientRate equals vendorRate
+    // so that profit = 0 (a purchase has no P&L — currency is now in stock).
+    const isVendorBuy = rateTier === "vendor";
+    const cr = isVendorBuy ? vr : parseNum(clientRate);
     const vendorCost = amt * vr;
     const clientRevenue = amt * cr;
     const profit = clientRevenue - vendorCost;

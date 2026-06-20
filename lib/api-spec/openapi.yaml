@@ -19,6 +19,7 @@ tags:
   - name: visa
   - name: flights
   - name: accounting
+  - name: currency
   - name: dashboard
   - name: documents
   - name: websiteConfig
@@ -1399,6 +1400,187 @@ paths:
               schema:
                 $ref: "#/components/schemas/Expense"
 
+  # ── CURRENCY ──────────────────────────────────────────────────────
+  /currency/settings:
+    get:
+      operationId: getCurrencySettings
+      tags: [currency]
+      summary: Get home currency setting
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencySetting"
+    put:
+      operationId: updateCurrencySettings
+      tags: [currency]
+      summary: Update home currency setting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencySettingInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencySetting"
+
+  /currency/daily-rates:
+    get:
+      operationId: listCurrencyDailyRates
+      tags: [currency]
+      summary: List daily rates, optionally filtered by date
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+          description: Filter by date (YYYY-MM-DD)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CurrencyDailyRate"
+    post:
+      operationId: saveCurrencyDailyRate
+      tags: [currency]
+      summary: Save (upsert) a 3-tier daily rate for a currency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencyDailyRateInput"
+      responses:
+        "200":
+          description: Updated existing record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyDailyRate"
+        "201":
+          description: Created new record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyDailyRate"
+
+  /currency/daily-rates/{id}:
+    put:
+      operationId: updateCurrencyDailyRate
+      tags: [currency]
+      summary: Update a daily rate entry by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencyDailyRateUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyDailyRate"
+    delete:
+      operationId: deleteCurrencyDailyRate
+      tags: [currency]
+      summary: Delete a daily rate entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /currency/transactions:
+    get:
+      operationId: listCurrencyTransactions
+      tags: [currency]
+      summary: List all forex transactions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CurrencyTransaction"
+    post:
+      operationId: createCurrencyTransaction
+      tags: [currency]
+      summary: Record a forex transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencyTransactionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyTransaction"
+
+  /currency/transactions/{id}:
+    delete:
+      operationId: deleteCurrencyTransaction
+      tags: [currency]
+      summary: Delete a forex transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /currency/profit-report:
+    get:
+      operationId: getCurrencyProfitReport
+      tags: [currency]
+      summary: Get aggregate forex profit report
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyProfitReport"
+
   # ── DASHBOARD ─────────────────────────────────────────────────────
   /dashboard/stats:
     get:
@@ -2655,6 +2837,161 @@ components:
           type: string
         notes:
           type: string
+
+    # ── CURRENCY ───────────────────────────────────────────────────
+    CurrencySetting:
+      type: object
+      required: [id, homeCurrency, updatedAt]
+      properties:
+        id:
+          type: integer
+        homeCurrency:
+          type: string
+        updatedAt:
+          type: string
+
+    CurrencySettingInput:
+      type: object
+      required: [homeCurrency]
+      properties:
+        homeCurrency:
+          type: string
+
+    CurrencyDailyRate:
+      type: object
+      required: [id, currency, date, vendorRate, guestRate, clientRate, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        currency:
+          type: string
+        date:
+          type: string
+        vendorRate:
+          type: number
+          description: Rate paid to buy from vendor (lowest)
+        guestRate:
+          type: number
+          description: Rate charged to walk-in guests
+        clientRate:
+          type: number
+          description: Rate charged to subagent/client partners
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    CurrencyDailyRateInput:
+      type: object
+      required: [currency, date, vendorRate, guestRate, clientRate]
+      properties:
+        currency:
+          type: string
+        date:
+          type: string
+        vendorRate:
+          type: number
+        guestRate:
+          type: number
+        clientRate:
+          type: number
+        notes:
+          type: string
+
+    CurrencyDailyRateUpdate:
+      type: object
+      required: [vendorRate, guestRate, clientRate]
+      properties:
+        vendorRate:
+          type: number
+        guestRate:
+          type: number
+        clientRate:
+          type: number
+        notes:
+          type: string
+
+    CurrencyTransaction:
+      type: object
+      required: [id, currency, amount, vendorRate, clientRate, vendorCost, clientRevenue, profit, date, createdAt]
+      properties:
+        id:
+          type: integer
+        currency:
+          type: string
+        amount:
+          type: number
+        vendorRate:
+          type: number
+        clientRate:
+          type: number
+        vendorCost:
+          type: number
+        clientRevenue:
+          type: number
+        profit:
+          type: number
+        date:
+          type: string
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    CurrencyTransactionInput:
+      type: object
+      required: [currency, amount, vendorRate, clientRate, date]
+      properties:
+        currency:
+          type: string
+        amount:
+          type: number
+        vendorRate:
+          type: number
+        clientRate:
+          type: number
+        rateTier:
+          type: string
+          enum: [vendor, guest, client]
+          description: Which rate tier this transaction uses (recorded in notes)
+        date:
+          type: string
+        notes:
+          type: string
+
+    CurrencyProfitSummary:
+      type: object
+      required: [currency, totalAmount, totalVendorCost, totalClientRevenue, totalProfit, count]
+      properties:
+        currency:
+          type: string
+        totalAmount:
+          type: number
+        totalVendorCost:
+          type: number
+        totalClientRevenue:
+          type: number
+        totalProfit:
+          type: number
+        count:
+          type: integer
+
+    CurrencyProfitReport:
+      type: object
+      required: [summary, totalProfit, totalVendorCost, totalClientRevenue]
+      properties:
+        summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/CurrencyProfitSummary"
+        totalProfit:
+          type: number
+        totalVendorCost:
+          type: number
+        totalClientRevenue:
+          type: number
 
     # ── DASHBOARD ──────────────────────────────────────────────────
     DashboardStats:

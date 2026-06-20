@@ -28,6 +28,14 @@ import type {
   ClientNote,
   ClientNoteInput,
   ClientUpdate,
+  CurrencyDailyRate,
+  CurrencyDailyRateInput,
+  CurrencyDailyRateUpdate,
+  CurrencyProfitReport,
+  CurrencySetting,
+  CurrencySettingInput,
+  CurrencyTransaction,
+  CurrencyTransactionInput,
   DashboardStats,
   Document,
   DocumentGenerateInput,
@@ -53,6 +61,7 @@ import type {
   InvoiceUpdate,
   ListAllFollowupsParams,
   ListClientsParams,
+  ListCurrencyDailyRatesParams,
   ListDocumentsParams,
   ListExpensesParams,
   ListFlightQuotationsParams,
@@ -4972,6 +4981,746 @@ export const useCreateExpense = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateExpenseMutationOptions(options));
     }
+
+export const getGetCurrencySettingsUrl = () => {
+
+
+
+
+  return `/api/currency/settings`
+}
+
+/**
+ * @summary Get home currency setting
+ */
+export const getCurrencySettings = async ( options?: RequestInit): Promise<CurrencySetting> => {
+
+  return customFetch<CurrencySetting>(getGetCurrencySettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrencySettingsQueryKey = () => {
+    return [
+    `/api/currency/settings`
+    ] as const;
+    }
+
+
+export const getGetCurrencySettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCurrencySettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencySettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrencySettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrencySettings>>> = ({ signal }) => getCurrencySettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrencySettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrencySettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrencySettings>>>
+export type GetCurrencySettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get home currency setting
+ */
+
+export function useGetCurrencySettings<TData = Awaited<ReturnType<typeof getCurrencySettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencySettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrencySettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateCurrencySettingsUrl = () => {
+
+
+
+
+  return `/api/currency/settings`
+}
+
+/**
+ * @summary Update home currency setting
+ */
+export const updateCurrencySettings = async (currencySettingInput: CurrencySettingInput, options?: RequestInit): Promise<CurrencySetting> => {
+
+  return customFetch<CurrencySetting>(getUpdateCurrencySettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      currencySettingInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCurrencySettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCurrencySettings>>, TError,{data: BodyType<CurrencySettingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCurrencySettings>>, TError,{data: BodyType<CurrencySettingInput>}, TContext> => {
+
+const mutationKey = ['updateCurrencySettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCurrencySettings>>, {data: BodyType<CurrencySettingInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCurrencySettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCurrencySettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateCurrencySettings>>>
+    export type UpdateCurrencySettingsMutationBody = BodyType<CurrencySettingInput>
+    export type UpdateCurrencySettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update home currency setting
+ */
+export const useUpdateCurrencySettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCurrencySettings>>, TError,{data: BodyType<CurrencySettingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCurrencySettings>>,
+        TError,
+        {data: BodyType<CurrencySettingInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCurrencySettingsMutationOptions(options));
+    }
+
+export const getListCurrencyDailyRatesUrl = (params?: ListCurrencyDailyRatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/currency/daily-rates?${stringifiedParams}` : `/api/currency/daily-rates`
+}
+
+/**
+ * @summary List daily rates, optionally filtered by date
+ */
+export const listCurrencyDailyRates = async (params?: ListCurrencyDailyRatesParams, options?: RequestInit): Promise<CurrencyDailyRate[]> => {
+
+  return customFetch<CurrencyDailyRate[]>(getListCurrencyDailyRatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCurrencyDailyRatesQueryKey = (params?: ListCurrencyDailyRatesParams,) => {
+    return [
+    `/api/currency/daily-rates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCurrencyDailyRatesQueryOptions = <TData = Awaited<ReturnType<typeof listCurrencyDailyRates>>, TError = ErrorType<unknown>>(params?: ListCurrencyDailyRatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencyDailyRates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCurrencyDailyRatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCurrencyDailyRates>>> = ({ signal }) => listCurrencyDailyRates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCurrencyDailyRates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCurrencyDailyRatesQueryResult = NonNullable<Awaited<ReturnType<typeof listCurrencyDailyRates>>>
+export type ListCurrencyDailyRatesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List daily rates, optionally filtered by date
+ */
+
+export function useListCurrencyDailyRates<TData = Awaited<ReturnType<typeof listCurrencyDailyRates>>, TError = ErrorType<unknown>>(
+ params?: ListCurrencyDailyRatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencyDailyRates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCurrencyDailyRatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSaveCurrencyDailyRateUrl = () => {
+
+
+
+
+  return `/api/currency/daily-rates`
+}
+
+/**
+ * @summary Save (upsert) a 3-tier daily rate for a currency
+ */
+export const saveCurrencyDailyRate = async (currencyDailyRateInput: CurrencyDailyRateInput, options?: RequestInit): Promise<CurrencyDailyRate> => {
+
+  return customFetch<CurrencyDailyRate>(getSaveCurrencyDailyRateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      currencyDailyRateInput,)
+  }
+);}
+
+
+
+
+export const getSaveCurrencyDailyRateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCurrencyDailyRate>>, TError,{data: BodyType<CurrencyDailyRateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCurrencyDailyRate>>, TError,{data: BodyType<CurrencyDailyRateInput>}, TContext> => {
+
+const mutationKey = ['saveCurrencyDailyRate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCurrencyDailyRate>>, {data: BodyType<CurrencyDailyRateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveCurrencyDailyRate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCurrencyDailyRateMutationResult = NonNullable<Awaited<ReturnType<typeof saveCurrencyDailyRate>>>
+    export type SaveCurrencyDailyRateMutationBody = BodyType<CurrencyDailyRateInput>
+    export type SaveCurrencyDailyRateMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save (upsert) a 3-tier daily rate for a currency
+ */
+export const useSaveCurrencyDailyRate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCurrencyDailyRate>>, TError,{data: BodyType<CurrencyDailyRateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveCurrencyDailyRate>>,
+        TError,
+        {data: BodyType<CurrencyDailyRateInput>},
+        TContext
+      > => {
+      return useMutation(getSaveCurrencyDailyRateMutationOptions(options));
+    }
+
+export const getUpdateCurrencyDailyRateUrl = (id: number,) => {
+
+
+
+
+  return `/api/currency/daily-rates/${id}`
+}
+
+/**
+ * @summary Update a daily rate entry by id
+ */
+export const updateCurrencyDailyRate = async (id: number,
+    currencyDailyRateUpdate: CurrencyDailyRateUpdate, options?: RequestInit): Promise<CurrencyDailyRate> => {
+
+  return customFetch<CurrencyDailyRate>(getUpdateCurrencyDailyRateUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      currencyDailyRateUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateCurrencyDailyRateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCurrencyDailyRate>>, TError,{id: number;data: BodyType<CurrencyDailyRateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCurrencyDailyRate>>, TError,{id: number;data: BodyType<CurrencyDailyRateUpdate>}, TContext> => {
+
+const mutationKey = ['updateCurrencyDailyRate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCurrencyDailyRate>>, {id: number;data: BodyType<CurrencyDailyRateUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCurrencyDailyRate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCurrencyDailyRateMutationResult = NonNullable<Awaited<ReturnType<typeof updateCurrencyDailyRate>>>
+    export type UpdateCurrencyDailyRateMutationBody = BodyType<CurrencyDailyRateUpdate>
+    export type UpdateCurrencyDailyRateMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a daily rate entry by id
+ */
+export const useUpdateCurrencyDailyRate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCurrencyDailyRate>>, TError,{id: number;data: BodyType<CurrencyDailyRateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCurrencyDailyRate>>,
+        TError,
+        {id: number;data: BodyType<CurrencyDailyRateUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateCurrencyDailyRateMutationOptions(options));
+    }
+
+export const getDeleteCurrencyDailyRateUrl = (id: number,) => {
+
+
+
+
+  return `/api/currency/daily-rates/${id}`
+}
+
+/**
+ * @summary Delete a daily rate entry
+ */
+export const deleteCurrencyDailyRate = async (id: number, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteCurrencyDailyRateUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCurrencyDailyRateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCurrencyDailyRate>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCurrencyDailyRate>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCurrencyDailyRate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCurrencyDailyRate>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCurrencyDailyRate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCurrencyDailyRateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCurrencyDailyRate>>>
+
+    export type DeleteCurrencyDailyRateMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a daily rate entry
+ */
+export const useDeleteCurrencyDailyRate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCurrencyDailyRate>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCurrencyDailyRate>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCurrencyDailyRateMutationOptions(options));
+    }
+
+export const getListCurrencyTransactionsUrl = () => {
+
+
+
+
+  return `/api/currency/transactions`
+}
+
+/**
+ * @summary List all forex transactions
+ */
+export const listCurrencyTransactions = async ( options?: RequestInit): Promise<CurrencyTransaction[]> => {
+
+  return customFetch<CurrencyTransaction[]>(getListCurrencyTransactionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCurrencyTransactionsQueryKey = () => {
+    return [
+    `/api/currency/transactions`
+    ] as const;
+    }
+
+
+export const getListCurrencyTransactionsQueryOptions = <TData = Awaited<ReturnType<typeof listCurrencyTransactions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencyTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCurrencyTransactionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCurrencyTransactions>>> = ({ signal }) => listCurrencyTransactions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCurrencyTransactions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCurrencyTransactionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCurrencyTransactions>>>
+export type ListCurrencyTransactionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all forex transactions
+ */
+
+export function useListCurrencyTransactions<TData = Awaited<ReturnType<typeof listCurrencyTransactions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencyTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCurrencyTransactionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCurrencyTransactionUrl = () => {
+
+
+
+
+  return `/api/currency/transactions`
+}
+
+/**
+ * @summary Record a forex transaction
+ */
+export const createCurrencyTransaction = async (currencyTransactionInput: CurrencyTransactionInput, options?: RequestInit): Promise<CurrencyTransaction> => {
+
+  return customFetch<CurrencyTransaction>(getCreateCurrencyTransactionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      currencyTransactionInput,)
+  }
+);}
+
+
+
+
+export const getCreateCurrencyTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCurrencyTransaction>>, TError,{data: BodyType<CurrencyTransactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCurrencyTransaction>>, TError,{data: BodyType<CurrencyTransactionInput>}, TContext> => {
+
+const mutationKey = ['createCurrencyTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCurrencyTransaction>>, {data: BodyType<CurrencyTransactionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCurrencyTransaction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCurrencyTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof createCurrencyTransaction>>>
+    export type CreateCurrencyTransactionMutationBody = BodyType<CurrencyTransactionInput>
+    export type CreateCurrencyTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a forex transaction
+ */
+export const useCreateCurrencyTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCurrencyTransaction>>, TError,{data: BodyType<CurrencyTransactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCurrencyTransaction>>,
+        TError,
+        {data: BodyType<CurrencyTransactionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCurrencyTransactionMutationOptions(options));
+    }
+
+export const getDeleteCurrencyTransactionUrl = (id: number,) => {
+
+
+
+
+  return `/api/currency/transactions/${id}`
+}
+
+/**
+ * @summary Delete a forex transaction
+ */
+export const deleteCurrencyTransaction = async (id: number, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteCurrencyTransactionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCurrencyTransactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCurrencyTransaction>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCurrencyTransaction>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCurrencyTransaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCurrencyTransaction>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCurrencyTransaction(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCurrencyTransactionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCurrencyTransaction>>>
+
+    export type DeleteCurrencyTransactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a forex transaction
+ */
+export const useDeleteCurrencyTransaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCurrencyTransaction>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCurrencyTransaction>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCurrencyTransactionMutationOptions(options));
+    }
+
+export const getGetCurrencyProfitReportUrl = () => {
+
+
+
+
+  return `/api/currency/profit-report`
+}
+
+/**
+ * @summary Get aggregate forex profit report
+ */
+export const getCurrencyProfitReport = async ( options?: RequestInit): Promise<CurrencyProfitReport> => {
+
+  return customFetch<CurrencyProfitReport>(getGetCurrencyProfitReportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrencyProfitReportQueryKey = () => {
+    return [
+    `/api/currency/profit-report`
+    ] as const;
+    }
+
+
+export const getGetCurrencyProfitReportQueryOptions = <TData = Awaited<ReturnType<typeof getCurrencyProfitReport>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyProfitReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrencyProfitReportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrencyProfitReport>>> = ({ signal }) => getCurrencyProfitReport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrencyProfitReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrencyProfitReportQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrencyProfitReport>>>
+export type GetCurrencyProfitReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get aggregate forex profit report
+ */
+
+export function useGetCurrencyProfitReport<TData = Awaited<ReturnType<typeof getCurrencyProfitReport>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyProfitReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrencyProfitReportQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetDashboardStatsUrl = () => {
 
