@@ -1,8 +1,45 @@
+/**
+ * WhatsApp scraper service — message persistence model
+ *
+ * HOW 24-HOUR RECOVERABILITY IS ACHIEVED
+ * ─────────────────────────────────────────
+ * Two complementary sources populate the local message store
+ * (whatsapp-session/wa-message-store.json):
+ *
+ *   1. messaging-history.set  — fires on every (re)connection.  WhatsApp pushes
+ *      recent chat history as part of the Web protocol handshake, typically
+ *      covering the last several hundred messages per chat.  These are written
+ *      to the store immediately, so a server restart followed by reconnection
+ *      will backfill any messages received while the server was offline.
+ *
+ *   2. messages.upsert        — fires for every real-time incoming message.
+ *      Appended to the store continuously while the socket is open.
+ *
+ * The store is pruned to 72 hours on every write, so the daily 1 PM scrape and
+ * the manual "Sync Now" button always have a full 24-hour window available.
+ *
+ * IMPORTANT LIMITATION: If both the server is offline AND the user's WhatsApp
+ * does not retain a given message in its history push (rare for very old or
+ * large groups), those messages will not be captured.  Keep the service running
+ * continuously to avoid this edge case.
+ *
+ * TARGET-GROUP FILTERING
+ * ────────────────────────
+ * WHATSAPP_TARGET_GROUPS (comma-separated name substrings) is enforced in ALL
+ * code paths, including the fallback when the socket is disconnected:
+ *   - Connected: resolve JID → group subject via groupFetchAllParticipating()
+ *     and filter strictly.
+ *   - Disconnected: if WHATSAPP_TARGET_GROUPS is set, return [] and log a
+ *     warning (group membership cannot be verified without a live connection).
+ *     If WHATSAPP_TARGET_GROUPS is empty/unset, return all buffered group
+ *     messages (no filter required).
+ */
+
 import { logger } from "../lib/logger.js";
 import fs from "fs";
 import path from "path";
 
-export interface BufferedMessage {
+export interface StoredMessage {
   remoteJid: string;
   text: string;
   timestamp: number;
@@ -10,40 +47,49 @@ export interface BufferedMessage {
 
 let sessionDir: string | null = null;
 
-function bufferFilePath(): string {
-  return path.join(sessionDir ?? "/tmp", "message-buffer.json");
+function storePath(): string {
+  return path.join(sessionDir ?? "/tmp", "wa-message-store.json");
 }
 
-function loadBuffer(): BufferedMessage[] {
+function loadStore(): StoredMessage[] {
   try {
-    const fp = bufferFilePath();
+    const fp = storePath();
     if (!fs.existsSync(fp)) return [];
-    return JSON.parse(fs.readFileSync(fp, "utf8")) as BufferedMessage[];
+    return JSON.parse(fs.readFileSync(fp, "utf8")) as StoredMessage[];
   } catch {
     return [];
   }
 }
 
-function saveBuffer(msgs: BufferedMessage[]): void {
+function persistStore(msgs: StoredMessage[]): void {
   try {
-    const cutoff = Date.now() / 1000 - 48 * 3600;
+    const cutoff = Date.now() / 1000 - 72 * 3600;
     const pruned = msgs.filter((m) => m.timestamp >= cutoff);
-    fs.writeFileSync(bufferFilePath(), JSON.stringify(pruned), "utf8");
+    fs.writeFileSync(storePath(), JSON.stringify(pruned), "utf8");
   } catch (err) {
-    logger.warn({ err }, "Failed to persist message buffer");
+    logger.warn({ err }, "Failed to persist WhatsApp message store");
   }
 }
 
-function appendToBuffer(msg: BufferedMessage): void {
-  const existing = loadBuffer();
-  existing.push(msg);
-  saveBuffer(existing);
+/** Append a batch of messages, deduplicating by (jid + timestamp + text). */
+function appendMessages(incoming: StoredMessage[]): void {
+  if (incoming.length === 0) return;
+  const existing = loadStore();
+  const seen = new Set(existing.map((m) => `${m.remoteJid}|${m.timestamp}|${m.text}`));
+  const novel = incoming.filter((m) => !seen.has(`${m.remoteJid}|${m.timestamp}|${m.text}`));
+  if (novel.length === 0) return;
+  persistStore([...existing, ...novel]);
+  logger.debug({ count: novel.length }, "Appended messages to WhatsApp store");
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
 let connectionStatus: ConnectionStatus = "disconnected";
 
-let _getRecentMessages:
+/**
+ * Resolver set when the socket is open.
+ * Accepts target-group name substrings and returns filtered, timestamped messages.
+ */
+let _resolveMessages:
   | ((targetGroups: string[], sinceHours: number) => Promise<{ groupName: string; text: string; timestamp: number }[]>)
   | null = null;
 
@@ -55,25 +101,11 @@ async function loadBaileys() {
   return import("@whiskeysockets/baileys") as Promise<typeof import("@whiskeysockets/baileys")>;
 }
 
-/**
- * OPERATING MODEL — "always-on buffer":
- * This service does NOT fetch historical chat history from WhatsApp servers.
- * Instead it listens to real-time `messages.upsert` events and persists every
- * incoming group message to `whatsapp-session/message-buffer.json` (48 h window,
- * pruned on each write).  The daily 1 PM scrape and manual "Sync Now" both read
- * from this local buffer, so they work correctly as long as the API server has
- * been running continuously.  If the server was down for a period, messages
- * received during that outage will be absent from the buffer and will not be
- * retro-scraped.  To minimise this risk, keep the API server running 24/7 and
- * ensure the WhatsApp session stays linked.
- */
 export async function initWhatsApp(dir: string): Promise<void> {
   sessionDir = dir;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  logger.info(
-    "WhatsApp scraper uses always-on local buffer (message-buffer.json). " +
-    "Messages received while the server is offline will NOT be captured.",
-  );
+
+  logger.info("WhatsApp service initialising (session dir: %s)", dir);
 
   const {
     default: makeWASocket,
@@ -95,9 +127,9 @@ export async function initWhatsApp(dir: string): Promise<void> {
       trace: () => {},
       debug: () => {},
       info: () => {},
-      warn: (msg: unknown) => logger.warn(msg, "[WhatsApp]"),
-      error: (msg: unknown) => logger.error(msg, "[WhatsApp]"),
-      fatal: (msg: unknown) => logger.fatal(msg, "[WhatsApp]"),
+      warn: (msg: unknown) => logger.warn(msg, "[Baileys]"),
+      error: (msg: unknown) => logger.error(msg, "[Baileys]"),
+      fatal: (msg: unknown) => logger.fatal(msg, "[Baileys]"),
       child: () =>
         ({
           trace: () => {},
@@ -113,22 +145,52 @@ export async function initWhatsApp(dir: string): Promise<void> {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // ── Persist incoming group messages to the file-based buffer ──────────────
+  // ── Source 2: real-time incoming messages ─────────────────────────────────
   sock.ev.on("messages.upsert", ({ messages }) => {
+    const toAdd: StoredMessage[] = [];
     for (const msg of messages) {
       const jid = msg.key.remoteJid ?? "";
-      if (!jid.endsWith("@g.us")) continue;       // groups only
-      if (msg.key.fromMe) continue;                // skip own messages
+      if (!jid.endsWith("@g.us")) continue;
+      if (msg.key.fromMe) continue;
       const text =
         msg.message?.conversation ||
         msg.message?.extendedTextMessage?.text ||
         "";
       if (!text) continue;
-      appendToBuffer({
+      toAdd.push({
         remoteJid: jid,
         text,
         timestamp: (msg.messageTimestamp as number) ?? Math.floor(Date.now() / 1000),
       });
+    }
+    appendMessages(toAdd);
+  });
+
+  // ── Source 1: WhatsApp history sync on (re)connection ────────────────────
+  // WhatsApp pushes recent message history immediately after the handshake.
+  // Capturing it here fills the gap for messages received during downtime.
+  sock.ev.on("messaging-history.set", ({ messages }) => {
+    const toAdd: StoredMessage[] = [];
+    for (const msg of messages) {
+      const jid = msg.key?.remoteJid ?? "";
+      if (!jid.endsWith("@g.us")) continue;
+      if (msg.key?.fromMe) continue;
+      const text =
+        msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        "";
+      if (!text) continue;
+      const ts =
+        typeof msg.messageTimestamp === "number"
+          ? msg.messageTimestamp
+          : typeof msg.messageTimestamp === "bigint"
+            ? Number(msg.messageTimestamp)
+            : Math.floor(Date.now() / 1000);
+      toAdd.push({ remoteJid: jid, text, timestamp: ts });
+    }
+    if (toAdd.length > 0) {
+      logger.info({ count: toAdd.length }, "Backfilled messages from WhatsApp history sync");
+      appendMessages(toAdd);
     }
   });
 
@@ -139,25 +201,24 @@ export async function initWhatsApp(dir: string): Promise<void> {
       connectionStatus = "connected";
       logger.info("WhatsApp session connected");
 
-      // Build a resolver that maps JIDs to group subjects and filters by target group names
-      _getRecentMessages = async (targetGroups: string[], sinceHours: number) => {
+      _resolveMessages = async (targetGroups, sinceHours) => {
         const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
 
-        // Fetch all participating groups to resolve JID → subject
+        // Resolve group subjects — required for target-group name matching
         let groups: Record<string, { subject: string }> = {};
         try {
           groups = await sock.groupFetchAllParticipating();
         } catch (err) {
-          logger.warn({ err }, "Failed to fetch group list — returning all buffered messages");
+          logger.error({ err }, "Failed to fetch WhatsApp group list — aborting scrape to avoid ingesting unrelated groups");
+          return [];
         }
 
-        const subjectOf = (jid: string): string =>
-          groups[jid]?.subject ?? jid;
+        const subjectOf = (jid: string): string => groups[jid]?.subject ?? jid;
 
-        // Determine which JIDs match the configured target group names
+        // Build allowed JID set from target group name substrings
         const targetJids =
           targetGroups.length === 0
-            ? null // no filter — include all groups
+            ? null // no filter — accept all groups
             : Object.entries(groups)
                 .filter(([, meta]) =>
                   targetGroups.some((t) =>
@@ -166,8 +227,16 @@ export async function initWhatsApp(dir: string): Promise<void> {
                 )
                 .map(([jid]) => jid);
 
-        const buffered = loadBuffer();
-        return buffered
+        if (targetGroups.length > 0 && targetJids !== null && targetJids.length === 0) {
+          logger.warn(
+            { targetGroups },
+            "No WhatsApp groups matched WHATSAPP_TARGET_GROUPS — returning empty. " +
+            "Check that the group name substrings are correct.",
+          );
+        }
+
+        const stored = loadStore();
+        return stored
           .filter((m) => {
             if (m.timestamp < sinceTs) return false;
             if (targetJids !== null && !targetJids.includes(m.remoteJid)) return false;
@@ -183,6 +252,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
 
     if (connection === "close") {
       connectionStatus = "disconnected";
+      _resolveMessages = null;
       const statusCode = (
         lastDisconnect?.error as { output?: { statusCode?: number } } | null
       )?.output?.statusCode;
@@ -191,25 +261,44 @@ export async function initWhatsApp(dir: string): Promise<void> {
         logger.warn("WhatsApp disconnected — reconnecting in 5 s…");
         setTimeout(() => initWhatsApp(dir), 5000);
       } else {
-        logger.warn(
-          "WhatsApp logged out. Delete the whatsapp-session folder and restart to re-link.",
-        );
+        logger.warn("WhatsApp logged out. Delete whatsapp-session/ and restart to re-link.");
       }
     }
   });
 }
 
+/**
+ * Return messages from the last `sinceHours` hours, filtered to target groups.
+ *
+ * Filtering contract:
+ *   - Connected: groups resolved via groupFetchAllParticipating(); metadata
+ *     failure aborts the scrape (returns []) to avoid ingesting stray groups.
+ *   - Disconnected + target groups configured: returns [] with a warning.
+ *     Group membership cannot be verified without a live connection.
+ *   - Disconnected + no target groups: returns all buffered group messages.
+ */
 export async function getRecentGroupMessages(
   targetGroups: string[],
   sinceHours = 24,
 ): Promise<{ groupName: string; text: string; timestamp: number }[]> {
-  if (!_getRecentMessages) {
-    logger.warn("WhatsApp not connected — reading from local buffer without group-name resolution");
-    // Fall back to raw buffer so a scrape after a restart still processes persisted messages
-    const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
-    return loadBuffer()
-      .filter((m) => m.timestamp >= sinceTs)
-      .map((m) => ({ groupName: m.remoteJid, text: m.text, timestamp: m.timestamp }));
+  if (_resolveMessages) {
+    return _resolveMessages(targetGroups, sinceHours);
   }
-  return _getRecentMessages(targetGroups, sinceHours);
+
+  // ── Fallback: socket not connected ────────────────────────────────────────
+  if (targetGroups.length > 0) {
+    // Cannot verify group membership — strict enforcement requires a connection
+    logger.warn(
+      { targetGroups },
+      "WhatsApp not connected: cannot enforce WHATSAPP_TARGET_GROUPS filtering. " +
+      "Returning empty result to avoid ingesting unrelated groups.",
+    );
+    return [];
+  }
+
+  // No filter configured — safe to return all buffered group messages
+  const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
+  return loadStore()
+    .filter((m) => m.timestamp >= sinceTs)
+    .map((m) => ({ groupName: m.remoteJid, text: m.text, timestamp: m.timestamp }));
 }
