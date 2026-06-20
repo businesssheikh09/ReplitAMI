@@ -43,7 +43,7 @@ export default function Login() {
       if (response && response.token) {
         setToken(response.token);
         if (response.user) setUser(response.user as any);
-        setLocation("/dashboard");
+        setLocation("/");
       }
     } catch (error) {
       toast({

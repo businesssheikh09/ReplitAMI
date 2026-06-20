@@ -24,8 +24,8 @@ export default function AccessDenied() {
         <Button variant="outline" onClick={() => window.history.back()}>
           Go Back
         </Button>
-        <Button onClick={() => setLocation("/dashboard")}>
-          Dashboard
+        <Button onClick={() => setLocation("/")}>
+          Home
         </Button>
       </div>
     </div>
