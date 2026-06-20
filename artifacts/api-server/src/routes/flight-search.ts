@@ -382,6 +382,7 @@ router.post("/flights/issue-ticket", async (req, res) => {
     // Verify user PIN
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, userEmail));
     if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "accounts") return res.status(403).json({ error: "Accounts department is not permitted to issue tickets" });
     if (!user.canIssueTickets) return res.status(403).json({ error: "User is not authorized to issue tickets" });
     if (!user.ticketingPin || user.ticketingPin !== pin) {
       return res.status(401).json({ error: "Invalid ticketing PIN" });

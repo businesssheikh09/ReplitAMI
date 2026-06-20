@@ -87,7 +87,7 @@ export const CreateUserBody = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "password": zod.string(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']),
   "phone": zod.string().optional()
 })
 
@@ -120,7 +120,7 @@ export const UpdateUserParams = zod.object({
 export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
   "email": zod.string().optional(),
-  "role": zod.enum(['admin', 'sales', 'visa', 'accounts', 'support']).optional(),
+  "role": zod.enum(['management', 'sales', 'accounts', 'operations']).optional(),
   "phone": zod.string().optional(),
   "isActive": zod.boolean().optional()
 })

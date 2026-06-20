@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import AccessDenied from "@/pages/access-denied";
 import Dashboard from "@/pages/dashboard";
 import ClientsPage from "@/pages/clients";
 import ClientDetailPage from "@/pages/client-detail";
@@ -25,6 +26,7 @@ import WebsiteSettingsPage from "@/pages/website-settings";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { canAccess } from "@/lib/permissions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,11 +37,21 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component, path }: { component: React.ComponentType<any>; path: string }) {
-  const { isAuthenticated } = useAuth();
+function ProtectedRoute({
+  component: Component,
+  path,
+}: {
+  component: React.ComponentType<any>;
+  path: string;
+}) {
+  const { isAuthenticated, user } = useAuth();
   return (
     <Route path={path}>
-      {(params) => isAuthenticated ? <Component {...params} /> : <Redirect to="/login" />}
+      {(params) => {
+        if (!isAuthenticated) return <Redirect to="/login" />;
+        if (user && !canAccess(user.role, path)) return <AccessDenied />;
+        return <Component {...params} />;
+      }}
     </Route>
   );
 }
@@ -52,6 +64,7 @@ function Router() {
           <Redirect to="/dashboard" />
         </Route>
         <Route path="/login" component={Login} />
+        <Route path="/access-denied" component={AccessDenied} />
 
         <ProtectedRoute path="/dashboard" component={Dashboard} />
 

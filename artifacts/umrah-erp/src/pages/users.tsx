@@ -13,13 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, ShieldCheck, UserCheck, UserX, TicketCheck, KeyRound } from "lucide-react";
 
-const ROLES = ["admin", "sales", "visa", "accounts", "support"];
+const ROLES = ["management", "sales", "accounts", "operations"];
 const ROLE_COLORS: Record<string, string> = {
+  management: "bg-purple-100 text-purple-700",
   admin: "bg-purple-100 text-purple-700",
   sales: "bg-blue-100 text-blue-700",
-  visa: "bg-cyan-100 text-cyan-700",
   accounts: "bg-green-100 text-green-700",
-  support: "bg-amber-100 text-amber-700",
+  operations: "bg-emerald-100 text-emerald-700",
 };
 
 export default function UsersPage() {
@@ -30,7 +30,7 @@ export default function UsersPage() {
   const [pinUser, setPinUser] = useState<any>(null);
   const [newPin, setNewPin] = useState("");
   const [canIssue, setCanIssue] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "admin123", role: "sales", phone: "", canIssueTickets: false, ticketingPin: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "sales", phone: "", canIssueTickets: false, ticketingPin: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -97,7 +97,7 @@ export default function UsersPage() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => createUser.mutate({ data: form })} disabled={!form.name || !form.email || createUser.isPending}>Create</Button>
+              <Button onClick={() => createUser.mutate({ data: form as any })} disabled={!form.name || !form.email || createUser.isPending}>Create</Button>
             </div>
           </DialogContent>
         </Dialog>

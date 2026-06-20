@@ -1,26 +1,27 @@
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  Users, 
-  PhoneCall, 
-  FileText, 
-  Building2, 
-  Hotel, 
-  Store, 
-  Car, 
-  Plane, 
-  BookOpen, 
-  Calculator, 
-  Receipt, 
-  CreditCard, 
-  ShieldCheck, 
+import {
+  LayoutDashboard,
+  Users,
+  PhoneCall,
+  FileText,
+  Building2,
+  Hotel,
+  Store,
+  Car,
+  Plane,
+  BookOpen,
+  Calculator,
+  Receipt,
+  CreditCard,
+  ShieldCheck,
   Files,
   Settings2,
   ArrowRightLeft,
-  Globe
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { NAV_ITEM_ROLES, ROLE_LABELS, ROLE_COLORS, type UserRole } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 
 const navGroups = [
@@ -74,16 +75,42 @@ const navGroups = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const role = (user?.role ?? "") as UserRole;
+  const isManagement = role === "management" || role === "admin";
+
+  const filteredGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (isManagement) return true;
+        const allowed = NAV_ITEM_ROLES[item.href];
+        return allowed ? allowed.includes(role) : false;
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  const roleBadgeClass = ROLE_COLORS[role] ?? "bg-gray-100 text-gray-700";
+  const roleLabel = ROLE_LABELS[role] ?? role;
 
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar border-r border-sidebar-border">
       <div className="flex h-14 items-center px-4 border-b border-sidebar-border">
         <span className="font-bold text-lg tracking-tight">Umrah ERP</span>
       </div>
+
+      {user && (
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <p className="text-sm font-medium truncate">{user.name}</p>
+          <span className={cn("inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium", roleBadgeClass)}>
+            {roleLabel}
+          </span>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-6 px-2">
-          {navGroups.map((group) => (
+          {filteredGroups.map((group) => (
             <div key={group.title}>
               <h4 className="mb-2 px-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
                 {group.title}
@@ -113,6 +140,7 @@ export function Sidebar() {
           ))}
         </nav>
       </div>
+
       <div className="p-4 border-t border-sidebar-border">
         <Button variant="outline" className="w-full justify-start" onClick={logout}>
           Log out
@@ -127,7 +155,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
 
   if (!isAuthenticated && location !== "/login") {
-    // Should ideally redirect, but handled in App.tsx generally
+    // Handled in App.tsx
   }
 
   if (location === "/login") {

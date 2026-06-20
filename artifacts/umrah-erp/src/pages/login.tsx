@@ -25,7 +25,7 @@ const loginSchema = z.object({
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { setToken } = useAuth();
+  const { setToken, setUser } = useAuth();
   const { toast } = useToast();
   const login = useLogin();
 
@@ -42,24 +42,15 @@ export default function Login() {
       const response = await login.mutateAsync({ data });
       if (response && response.token) {
         setToken(response.token);
+        if (response.user) setUser(response.user as any);
         setLocation("/dashboard");
       }
     } catch (error) {
-      // Mock login fallback
-      if (data.email === "admin@umrah.com" && data.password === "admin123") {
-        setToken("mock-jwt-token-123");
-        setLocation("/dashboard");
-        toast({
-          title: "Logged in via mock fallback",
-          description: "API login failed, using mock data.",
-        });
-      } else {
-        toast({
-          title: "Login failed",
-          description: "Invalid credentials.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Login failed",
+        description: "Invalid credentials.",
+        variant: "destructive",
+      });
     }
   };
 
