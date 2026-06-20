@@ -6,8 +6,9 @@ const NOT_ACCOUNTS: UserRole[] = ["sales", "management", "operations", "admin"];
 const FINANCE_FULL: UserRole[] = ["accounts", "management", "admin"];
 const FINANCE_OPS: UserRole[] = ["accounts", "management", "operations", "admin"];
 
+// Accounts dept: Finance routes only (no Dashboard, no CRM, no Ops, no Admin)
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
-  "/dashboard": ALL,
+  "/dashboard": NOT_ACCOUNTS,
   "/crm": NOT_ACCOUNTS,
   "/crm/follow-ups": NOT_ACCOUNTS,
   "/quotations": NOT_ACCOUNTS,
@@ -40,8 +41,9 @@ export function canAccess(role: string | undefined, route: string): boolean {
   return false;
 }
 
+// Nav items reflect same access as routes
 export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
-  "/dashboard": ALL,
+  "/dashboard": NOT_ACCOUNTS,
   "/crm": NOT_ACCOUNTS,
   "/crm/follow-ups": NOT_ACCOUNTS,
   "/quotations": NOT_ACCOUNTS,
