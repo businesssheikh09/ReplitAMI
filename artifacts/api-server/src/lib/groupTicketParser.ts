@@ -22,10 +22,14 @@ function parseDateCode(code: string): string {
   const day = parseInt(m[1], 10);
   const monthIdx = MONTH_MAP[m[2].toUpperCase()];
   if (monthIdx === undefined) return new Date().toISOString().slice(0, 10);
-  const now = new Date();
-  let year = now.getFullYear();
+
+  const today = new Date();
+  // Compare by calendar date only (midnight), not by current time, to avoid
+  // same-day messages rolling to next year after midnight.
+  today.setHours(0, 0, 0, 0);
+  let year = today.getFullYear();
   const candidate = new Date(year, monthIdx, day);
-  if (candidate < now) year += 1;
+  if (candidate < today) year += 1;
   return `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
