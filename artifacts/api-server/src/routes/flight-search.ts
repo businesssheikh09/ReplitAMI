@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { gdsSettingsTable, usersTable, flightQuotationsTable } from "@workspace/db";
+import { gdsSettingsTable, flightQuotationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import Amadeus from "amadeus";
 import axios from "axios";
+import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
 
@@ -372,19 +373,25 @@ router.post("/flights/search", async (req, res) => {
 
 // ── Issue Ticket Route ───────────────────────────────────────────────────────
 
-router.post("/flights/issue-ticket", async (req, res) => {
+router.post("/flights/issue-ticket", requireAuth, async (req, res) => {
   try {
-    const { bookingId, userEmail, pin } = req.body;
-    if (!bookingId || !userEmail || !pin) {
-      return res.status(400).json({ error: "bookingId, userEmail, and pin are required" });
+    const principal = req.user!;
+
+    // Role check via authenticated principal — accounts dept cannot issue tickets
+    if (principal.role === "accounts") {
+      return res.status(403).json({ error: "Accounts department is not permitted to issue tickets" });
+    }
+    if (!principal.canIssueTickets) {
+      return res.status(403).json({ error: "User is not authorized to issue tickets" });
     }
 
-    // Verify user PIN
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, userEmail));
-    if (!user) return res.status(404).json({ error: "User not found" });
-    if (user.role === "accounts") return res.status(403).json({ error: "Accounts department is not permitted to issue tickets" });
-    if (!user.canIssueTickets) return res.status(403).json({ error: "User is not authorized to issue tickets" });
-    if (!user.ticketingPin || user.ticketingPin !== pin) {
+    const { bookingId, pin } = req.body;
+    if (!bookingId || !pin) {
+      return res.status(400).json({ error: "bookingId and pin are required" });
+    }
+
+    // Verify PIN against authenticated user's stored PIN
+    if (!principal.ticketingPin || principal.ticketingPin !== pin) {
       return res.status(401).json({ error: "Invalid ticketing PIN" });
     }
 
@@ -402,7 +409,7 @@ router.post("/flights/issue-ticket", async (req, res) => {
     const [updated] = await db.update(flightQuotationsTable).set({
       status: "ticketed",
       ticketNumber,
-      issuedBy: user.id,
+      issuedBy: principal.id,
       issuedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(flightQuotationsTable.id, parseInt(bookingId))).returning();
@@ -410,7 +417,7 @@ router.post("/flights/issue-ticket", async (req, res) => {
     return res.json({
       success: true,
       ticketNumber,
-      issuedBy: user.name,
+      issuedBy: principal.name,
       issuedAt: updated.issuedAt?.toISOString(),
       message: `Ticket ${ticketNumber} issued successfully`,
     });

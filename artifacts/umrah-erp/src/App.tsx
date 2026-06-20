@@ -49,7 +49,8 @@ function ProtectedRoute({
     <Route path={path}>
       {(params) => {
         if (!isAuthenticated) return <Redirect to="/login" />;
-        if (user && !canAccess(user.role, path)) return <Redirect to="/access-denied" />;
+        if (!user) return <Redirect to="/access-denied" />;
+        if (!canAccess(user.role, path)) return <Redirect to="/access-denied" />;
         return <Component {...params} />;
       }}
     </Route>
