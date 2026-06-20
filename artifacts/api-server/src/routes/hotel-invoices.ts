@@ -1,22 +1,16 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { hotelInvoicesTable, clientsTable, vendorsTable, usersTable, hotelsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 const router = Router();
 
 // ── DN sequence helper ────────────────────────────────────────────────────────
 
 async function getNextDnNumber(): Promise<string> {
-  const [row] = await db
-    .select({ dnNumber: hotelInvoicesTable.dnNumber })
-    .from(hotelInvoicesTable)
-    .orderBy(desc(hotelInvoicesTable.id))
-    .limit(1);
-  if (!row) return "DN-2187";
-  const match = row.dnNumber.match(/DN-(\d+)/);
-  if (!match) return "DN-2187";
-  return `DN-${parseInt(match[1]) + 1}`;
+  const result = await db.execute(sql`SELECT nextval('dn_invoice_seq')::int AS seq`);
+  const seq = (result.rows[0] as any)?.seq ?? 2187;
+  return `DN-${seq}`;
 }
 
 function parseNumericField(v: unknown): number | null {

@@ -59,6 +59,7 @@ const navGroups = [
       { title: "Accounting", href: "/accounting", icon: Calculator },
       { title: "Invoices", href: "/accounting/invoices", icon: Receipt },
       { title: "Expenses", href: "/accounting/expenses", icon: CreditCard },
+      { title: "Hotel Invoices DN", href: "/hotel-invoices", icon: Hotel },
       { title: "Currency", href: "/currency-settings", icon: ArrowRightLeft },
     ],
   },
