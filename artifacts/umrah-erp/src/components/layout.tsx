@@ -63,10 +63,15 @@ const navGroups = [
     ],
   },
   {
+    title: "Documents",
+    items: [
+      { title: "Documents", href: "/documents", icon: Files },
+    ],
+  },
+  {
     title: "Admin",
     items: [
       { title: "Users", href: "/users", icon: ShieldCheck },
-      { title: "Documents", href: "/documents", icon: Files },
       { title: "GDS Settings", href: "/gds-settings", icon: Settings2 },
       { title: "Website Settings", href: "/website-settings", icon: Globe },
     ],

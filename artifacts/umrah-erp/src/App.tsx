@@ -57,12 +57,21 @@ function ProtectedRoute({
   );
 }
 
+function RoleHome() {
+  const { user } = useAuth();
+  const role = user?.role;
+  if (role === "accounts") return <Redirect to="/accounting/invoices" />;
+  if (role === "sales") return <Redirect to="/quotations" />;
+  if (role === "operations") return <Redirect to="/quotations" />;
+  return <Redirect to="/dashboard" />;
+}
+
 function Router() {
   return (
     <AppLayout>
       <Switch>
         <Route path="/">
-          <Redirect to="/dashboard" />
+          <RoleHome />
         </Route>
         <Route path="/login" component={Login} />
         <Route path="/access-denied" component={AccessDenied} />
