@@ -108,6 +108,7 @@ function GroupTicketsTab() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const sessionExpiredShown = useRef(false);
 
   const canSync = ["admin", "management", "accounts"].includes(user?.role ?? "");
@@ -143,6 +144,7 @@ function GroupTicketsTab() {
         setWhatsappStatus(data.whatsappStatus);
       } else if (res.status === 401 && !sessionExpiredShown.current) {
         sessionExpiredShown.current = true;
+        setSessionExpired(true);
         toast({ title: "Session expired", description: "Please log out and log back in.", variant: "destructive" });
       }
     } catch { /* silent */ }
@@ -182,12 +184,19 @@ function GroupTicketsTab() {
     }
   }, [token]);
 
+  // Reset session-expired gate when the user logs back in with a fresh token
+  useEffect(() => {
+    sessionExpiredShown.current = false;
+    setSessionExpired(false);
+  }, [token]);
+
   useEffect(() => {
     fetchTickets();
     fetchStatus();
+    if (sessionExpired) return;
     const iv = setInterval(fetchStatus, 30_000);
     return () => clearInterval(iv);
-  }, [fetchTickets, fetchStatus]);
+  }, [fetchTickets, fetchStatus, sessionExpired]);
 
   // Poll for new QR while the modal is open (Baileys refreshes QR every ~60 s)
   useEffect(() => {
