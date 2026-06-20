@@ -18,6 +18,7 @@ import TransportPage from "@/pages/transport";
 import FlightsPage from "@/pages/flights";
 import VisaPage from "@/pages/visa";
 import AccountingPage from "@/pages/accounting";
+import HotelInvoiceFormPage from "@/pages/hotel-invoice-form";
 import UsersPage from "@/pages/users";
 import DocumentsPage from "@/pages/documents";
 import GdsSettingsPage from "@/pages/gds-settings";
@@ -99,6 +100,8 @@ function Router() {
         <ProtectedRoute path="/accounting" component={AccountingPage} />
         <ProtectedRoute path="/accounting/invoices" component={AccountingPage} />
         <ProtectedRoute path="/accounting/expenses" component={AccountingPage} />
+        <ProtectedRoute path="/accounting/hotel-invoice/new" component={HotelInvoiceFormPage} />
+        <ProtectedRoute path="/accounting/hotel-invoice/:id" component={HotelInvoiceFormPage} />
 
         {/* Admin */}
         <ProtectedRoute path="/users" component={UsersPage} />

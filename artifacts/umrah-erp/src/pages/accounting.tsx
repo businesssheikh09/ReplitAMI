@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useListInvoices, useCreateInvoice, useListExpenses, useCreateExpense, useListClients } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown, Hotel, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
 
 const INV_STATUS: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -18,11 +20,15 @@ const INV_STATUS: Record<string, string> = {
   partial: "bg-amber-100 text-amber-700",
   paid: "bg-green-100 text-green-700",
   overdue: "bg-red-100 text-red-700",
+  confirmed: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+  invoiced: "bg-blue-100 text-blue-700",
 };
 
 export default function AccountingPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [invForm, setInvForm] = useState({ clientId: "", amount: "", currency: "USD", dueDate: "", notes: "" });
@@ -31,11 +37,16 @@ export default function AccountingPage() {
   const { data: invoices = [], isLoading: invLoading } = useListInvoices({});
   const { data: expenses = [], isLoading: expLoading } = useListExpenses({});
   const { data: clients = [] } = useListClients({});
+  const { data: hotelInvoices = [], isLoading: hotelInvLoading } = useQuery<any[]>({
+    queryKey: ["/api/invoices/hotel"],
+    queryFn: () => fetch("/api/invoices/hotel").then(r => r.json()),
+  });
   const createInvoice = useCreateInvoice({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/invoices"] }); setInvoiceOpen(false); toast({ title: "Invoice created" }); } } });
   const createExpense = useCreateExpense({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/expenses"] }); setExpenseOpen(false); toast({ title: "Expense recorded" }); } } });
 
   const invs = invoices as any[];
   const exps = expenses as any[];
+  const dnInvs = hotelInvoices as any[];
   const totalRevenue = invs.filter(i => i.status === "paid" || i.status === "partial").reduce((s, i) => s + (i.paidAmount || 0), 0);
   const totalExpenses = exps.reduce((s, e) => s + (e.amount || 0), 0);
   const profit = totalRevenue - totalExpenses;
@@ -49,6 +60,9 @@ export default function AccountingPage() {
           <p className="text-muted-foreground">Invoices, payments, and expenses overview.</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
+            <Hotel className="mr-2 h-4 w-4" /> New Hotel Invoice (DN)
+          </Button>
           <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
             <DialogTrigger asChild><Button variant="outline"><Plus className="mr-2 h-4 w-4" />New Invoice</Button></DialogTrigger>
             <DialogContent>
@@ -133,11 +147,78 @@ export default function AccountingPage() {
         ))}
       </div>
 
-      <Tabs defaultValue="invoices">
+      <Tabs defaultValue="hotel-invoices">
         <TabsList>
-          <TabsTrigger value="invoices">Invoices ({invs.length})</TabsTrigger>
+          <TabsTrigger value="hotel-invoices">Hotel Invoices DN ({dnInvs.length})</TabsTrigger>
+          <TabsTrigger value="invoices">General Invoices ({invs.length})</TabsTrigger>
           <TabsTrigger value="expenses">Expenses ({exps.length})</TabsTrigger>
         </TabsList>
+
+        {/* ── Hotel DN Invoices tab ── */}
+        <TabsContent value="hotel-invoices" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Hotel DN Invoices</CardTitle>
+                <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")} className="bg-blue-700 hover:bg-blue-800 text-white">
+                  <Plus className="mr-1 h-4 w-4" /> New DN Invoice
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {hotelInvLoading ? (
+                <div className="h-40 flex items-center justify-center text-muted-foreground">Loading...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>DN #</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Passenger</TableHead>
+                      <TableHead>Hotel</TableHead>
+                      <TableHead>Check In</TableHead>
+                      <TableHead>Check Out</TableHead>
+                      <TableHead>Nights</TableHead>
+                      <TableHead>Recv SAR</TableHead>
+                      <TableHead>Pay SAR</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dnInvs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={11} className="text-center h-32 text-muted-foreground">
+                          No hotel invoices yet. Click "New DN Invoice" to create one.
+                        </TableCell>
+                      </TableRow>
+                    ) : dnInvs.map((inv: any) => (
+                      <TableRow key={inv.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setLocation(`/accounting/hotel-invoice/${inv.id}`)}>
+                        <TableCell className="font-mono font-semibold text-blue-700">{inv.dnNumber}</TableCell>
+                        <TableCell className="text-sm">{inv.invoiceDate}</TableCell>
+                        <TableCell>{inv.passengerName || "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.hotelName || "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.checkIn || "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.checkOut || "—"}</TableCell>
+                        <TableCell className="text-center">{inv.noOfNights ?? "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{inv.receivableSar != null ? Number(inv.receivableSar).toLocaleString() : "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{inv.payableSar != null ? Number(inv.payableSar).toLocaleString() : "—"}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${INV_STATUS[inv.status] || "bg-gray-100"}`}>{inv.status}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setLocation(`/accounting/hotel-invoice/${inv.id}`); }}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="invoices" className="mt-4">
           <Card>

@@ -1448,6 +1448,227 @@ export const CreateExpenseBody = zod.object({
 
 
 /**
+ * @summary Get the next available DN invoice number
+ */
+export const GetNextDnNumberResponse = zod.object({
+  "dnNumber": zod.string()
+})
+
+
+/**
+ * @summary List hotel DN invoices
+ */
+export const ListHotelInvoicesResponseItem = zod.object({
+  "id": zod.number(),
+  "dnNumber": zod.string(),
+  "invoiceDate": zod.string(),
+  "partyId": zod.number().nullish(),
+  "partyName": zod.string().nullish(),
+  "vendorId": zod.number().nullish(),
+  "vendorName": zod.string().nullish(),
+  "passengerName": zod.string().nullish(),
+  "nationality": zod.string().nullish(),
+  "noOfPax": zod.number(),
+  "detail": zod.string().nullish(),
+  "voucherType": zod.string().nullish(),
+  "optionDate": zod.string().nullish(),
+  "hotelId": zod.number().nullish(),
+  "hotelName": zod.string().nullish(),
+  "hotelView": zod.string().nullish(),
+  "roomType": zod.string().nullish(),
+  "bedType": zod.string().nullish(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "noOfNights": zod.number().nullish(),
+  "noOfRooms": zod.number(),
+  "reference": zod.string().nullish(),
+  "cnfNumber": zod.string().nullish(),
+  "roomNumber": zod.string().nullish(),
+  "remarks": zod.string().nullish(),
+  "contactNumber": zod.string().nullish(),
+  "receivableSar": zod.number().nullish(),
+  "payableSar": zod.number().nullish(),
+  "receivablePkr": zod.number().nullish(),
+  "payablePkr": zod.number().nullish(),
+  "incomeHead": zod.string(),
+  "salesmanId": zod.number().nullish(),
+  "salesmanName": zod.string().nullish(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListHotelInvoicesResponse = zod.array(ListHotelInvoicesResponseItem)
+
+
+/**
+ * @summary Create a hotel DN invoice
+ */
+export const CreateHotelInvoiceBody = zod.object({
+  "dnNumber": zod.string().optional(),
+  "invoiceDate": zod.string(),
+  "partyId": zod.number().nullish(),
+  "vendorId": zod.number().nullish(),
+  "passengerName": zod.string().nullish(),
+  "nationality": zod.string().nullish(),
+  "noOfPax": zod.number().optional(),
+  "detail": zod.string().nullish(),
+  "voucherType": zod.string().nullish(),
+  "optionDate": zod.string().nullish(),
+  "hotelId": zod.number().nullish(),
+  "hotelName": zod.string().nullish(),
+  "hotelView": zod.string().nullish(),
+  "roomType": zod.string().nullish(),
+  "bedType": zod.string().nullish(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "noOfNights": zod.number().nullish(),
+  "noOfRooms": zod.number().optional(),
+  "reference": zod.string().nullish(),
+  "cnfNumber": zod.string().nullish(),
+  "roomNumber": zod.string().nullish(),
+  "remarks": zod.string().nullish(),
+  "contactNumber": zod.string().nullish(),
+  "receivableSar": zod.number().nullish(),
+  "payableSar": zod.number().nullish(),
+  "receivablePkr": zod.number().nullish(),
+  "payablePkr": zod.number().nullish(),
+  "incomeHead": zod.string().optional(),
+  "salesmanId": zod.number().nullish(),
+  "status": zod.string().optional()
+})
+
+
+/**
+ * @summary Get a hotel invoice by id
+ */
+export const GetHotelInvoiceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetHotelInvoiceResponse = zod.object({
+  "id": zod.number(),
+  "dnNumber": zod.string(),
+  "invoiceDate": zod.string(),
+  "partyId": zod.number().nullish(),
+  "partyName": zod.string().nullish(),
+  "vendorId": zod.number().nullish(),
+  "vendorName": zod.string().nullish(),
+  "passengerName": zod.string().nullish(),
+  "nationality": zod.string().nullish(),
+  "noOfPax": zod.number(),
+  "detail": zod.string().nullish(),
+  "voucherType": zod.string().nullish(),
+  "optionDate": zod.string().nullish(),
+  "hotelId": zod.number().nullish(),
+  "hotelName": zod.string().nullish(),
+  "hotelView": zod.string().nullish(),
+  "roomType": zod.string().nullish(),
+  "bedType": zod.string().nullish(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "noOfNights": zod.number().nullish(),
+  "noOfRooms": zod.number(),
+  "reference": zod.string().nullish(),
+  "cnfNumber": zod.string().nullish(),
+  "roomNumber": zod.string().nullish(),
+  "remarks": zod.string().nullish(),
+  "contactNumber": zod.string().nullish(),
+  "receivableSar": zod.number().nullish(),
+  "payableSar": zod.number().nullish(),
+  "receivablePkr": zod.number().nullish(),
+  "payablePkr": zod.number().nullish(),
+  "incomeHead": zod.string(),
+  "salesmanId": zod.number().nullish(),
+  "salesmanName": zod.string().nullish(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update a hotel invoice
+ */
+export const UpdateHotelInvoiceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateHotelInvoiceBody = zod.object({
+  "dnNumber": zod.string().optional(),
+  "invoiceDate": zod.string(),
+  "partyId": zod.number().nullish(),
+  "vendorId": zod.number().nullish(),
+  "passengerName": zod.string().nullish(),
+  "nationality": zod.string().nullish(),
+  "noOfPax": zod.number().optional(),
+  "detail": zod.string().nullish(),
+  "voucherType": zod.string().nullish(),
+  "optionDate": zod.string().nullish(),
+  "hotelId": zod.number().nullish(),
+  "hotelName": zod.string().nullish(),
+  "hotelView": zod.string().nullish(),
+  "roomType": zod.string().nullish(),
+  "bedType": zod.string().nullish(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "noOfNights": zod.number().nullish(),
+  "noOfRooms": zod.number().optional(),
+  "reference": zod.string().nullish(),
+  "cnfNumber": zod.string().nullish(),
+  "roomNumber": zod.string().nullish(),
+  "remarks": zod.string().nullish(),
+  "contactNumber": zod.string().nullish(),
+  "receivableSar": zod.number().nullish(),
+  "payableSar": zod.number().nullish(),
+  "receivablePkr": zod.number().nullish(),
+  "payablePkr": zod.number().nullish(),
+  "incomeHead": zod.string().optional(),
+  "salesmanId": zod.number().nullish(),
+  "status": zod.string().optional()
+})
+
+export const UpdateHotelInvoiceResponse = zod.object({
+  "id": zod.number(),
+  "dnNumber": zod.string(),
+  "invoiceDate": zod.string(),
+  "partyId": zod.number().nullish(),
+  "partyName": zod.string().nullish(),
+  "vendorId": zod.number().nullish(),
+  "vendorName": zod.string().nullish(),
+  "passengerName": zod.string().nullish(),
+  "nationality": zod.string().nullish(),
+  "noOfPax": zod.number(),
+  "detail": zod.string().nullish(),
+  "voucherType": zod.string().nullish(),
+  "optionDate": zod.string().nullish(),
+  "hotelId": zod.number().nullish(),
+  "hotelName": zod.string().nullish(),
+  "hotelView": zod.string().nullish(),
+  "roomType": zod.string().nullish(),
+  "bedType": zod.string().nullish(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "noOfNights": zod.number().nullish(),
+  "noOfRooms": zod.number(),
+  "reference": zod.string().nullish(),
+  "cnfNumber": zod.string().nullish(),
+  "roomNumber": zod.string().nullish(),
+  "remarks": zod.string().nullish(),
+  "contactNumber": zod.string().nullish(),
+  "receivableSar": zod.number().nullish(),
+  "payableSar": zod.number().nullish(),
+  "receivablePkr": zod.number().nullish(),
+  "payablePkr": zod.number().nullish(),
+  "incomeHead": zod.string(),
+  "salesmanId": zod.number().nullish(),
+  "salesmanName": zod.string().nullish(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Get home currency setting
  */
 export const GetCurrencySettingsResponse = zod.object({

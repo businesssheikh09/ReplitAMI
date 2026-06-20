@@ -19,6 +19,7 @@ tags:
   - name: visa
   - name: flights
   - name: accounting
+  - name: hotelInvoices
   - name: currency
   - name: dashboard
   - name: documents
@@ -1399,6 +1400,98 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Expense"
+
+  # ── HOTEL INVOICES (DN FORMAT) ────────────────────────────────────
+  /invoices/hotel/next-dn:
+    get:
+      operationId: getNextDnNumber
+      tags: [hotelInvoices]
+      summary: Get the next available DN invoice number
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dnNumber]
+                properties:
+                  dnNumber:
+                    type: string
+
+  /invoices/hotel:
+    get:
+      operationId: listHotelInvoices
+      tags: [hotelInvoices]
+      summary: List hotel DN invoices
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HotelInvoice"
+    post:
+      operationId: createHotelInvoice
+      tags: [hotelInvoices]
+      summary: Create a hotel DN invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HotelInvoiceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotelInvoice"
+
+  /invoices/hotel/{id}:
+    get:
+      operationId: getHotelInvoice
+      tags: [hotelInvoices]
+      summary: Get a hotel invoice by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotelInvoice"
+    put:
+      operationId: updateHotelInvoice
+      tags: [hotelInvoices]
+      summary: Update a hotel invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HotelInvoiceInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotelInvoice"
 
   # ── CURRENCY ──────────────────────────────────────────────────────
   /currency/settings:
@@ -2836,6 +2929,206 @@ components:
         date:
           type: string
         notes:
+          type: string
+
+    # ── HOTEL INVOICES ─────────────────────────────────────────────
+    HotelInvoice:
+      type: object
+      required: [id, dnNumber, invoiceDate, noOfPax, noOfRooms, incomeHead, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        dnNumber:
+          type: string
+        invoiceDate:
+          type: string
+        partyId:
+          type: integer
+          nullable: true
+        partyName:
+          type: string
+          nullable: true
+        vendorId:
+          type: integer
+          nullable: true
+        vendorName:
+          type: string
+          nullable: true
+        passengerName:
+          type: string
+          nullable: true
+        nationality:
+          type: string
+          nullable: true
+        noOfPax:
+          type: integer
+        detail:
+          type: string
+          nullable: true
+        voucherType:
+          type: string
+          nullable: true
+        optionDate:
+          type: string
+          nullable: true
+        hotelId:
+          type: integer
+          nullable: true
+        hotelName:
+          type: string
+          nullable: true
+        hotelView:
+          type: string
+          nullable: true
+        roomType:
+          type: string
+          nullable: true
+        bedType:
+          type: string
+          nullable: true
+        checkIn:
+          type: string
+          nullable: true
+        checkOut:
+          type: string
+          nullable: true
+        noOfNights:
+          type: integer
+          nullable: true
+        noOfRooms:
+          type: integer
+        reference:
+          type: string
+          nullable: true
+        cnfNumber:
+          type: string
+          nullable: true
+        roomNumber:
+          type: string
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+        contactNumber:
+          type: string
+          nullable: true
+        receivableSar:
+          type: number
+          nullable: true
+        payableSar:
+          type: number
+          nullable: true
+        receivablePkr:
+          type: number
+          nullable: true
+        payablePkr:
+          type: number
+          nullable: true
+        incomeHead:
+          type: string
+        salesmanId:
+          type: integer
+          nullable: true
+        salesmanName:
+          type: string
+          nullable: true
+        status:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    HotelInvoiceInput:
+      type: object
+      required: [invoiceDate]
+      properties:
+        dnNumber:
+          type: string
+        invoiceDate:
+          type: string
+        partyId:
+          type: integer
+          nullable: true
+        vendorId:
+          type: integer
+          nullable: true
+        passengerName:
+          type: string
+          nullable: true
+        nationality:
+          type: string
+          nullable: true
+        noOfPax:
+          type: integer
+        detail:
+          type: string
+          nullable: true
+        voucherType:
+          type: string
+          nullable: true
+        optionDate:
+          type: string
+          nullable: true
+        hotelId:
+          type: integer
+          nullable: true
+        hotelName:
+          type: string
+          nullable: true
+        hotelView:
+          type: string
+          nullable: true
+        roomType:
+          type: string
+          nullable: true
+        bedType:
+          type: string
+          nullable: true
+        checkIn:
+          type: string
+          nullable: true
+        checkOut:
+          type: string
+          nullable: true
+        noOfNights:
+          type: integer
+          nullable: true
+        noOfRooms:
+          type: integer
+        reference:
+          type: string
+          nullable: true
+        cnfNumber:
+          type: string
+          nullable: true
+        roomNumber:
+          type: string
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+        contactNumber:
+          type: string
+          nullable: true
+        receivableSar:
+          type: number
+          nullable: true
+        payableSar:
+          type: number
+          nullable: true
+        receivablePkr:
+          type: number
+          nullable: true
+        payablePkr:
+          type: number
+          nullable: true
+        incomeHead:
+          type: string
+        salesmanId:
+          type: integer
+          nullable: true
+        status:
           type: string
 
     # ── CURRENCY ───────────────────────────────────────────────────

@@ -46,11 +46,14 @@ import type {
   FlightQuotationUpdate,
   FollowUp,
   FollowUpInput,
+  GetNextDnNumber200,
   GetRecentActivityParams,
   GetRevenueChartParams,
   HealthStatus,
   Hotel,
   HotelInput,
+  HotelInvoice,
+  HotelInvoiceInput,
   HotelRequest,
   HotelRequestDetail,
   HotelRequestInput,
@@ -4980,6 +4983,380 @@ export const useCreateExpense = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateExpenseMutationOptions(options));
+    }
+
+export const getGetNextDnNumberUrl = () => {
+
+
+
+
+  return `/api/invoices/hotel/next-dn`
+}
+
+/**
+ * @summary Get the next available DN invoice number
+ */
+export const getNextDnNumber = async ( options?: RequestInit): Promise<GetNextDnNumber200> => {
+
+  return customFetch<GetNextDnNumber200>(getGetNextDnNumberUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNextDnNumberQueryKey = () => {
+    return [
+    `/api/invoices/hotel/next-dn`
+    ] as const;
+    }
+
+
+export const getGetNextDnNumberQueryOptions = <TData = Awaited<ReturnType<typeof getNextDnNumber>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNextDnNumber>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNextDnNumberQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNextDnNumber>>> = ({ signal }) => getNextDnNumber({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNextDnNumber>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNextDnNumberQueryResult = NonNullable<Awaited<ReturnType<typeof getNextDnNumber>>>
+export type GetNextDnNumberQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the next available DN invoice number
+ */
+
+export function useGetNextDnNumber<TData = Awaited<ReturnType<typeof getNextDnNumber>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNextDnNumber>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNextDnNumberQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListHotelInvoicesUrl = () => {
+
+
+
+
+  return `/api/invoices/hotel`
+}
+
+/**
+ * @summary List hotel DN invoices
+ */
+export const listHotelInvoices = async ( options?: RequestInit): Promise<HotelInvoice[]> => {
+
+  return customFetch<HotelInvoice[]>(getListHotelInvoicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListHotelInvoicesQueryKey = () => {
+    return [
+    `/api/invoices/hotel`
+    ] as const;
+    }
+
+
+export const getListHotelInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof listHotelInvoices>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listHotelInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListHotelInvoicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listHotelInvoices>>> = ({ signal }) => listHotelInvoices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listHotelInvoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListHotelInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listHotelInvoices>>>
+export type ListHotelInvoicesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List hotel DN invoices
+ */
+
+export function useListHotelInvoices<TData = Awaited<ReturnType<typeof listHotelInvoices>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listHotelInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListHotelInvoicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateHotelInvoiceUrl = () => {
+
+
+
+
+  return `/api/invoices/hotel`
+}
+
+/**
+ * @summary Create a hotel DN invoice
+ */
+export const createHotelInvoice = async (hotelInvoiceInput: HotelInvoiceInput, options?: RequestInit): Promise<HotelInvoice> => {
+
+  return customFetch<HotelInvoice>(getCreateHotelInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      hotelInvoiceInput,)
+  }
+);}
+
+
+
+
+export const getCreateHotelInvoiceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHotelInvoice>>, TError,{data: BodyType<HotelInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createHotelInvoice>>, TError,{data: BodyType<HotelInvoiceInput>}, TContext> => {
+
+const mutationKey = ['createHotelInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createHotelInvoice>>, {data: BodyType<HotelInvoiceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createHotelInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateHotelInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createHotelInvoice>>>
+    export type CreateHotelInvoiceMutationBody = BodyType<HotelInvoiceInput>
+    export type CreateHotelInvoiceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a hotel DN invoice
+ */
+export const useCreateHotelInvoice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHotelInvoice>>, TError,{data: BodyType<HotelInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createHotelInvoice>>,
+        TError,
+        {data: BodyType<HotelInvoiceInput>},
+        TContext
+      > => {
+      return useMutation(getCreateHotelInvoiceMutationOptions(options));
+    }
+
+export const getGetHotelInvoiceUrl = (id: number,) => {
+
+
+
+
+  return `/api/invoices/hotel/${id}`
+}
+
+/**
+ * @summary Get a hotel invoice by id
+ */
+export const getHotelInvoice = async (id: number, options?: RequestInit): Promise<HotelInvoice> => {
+
+  return customFetch<HotelInvoice>(getGetHotelInvoiceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHotelInvoiceQueryKey = (id: number,) => {
+    return [
+    `/api/invoices/hotel/${id}`
+    ] as const;
+    }
+
+
+export const getGetHotelInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof getHotelInvoice>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHotelInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHotelInvoiceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHotelInvoice>>> = ({ signal }) => getHotelInvoice(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHotelInvoice>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHotelInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof getHotelInvoice>>>
+export type GetHotelInvoiceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a hotel invoice by id
+ */
+
+export function useGetHotelInvoice<TData = Awaited<ReturnType<typeof getHotelInvoice>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHotelInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHotelInvoiceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateHotelInvoiceUrl = (id: number,) => {
+
+
+
+
+  return `/api/invoices/hotel/${id}`
+}
+
+/**
+ * @summary Update a hotel invoice
+ */
+export const updateHotelInvoice = async (id: number,
+    hotelInvoiceInput: HotelInvoiceInput, options?: RequestInit): Promise<HotelInvoice> => {
+
+  return customFetch<HotelInvoice>(getUpdateHotelInvoiceUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      hotelInvoiceInput,)
+  }
+);}
+
+
+
+
+export const getUpdateHotelInvoiceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHotelInvoice>>, TError,{id: number;data: BodyType<HotelInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHotelInvoice>>, TError,{id: number;data: BodyType<HotelInvoiceInput>}, TContext> => {
+
+const mutationKey = ['updateHotelInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHotelInvoice>>, {id: number;data: BodyType<HotelInvoiceInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateHotelInvoice(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHotelInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof updateHotelInvoice>>>
+    export type UpdateHotelInvoiceMutationBody = BodyType<HotelInvoiceInput>
+    export type UpdateHotelInvoiceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a hotel invoice
+ */
+export const useUpdateHotelInvoice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHotelInvoice>>, TError,{id: number;data: BodyType<HotelInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateHotelInvoice>>,
+        TError,
+        {id: number;data: BodyType<HotelInvoiceInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateHotelInvoiceMutationOptions(options));
     }
 
 export const getGetCurrencySettingsUrl = () => {

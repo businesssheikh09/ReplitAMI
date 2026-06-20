@@ -929,6 +929,80 @@ export interface ExpenseInput {
   notes?: string;
 }
 
+export interface HotelInvoice {
+  id: number;
+  dnNumber: string;
+  invoiceDate: string;
+  partyId?: number | null;
+  partyName?: string | null;
+  vendorId?: number | null;
+  vendorName?: string | null;
+  passengerName?: string | null;
+  nationality?: string | null;
+  noOfPax: number;
+  detail?: string | null;
+  voucherType?: string | null;
+  optionDate?: string | null;
+  hotelId?: number | null;
+  hotelName?: string | null;
+  hotelView?: string | null;
+  roomType?: string | null;
+  bedType?: string | null;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  noOfNights?: number | null;
+  noOfRooms: number;
+  reference?: string | null;
+  cnfNumber?: string | null;
+  roomNumber?: string | null;
+  remarks?: string | null;
+  contactNumber?: string | null;
+  receivableSar?: number | null;
+  payableSar?: number | null;
+  receivablePkr?: number | null;
+  payablePkr?: number | null;
+  incomeHead: string;
+  salesmanId?: number | null;
+  salesmanName?: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HotelInvoiceInput {
+  dnNumber?: string;
+  invoiceDate: string;
+  partyId?: number | null;
+  vendorId?: number | null;
+  passengerName?: string | null;
+  nationality?: string | null;
+  noOfPax?: number;
+  detail?: string | null;
+  voucherType?: string | null;
+  optionDate?: string | null;
+  hotelId?: number | null;
+  hotelName?: string | null;
+  hotelView?: string | null;
+  roomType?: string | null;
+  bedType?: string | null;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  noOfNights?: number | null;
+  noOfRooms?: number;
+  reference?: string | null;
+  cnfNumber?: string | null;
+  roomNumber?: string | null;
+  remarks?: string | null;
+  contactNumber?: string | null;
+  receivableSar?: number | null;
+  payableSar?: number | null;
+  receivablePkr?: number | null;
+  payablePkr?: number | null;
+  incomeHead?: string;
+  salesmanId?: number | null;
+  status?: string;
+}
+
 export interface CurrencySetting {
   id: number;
   homeCurrency: string;
@@ -1203,6 +1277,10 @@ export type ListExpensesParams = {
 category?: string;
 from?: string;
 to?: string;
+};
+
+export type GetNextDnNumber200 = {
+  dnNumber: string;
 };
 
 export type ListCurrencyDailyRatesParams = {

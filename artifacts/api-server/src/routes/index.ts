@@ -14,6 +14,7 @@ import accountingRouter from "./accounting";
 import dashboardRouter from "./dashboard";
 import currencySettingsRouter from "./currency-settings";
 import websiteConfigRouter from "./website-config";
+import hotelInvoicesRouter from "./hotel-invoices";
 
 const router: IRouter = Router();
 
@@ -28,6 +29,7 @@ router.use(visaRouter);
 router.use(flightsRouter);
 router.use(flightSearchRouter);
 router.use(gdsSettingsRouter);
+router.use(hotelInvoicesRouter);
 router.use(accountingRouter);
 router.use(dashboardRouter);
 router.use(currencySettingsRouter);
