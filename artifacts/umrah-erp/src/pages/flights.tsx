@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useListFlightQuotations, useCreateFlightQuotation, useUpdateFlightQuotation, useDeleteFlightQuotation, useListClients } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Plane, Trash2, Search, Loader2, ArrowRight, Clock,
   AlertCircle, CheckCircle2, Star, TicketCheck, PlusCircle,
-  MinusCircle, RefreshCw, Lock, Users2,
+  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -68,6 +69,259 @@ interface FlightResult {
 }
 
 interface RouteLeg { origin: string; destination: string; departureDate: string; }
+
+// ── Group Ticket Types ────────────────────────────────────────────────────────
+
+interface GroupTicket {
+  id: number;
+  airlineCode: string;
+  flightNumber: string;
+  flightDate: string;
+  origin: string;
+  destination: string;
+  seats: number;
+  departureTime: string | null;
+  arrivalTime: string | null;
+  fareAmount: number | null;
+  fareCurrency: string;
+  groupName: string | null;
+  scrapedAt: string;
+  updatedAt: string;
+}
+
+// ── Group Tickets Tab Component ───────────────────────────────────────────────
+
+function GroupTicketsTab() {
+  const { token, user } = useAuth();
+  const { toast } = useToast();
+
+  const [tickets, setTickets] = useState<GroupTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [whatsappStatus, setWhatsappStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [filterOrigin, setFilterOrigin] = useState("");
+  const [filterDest, setFilterDest] = useState("");
+
+  const canSync = ["admin", "management", "accounts"].includes(user?.role ?? "");
+
+  const authHeaders = { Authorization: `Bearer ${token}` };
+
+  const fetchTickets = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filterOrigin) params.set("origin", filterOrigin.toUpperCase());
+      if (filterDest) params.set("destination", filterDest.toUpperCase());
+      const res = await fetch(`/api/group-tickets?${params}`, { headers: authHeaders });
+      if (res.ok) setTickets(await res.json());
+    } catch {
+      toast({ title: "Failed to load group tickets", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [token, filterOrigin, filterDest]);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/group-tickets/status", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setWhatsappStatus(data.whatsappStatus);
+      }
+    } catch { /* silent */ }
+  }, [token]);
+
+  useEffect(() => {
+    fetchTickets();
+    fetchStatus();
+    const iv = setInterval(fetchStatus, 30_000);
+    return () => clearInterval(iv);
+  }, [fetchTickets, fetchStatus]);
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/group-tickets/sync", { method: "POST", headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Sync complete", description: `WhatsApp: ${data.whatsappStatus}` });
+        setWhatsappStatus(data.whatsappStatus);
+        await fetchTickets();
+      } else {
+        toast({ title: "Sync failed", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Sync failed", variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const seatColor = (seats: number) =>
+    seats >= 10 ? "text-green-700 font-semibold" :
+    seats >= 5  ? "text-amber-600 font-semibold" :
+                  "text-red-600 font-bold";
+
+  const StatusDot = () =>
+    whatsappStatus === "connected"    ? <><Wifi className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600 text-xs">Connected</span></> :
+    whatsappStatus === "connecting"   ? <><Wifi className="h-3.5 w-3.5 text-amber-500 animate-pulse" /> <span className="text-amber-600 text-xs">Connecting…</span></> :
+                                        <><WifiOff className="h-3.5 w-3.5 text-gray-400" /> <span className="text-gray-500 text-xs">Not linked</span></>;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">Group Ticket Inventory</CardTitle>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50">
+                <StatusDot />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={fetchTickets} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+              {canSync && (
+                <Button size="sm" onClick={handleSync} disabled={syncing}
+                  className="bg-blue-900 hover:bg-blue-800 text-white">
+                  <Zap className={`h-4 w-4 mr-1.5 ${syncing ? "animate-pulse" : ""}`} />
+                  {syncing ? "Syncing…" : "Sync Now"}
+                </Button>
+              )}
+            </div>
+          </div>
+          {/* Filters */}
+          <div className="flex gap-2 mt-3">
+            <Input
+              placeholder="Origin (e.g. PEW)"
+              value={filterOrigin}
+              onChange={e => setFilterOrigin(e.target.value)}
+              className="w-36 uppercase h-8 text-sm"
+              maxLength={3}
+            />
+            <Input
+              placeholder="Destination (e.g. RUH)"
+              value={filterDest}
+              onChange={e => setFilterDest(e.target.value)}
+              className="w-36 uppercase h-8 text-sm"
+              maxLength={3}
+            />
+            <Button variant="outline" size="sm" onClick={fetchTickets}>
+              <Search className="h-4 w-4" />
+            </Button>
+            {(filterOrigin || filterDest) && (
+              <Button variant="ghost" size="sm" onClick={() => { setFilterOrigin(""); setFilterDest(""); }}>
+                Clear
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <Users2 className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold mb-1">No group tickets yet</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  {whatsappStatus === "connected"
+                    ? 'Click "Sync Now" to pull the latest group allocations from WhatsApp.'
+                    : 'Link your WhatsApp by scanning the QR code in the server console, then click "Sync Now".'}
+                </p>
+              </div>
+              {canSync && (
+                <Button size="sm" onClick={handleSync} disabled={syncing} className="bg-blue-900 hover:bg-blue-800 text-white">
+                  <Zap className="h-4 w-4 mr-1.5" />
+                  {syncing ? "Syncing…" : "Sync Now"}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-blue-900 hover:bg-blue-900">
+                    <TableHead className="text-white font-semibold">Sector</TableHead>
+                    <TableHead className="text-white font-semibold">Flight</TableHead>
+                    <TableHead className="text-white font-semibold">Date</TableHead>
+                    <TableHead className="text-white font-semibold text-center">Time</TableHead>
+                    <TableHead className="text-white font-semibold text-center">Seats</TableHead>
+                    <TableHead className="text-white font-semibold text-right">Fare</TableHead>
+                    <TableHead className="text-white font-semibold">Source Group</TableHead>
+                    <TableHead className="text-white font-semibold">Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tickets.map((t, i) => (
+                    <TableRow key={t.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs font-bold">
+                            {t.origin}
+                          </Badge>
+                          <ArrowRight className="h-3 w-3 text-gray-400" />
+                          <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100 text-xs font-bold">
+                            {t.destination}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono font-semibold text-sm">{t.flightNumber}</TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(t.flightDate + "T00:00:00").toLocaleDateString("en-GB", {
+                          day: "2-digit", month: "short", year: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">
+                        {t.departureTime ?? "—"} {t.arrivalTime ? `→ ${t.arrivalTime}` : ""}
+                      </TableCell>
+                      <TableCell className={`text-center text-sm ${seatColor(t.seats)}`}>
+                        {t.seats}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-medium">
+                        {t.fareAmount != null
+                          ? `${Number(t.fareAmount).toLocaleString()} ${t.fareCurrency}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">
+                        {t.groupName ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(t.updatedAt).toLocaleDateString("en-GB", {
+                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Setup instructions (always visible if not connected) */}
+      {whatsappStatus !== "connected" && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="py-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-800">
+              <p className="font-semibold mb-1">WhatsApp session not linked</p>
+              <p>The API server prints a QR code to the console on startup. Open the <strong>API Server</strong> workflow logs, scan the QR code with WhatsApp → Linked Devices → Link a Device, then click <strong>Sync Now</strong>.</p>
+              <p className="mt-1 text-xs text-amber-700">Session credentials are saved — you only need to scan once. Set <code>WHATSAPP_TARGET_GROUPS</code> in Secrets to filter which groups are scraped (e.g. "SV LABOR GROUP,SV UMRAH GROUP").</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -420,34 +674,7 @@ export default function FlightsPage() {
       )}
 
       {/* ── GROUP TICKETS ── */}
-      {activeTab === "group_tickets" && (
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="py-16 flex flex-col items-center justify-center text-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                <Users2 className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-1">Group Ticket Inventory</h3>
-                <p className="text-muted-foreground max-w-md">
-                  Group ticket blocks and charter inventory will be displayed here. This section is reserved for bulk seat allocations purchased directly from airlines.
-                </p>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <div className="px-3 py-1.5 rounded-md bg-muted text-sm text-muted-foreground border border-dashed border-muted-foreground/30">
-                  <TicketCheck className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-                  Umrah Charter Blocks
-                </div>
-                <div className="px-3 py-1.5 rounded-md bg-muted text-sm text-muted-foreground border border-dashed border-muted-foreground/30">
-                  <Users2 className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-                  Group Seat Allocations
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground/60 mt-2">Coming soon — contact your administrator to configure group inventory.</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {activeTab === "group_tickets" && <GroupTicketsTab />}
 
       {/* ── QUOTATIONS ── */}
       {activeTab === "quotations" && (

@@ -29,6 +29,13 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      // WhatsApp / Baileys — uses dynamic protobuf loading and native crypto that esbuild can't bundle
+      "@whiskeysockets/baileys",
+      "protobufjs/minimal",
+      "noise-handshake",
+      "noise-handshake/crypto",
+      "@hapi/boom",
+      "jimp",
       "sharp",
       "better-sqlite3",
       "sqlite3",

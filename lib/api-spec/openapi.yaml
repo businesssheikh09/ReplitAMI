@@ -26,6 +26,61 @@ tags:
   - name: websiteConfig
 
 paths:
+  # ── GROUP TICKETS ─────────────────────────────────────────────────
+  /group-tickets:
+    get:
+      operationId: listGroupTickets
+      tags: [flights]
+      summary: List group ticket inventory
+      parameters:
+        - name: origin
+          in: query
+          schema:
+            type: string
+        - name: destination
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupTicket"
+
+  /group-tickets/sync:
+    post:
+      operationId: syncGroupTickets
+      tags: [flights]
+      summary: Manually trigger WhatsApp scrape and upsert
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupTicketSyncResponse"
+
+  /group-tickets/status:
+    get:
+      operationId: getGroupTicketStatus
+      tags: [flights]
+      summary: Get WhatsApp connection status
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupTicketStatusResponse"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -3397,6 +3452,64 @@ components:
           enum: [voucher, invoice, receipt, quotation_pdf]
         entityId:
           type: integer
+
+    # ── GROUP TICKETS ────────────────────────────────────────────────
+    GroupTicket:
+      type: object
+      required: [id, airlineCode, flightNumber, flightDate, origin, destination, seats, fareCurrency, scrapedAt, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        airlineCode:
+          type: string
+        flightNumber:
+          type: string
+        flightDate:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        seats:
+          type: integer
+        departureTime:
+          type: ["string", "null"]
+        arrivalTime:
+          type: ["string", "null"]
+        fareAmount:
+          type: ["number", "null"]
+        fareCurrency:
+          type: string
+        groupName:
+          type: ["string", "null"]
+        rawMessage:
+          type: ["string", "null"]
+        scrapedAt:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    GroupTicketSyncResponse:
+      type: object
+      required: [ok, message, whatsappStatus]
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: string
+        whatsappStatus:
+          type: string
+          enum: [disconnected, connecting, connected]
+
+    GroupTicketStatusResponse:
+      type: object
+      required: [whatsappStatus]
+      properties:
+        whatsappStatus:
+          type: string
+          enum: [disconnected, connecting, connected]
 
     # ── WEBSITE CONFIG ──────────────────────────────────────────────
     WebsiteConfig:

@@ -10,3 +10,4 @@ export * from "./gds-settings";
 export * from "./currency";
 export * from "./website-config";
 export * from "./hotel-invoices";
+export * from "./group-tickets";

@@ -15,6 +15,7 @@ import dashboardRouter from "./dashboard";
 import currencySettingsRouter from "./currency-settings";
 import websiteConfigRouter from "./website-config";
 import hotelInvoicesRouter from "./hotel-invoices";
+import groupTicketsRouter from "./group-tickets";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(accountingRouter);
 router.use(dashboardRouter);
 router.use(currencySettingsRouter);
 router.use(websiteConfigRouter);
+router.use(groupTicketsRouter);
 
 export default router;
