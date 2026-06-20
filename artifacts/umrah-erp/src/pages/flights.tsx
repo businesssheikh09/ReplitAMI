@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useListFlightQuotations, useCreateFlightQuotation, useUpdateFlightQuotation, useDeleteFlightQuotation, useListClients } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -107,6 +107,8 @@ function GroupTicketsTab() {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const sessionExpiredShown = useRef(false);
 
   const canSync = ["admin", "management", "accounts"].includes(user?.role ?? "");
 
@@ -119,7 +121,13 @@ function GroupTicketsTab() {
       if (filterOrigin) params.set("origin", filterOrigin.toUpperCase());
       if (filterDest) params.set("destination", filterDest.toUpperCase());
       const res = await fetch(`/api/group-tickets?${params}`, { headers: authHeaders });
-      if (res.ok) setTickets(await res.json());
+      if (res.ok) {
+        setTickets(await res.json());
+      } else if (res.status === 401) {
+        toast({ title: "Session expired", description: "Please log out and log back in.", variant: "destructive" });
+      } else {
+        toast({ title: "Failed to load group tickets", variant: "destructive" });
+      }
     } catch {
       toast({ title: "Failed to load group tickets", variant: "destructive" });
     } finally {
@@ -133,6 +141,9 @@ function GroupTicketsTab() {
       if (res.ok) {
         const data = await res.json();
         setWhatsappStatus(data.whatsappStatus);
+      } else if (res.status === 401 && !sessionExpiredShown.current) {
+        sessionExpiredShown.current = true;
+        toast({ title: "Session expired", description: "Please log out and log back in.", variant: "destructive" });
       }
     } catch { /* silent */ }
   }, [token]);
@@ -141,7 +152,15 @@ function GroupTicketsTab() {
     setQrLoading(true);
     try {
       const res = await fetch("/api/group-tickets/qr", { headers: authHeaders });
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (res.status === 401) {
+          setQrError("Session expired — please log out and log back in.");
+        } else {
+          setQrError(`Server error (${res.status}) — please try again.`);
+        }
+        return;
+      }
+      setQrError(null);
       const data = await res.json();
       // Auto-close if WhatsApp just connected
       if (data.status === "connected") {
@@ -158,7 +177,7 @@ function GroupTicketsTab() {
       } else {
         setQrDataUrl(null);
       }
-    } catch { /* silent */ } finally {
+    } catch { setQrError("Network error — check your connection and try again."); } finally {
       setQrLoading(false);
     }
   }, [token]);
@@ -172,7 +191,7 @@ function GroupTicketsTab() {
 
   // Poll for new QR while the modal is open (Baileys refreshes QR every ~60 s)
   useEffect(() => {
-    if (!qrOpen) return;
+    if (!qrOpen) { setQrDataUrl(null); setQrError(null); return; }
     fetchQR();
     const iv = setInterval(fetchQR, 15_000);
     return () => clearInterval(iv);
@@ -219,7 +238,12 @@ function GroupTicketsTab() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">
-            {qrLoading && !qrDataUrl ? (
+            {qrError ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <AlertCircle className="h-8 w-8 text-red-500" />
+                <p className="text-sm text-center text-red-600 font-medium">{qrError}</p>
+              </div>
+            ) : qrLoading && !qrDataUrl ? (
               <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <p className="text-sm">Generating QR code…</p>
@@ -236,10 +260,8 @@ function GroupTicketsTab() {
               </>
             ) : (
               <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
-                <AlertCircle className="h-8 w-8 text-amber-500" />
-                <p className="text-sm text-center">
-                  QR code not ready yet. The server may still be starting up — wait a few seconds and try again.
-                </p>
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="text-sm">Waiting for QR code from server…</p>
               </div>
             )}
           </div>
