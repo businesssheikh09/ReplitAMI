@@ -15,8 +15,9 @@ function parseNum(v: unknown): number {
 function serializeRate(r: typeof currencyDailyRatesTable.$inferSelect) {
   return {
     ...r,
-    clientRate: parseNum(r.clientRate),
     vendorRate: parseNum(r.vendorRate),
+    guestRate: parseNum(r.guestRate),
+    clientRate: parseNum(r.clientRate),
   };
 }
 
@@ -85,16 +86,22 @@ router.get("/currency/daily-rates", async (req, res) => {
 
 router.post("/currency/daily-rates", async (req, res) => {
   try {
-    const { currency, date, clientRate, vendorRate, notes } = req.body;
-    if (!currency || !date || clientRate == null || vendorRate == null) {
-      return res.status(400).json({ error: "currency, date, clientRate, vendorRate required" });
+    const { currency, date, vendorRate, guestRate, clientRate, notes } = req.body;
+    if (!currency || !date || vendorRate == null || guestRate == null || clientRate == null) {
+      return res.status(400).json({ error: "currency, date, vendorRate, guestRate, clientRate required" });
     }
     // Upsert: if same currency + date already exists, update it
     const existing = await db.select().from(currencyDailyRatesTable)
       .where(and(eq(currencyDailyRatesTable.currency, currency), eq(currencyDailyRatesTable.date, date)));
     if (existing.length > 0) {
       const [row] = await db.update(currencyDailyRatesTable)
-        .set({ clientRate: String(clientRate), vendorRate: String(vendorRate), notes: notes || null, updatedAt: new Date() })
+        .set({
+          vendorRate: String(vendorRate),
+          guestRate: String(guestRate),
+          clientRate: String(clientRate),
+          notes: notes || null,
+          updatedAt: new Date(),
+        })
         .where(eq(currencyDailyRatesTable.id, existing[0].id))
         .returning();
       return res.json(serializeRate(row));
@@ -102,8 +109,9 @@ router.post("/currency/daily-rates", async (req, res) => {
     const [row] = await db.insert(currencyDailyRatesTable).values({
       currency,
       date,
-      clientRate: String(clientRate),
       vendorRate: String(vendorRate),
+      guestRate: String(guestRate),
+      clientRate: String(clientRate),
       notes: notes || null,
     }).returning();
     return res.status(201).json(serializeRate(row));
@@ -115,9 +123,15 @@ router.post("/currency/daily-rates", async (req, res) => {
 
 router.put("/currency/daily-rates/:id", async (req, res) => {
   try {
-    const { clientRate, vendorRate, notes } = req.body;
+    const { vendorRate, guestRate, clientRate, notes } = req.body;
     const [row] = await db.update(currencyDailyRatesTable)
-      .set({ clientRate: String(clientRate), vendorRate: String(vendorRate), notes: notes || null, updatedAt: new Date() })
+      .set({
+        vendorRate: String(vendorRate),
+        guestRate: String(guestRate),
+        clientRate: String(clientRate),
+        notes: notes || null,
+        updatedAt: new Date(),
+      })
       .where(eq(currencyDailyRatesTable.id, parseInt(req.params.id)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
@@ -152,7 +166,7 @@ router.get("/currency/transactions", async (req, res) => {
 
 router.post("/currency/transactions", async (req, res) => {
   try {
-    const { currency, amount, vendorRate, clientRate, date, notes } = req.body;
+    const { currency, amount, vendorRate, clientRate, rateTier, date, notes } = req.body;
     if (!currency || amount == null || vendorRate == null || clientRate == null || !date) {
       return res.status(400).json({ error: "currency, amount, vendorRate, clientRate, date required" });
     }
@@ -171,7 +185,7 @@ router.post("/currency/transactions", async (req, res) => {
       clientRevenue: String(clientRevenue),
       profit: String(profit),
       date: new Date(date),
-      notes: notes || null,
+      notes: notes ? `[${rateTier ?? "client"}] ${notes}` : `[${rateTier ?? "client"}]`,
     }).returning();
     return res.status(201).json(serializeTx(row));
   } catch (err) {
