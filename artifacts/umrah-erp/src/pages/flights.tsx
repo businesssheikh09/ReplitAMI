@@ -3,6 +3,7 @@ import { useListFlightQuotations, useCreateFlightQuotation, useUpdateFlightQuota
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -73,6 +74,20 @@ interface RouteLeg { origin: string; destination: string; departureDate: string;
 
 // ── Group Ticket Types ────────────────────────────────────────────────────────
 
+interface LiveGroup {
+  jid: string;
+  name: string;
+  participantCount: number;
+}
+
+interface MonitoredGroup {
+  id: number;
+  jid: string;
+  name: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
 interface GroupTicket {
   id: number;
   airlineCode: string;
@@ -102,6 +117,11 @@ function GroupTicketsTab() {
   const [whatsappStatus, setWhatsappStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDest, setFilterDest] = useState("");
+
+  // WhatsApp groups panel state
+  const [liveGroups, setLiveGroups] = useState<LiveGroup[]>([]);
+  const [monitoredJids, setMonitoredJids] = useState<Set<string>>(new Set());
+  const [groupsLoading, setGroupsLoading] = useState(false);
 
   // QR modal state
   const [qrOpen, setQrOpen] = useState(false);
@@ -183,6 +203,54 @@ function GroupTicketsTab() {
       setQrLoading(false);
     }
   }, [token]);
+
+  // ── WhatsApp group management ──────────────────────────────────────────────
+
+  const fetchLiveGroups = useCallback(async () => {
+    setGroupsLoading(true);
+    try {
+      const [liveRes, dbRes] = await Promise.all([
+        fetch("/api/whatsapp-groups/live", { headers: authHeaders }),
+        fetch("/api/whatsapp-groups", { headers: authHeaders }),
+      ]);
+      if (liveRes.status === 409) return; // WhatsApp not connected — skip silently
+      if (!liveRes.ok) throw new Error(`HTTP ${liveRes.status}`);
+      const live: LiveGroup[] = await liveRes.json();
+      const dbRows: MonitoredGroup[] = dbRes.ok ? await dbRes.json() : [];
+      setLiveGroups(live);
+      setMonitoredJids(new Set(dbRows.filter((r) => r.enabled).map((r) => r.jid)));
+    } catch {
+      toast({ title: "Failed to load WhatsApp groups", variant: "destructive" });
+    } finally {
+      setGroupsLoading(false);
+    }
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function toggleGroup(jid: string, name: string, enabled: boolean) {
+    try {
+      const res = await fetch(`/api/whatsapp-groups/${encodeURIComponent(jid)}`, {
+        method: "PUT",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ name, enabled }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setMonitoredJids((prev) => {
+        const next = new Set(prev);
+        if (enabled) next.add(jid);
+        else next.delete(jid);
+        return next;
+      });
+    } catch {
+      toast({ title: "Failed to update group", variant: "destructive" });
+    }
+  }
+
+  // Auto-load group list whenever WhatsApp becomes connected
+  useEffect(() => {
+    if (whatsappStatus === "connected" && canSync) {
+      fetchLiveGroups();
+    }
+  }, [whatsappStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset session-expired gate when the user logs back in with a fresh token
   useEffect(() => {
@@ -430,6 +498,67 @@ function GroupTicketsTab() {
         </CardContent>
       </Card>
 
+      {/* WhatsApp Groups Panel — group browse & selection for scraping */}
+      {canSync && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users2 className="h-4 w-4 text-green-600" />
+                WhatsApp Groups
+                {liveGroups.length > 0 && (
+                  <span className="text-xs font-normal text-muted-foreground ml-1">
+                    — {monitoredJids.size} of {liveGroups.length} selected for scraping
+                  </span>
+                )}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLiveGroups}
+                disabled={groupsLoading || whatsappStatus !== "connected"}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${groupsLoading ? "animate-spin" : ""}`} />
+                {liveGroups.length === 0 ? "Load Groups" : "Refresh"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {whatsappStatus !== "connected" ? (
+              <div className="text-sm text-muted-foreground py-2 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                Connect WhatsApp first to browse and select groups.
+              </div>
+            ) : groupsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading groups from your phone…
+              </div>
+            ) : liveGroups.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-2">
+                Click <strong>Load Groups</strong> to see all WhatsApp groups your linked phone is in.
+              </div>
+            ) : (
+              <div className="divide-y max-h-80 overflow-y-auto -mx-2 px-2">
+                {liveGroups.map((g) => (
+                  <div key={g.jid} className="flex items-center justify-between py-2.5 gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{g.name}</p>
+                      <p className="text-xs text-muted-foreground">{g.participantCount} members</p>
+                    </div>
+                    <Switch
+                      checked={monitoredJids.has(g.jid)}
+                      onCheckedChange={(checked) => toggleGroup(g.jid, g.name, checked)}
+                      aria-label={`Monitor ${g.name}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Setup instructions (visible when not connected) */}
       {whatsappStatus !== "connected" && (
         <Card className="border-amber-200 bg-amber-50">
@@ -438,7 +567,7 @@ function GroupTicketsTab() {
             <div className="text-sm text-amber-800 flex-1">
               <p className="font-semibold mb-1">WhatsApp session not linked</p>
               <p>Click <strong>Scan QR</strong> above, then scan the code with WhatsApp → <strong>Settings → Linked Devices → Link a Device</strong>. You only need to scan once — credentials are saved automatically.</p>
-              <p className="mt-1 text-xs text-amber-700">Set <code>WHATSAPP_TARGET_GROUPS</code> in Secrets to filter which groups are scraped (e.g. "SV LABOR GROUP,SV UMRAH GROUP").</p>
+              <p className="mt-1 text-xs text-amber-700">Once connected, use the <strong>WhatsApp Groups</strong> panel above to pick which group chats to scrape for flight tickets.</p>
             </div>
             <Button size="sm" variant="outline" onClick={() => setQrOpen(true)}
               className="shrink-0 border-amber-600 text-amber-700 hover:bg-amber-100">

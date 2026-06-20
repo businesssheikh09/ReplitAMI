@@ -45,6 +45,12 @@ export interface StoredMessage {
   timestamp: number;
 }
 
+export interface LiveGroup {
+  jid: string;
+  name: string;
+  participantCount: number;
+}
+
 let sessionDir: string | null = null;
 
 function storePath(): string {
@@ -103,6 +109,9 @@ export function getQRCode(): string | null {
 let _resolveMessages:
   | ((targetGroups: string[], sinceHours: number) => Promise<{ groupName: string; text: string; timestamp: number }[]>)
   | null = null;
+
+/** Set when connected; used by getLiveGroups() to fetch the group list. */
+let _fetchLiveGroups: (() => Promise<LiveGroup[]>) | null = null;
 
 async function loadBaileys() {
   return import("@whiskeysockets/baileys") as Promise<typeof import("@whiskeysockets/baileys")>;
@@ -219,7 +228,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
         const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
 
         // Resolve group subjects — required for target-group name matching
-        let groups: Record<string, { subject: string }> = {};
+        let groups: Record<string, { subject: string; participants?: unknown[] }> = {};
         try {
           groups = await sock.groupFetchAllParticipating();
         } catch (err) {
@@ -262,11 +271,31 @@ export async function initWhatsApp(dir: string): Promise<void> {
             timestamp: m.timestamp,
           }));
       };
+
+      // Expose live group fetch for the group-selection UI
+      _fetchLiveGroups = async (): Promise<LiveGroup[]> => {
+        let groups: Record<string, { subject: string; participants?: unknown[] }> = {};
+        try {
+          groups = await sock.groupFetchAllParticipating();
+        } catch (err) {
+          logger.error({ err }, "Failed to fetch live WhatsApp groups");
+          throw err;
+        }
+        return Object.entries(groups)
+          .filter(([jid]) => jid.endsWith("@g.us"))
+          .map(([jid, meta]) => ({
+            jid,
+            name: meta.subject,
+            participantCount: Array.isArray(meta.participants) ? meta.participants.length : 0,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      };
     }
 
     if (connection === "close") {
       connectionStatus = "disconnected";
       _resolveMessages = null;
+      _fetchLiveGroups = null;
       const statusCode = (
         lastDisconnect?.error as { output?: { statusCode?: number } } | null
       )?.output?.statusCode;
@@ -315,4 +344,43 @@ export async function getRecentGroupMessages(
   return loadStore()
     .filter((m) => m.timestamp >= sinceTs)
     .map((m) => ({ groupName: m.remoteJid, text: m.text, timestamp: m.timestamp }));
+}
+
+/**
+ * Return all WhatsApp groups the linked phone is currently in.
+ * Only @g.us JIDs are returned — personal chats are excluded by design.
+ * Throws "WhatsApp not connected" if the socket is not open.
+ */
+export async function getLiveGroups(): Promise<LiveGroup[]> {
+  if (!_fetchLiveGroups) throw new Error("WhatsApp not connected");
+  return _fetchLiveGroups();
+}
+
+/**
+ * Return messages from the last `sinceHours` hours filtered by exact JIDs.
+ * Only messages whose remoteJid ends in @g.us are ever returned.
+ *
+ * @param targetJids - exact @g.us JIDs to include; empty array = all groups
+ * @param sinceHours - look-back window (default 24 h)
+ * @param jidNames   - optional JID→human-readable-name map for groupName field
+ */
+export function getRecentGroupMessagesByJids(
+  targetJids: string[],
+  sinceHours = 24,
+  jidNames: Record<string, string> = {},
+): { groupName: string; text: string; timestamp: number }[] {
+  const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
+  const jidSet = targetJids.length > 0 ? new Set(targetJids) : null;
+  return loadStore()
+    .filter((m) => {
+      if (!m.remoteJid.endsWith("@g.us")) return false; // strict: groups only
+      if (m.timestamp < sinceTs) return false;
+      if (jidSet !== null && !jidSet.has(m.remoteJid)) return false;
+      return true;
+    })
+    .map((m) => ({
+      groupName: jidNames[m.remoteJid] ?? m.remoteJid,
+      text: m.text,
+      timestamp: m.timestamp,
+    }));
 }
