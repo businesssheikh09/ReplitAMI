@@ -89,13 +89,16 @@ const navGroups = [
 ];
 
 function useInboxUnread() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, token } = useAuth();
   const role = (user?.role ?? "") as UserRole;
   const canSee = isAuthenticated && (role === "management" || role === "admin");
   return useQuery<{ total: number }>({
-    queryKey: ["whatsapp-inbox-unread"],
-    queryFn: () => fetch("/api/whatsapp-inbox/unread-count", { credentials: "include" }).then((r) => r.json()),
-    enabled: canSee,
+    queryKey: ["whatsapp-inbox-unread", token],
+    queryFn: () =>
+      fetch("/api/whatsapp-inbox/unread-count", {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
+    enabled: canSee && !!token,
     refetchInterval: 30_000,
     staleTime: 20_000,
   });

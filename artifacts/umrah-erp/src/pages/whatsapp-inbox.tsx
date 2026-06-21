@@ -82,6 +82,19 @@ export default function WhatsAppInboxPage() {
   const { token } = useAuth();
   const authHeaders = { Authorization: `Bearer ${token}` };
 
+  // Shadow the module-level apiFetch with an auth-aware version
+  // so every useQuery / useMutation call gets the Bearer token automatically.
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  function apiFetch(path: string, init?: RequestInit) {
+    return fetch(path, {
+      ...init,
+      headers: { ...authHeaders, ...(init?.headers as Record<string, string> ?? {}) },
+    }).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r;
+    });
+  }
+
   const [selectedJid, setSelectedJid] = useState<string | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkEntityType, setLinkEntityType] = useState("flight_quotation");
