@@ -19,6 +19,7 @@ import {
   ArrowRightLeft,
   Globe,
   MessageSquare,
+  Send,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,7 @@ const navGroups = [
     title: "Messaging",
     items: [
       { title: "WhatsApp Inbox", href: "/whatsapp-inbox", icon: MessageSquare },
+      { title: "Message Campaign", href: "/bot-campaign", icon: Send },
     ],
   },
   {

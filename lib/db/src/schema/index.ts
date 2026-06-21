@@ -13,3 +13,4 @@ export * from "./hotel-invoices";
 export * from "./group-tickets";
 export * from "./whatsapp-groups";
 export * from "./whatsapp-inbox";
+export * from "./bot-campaigns";

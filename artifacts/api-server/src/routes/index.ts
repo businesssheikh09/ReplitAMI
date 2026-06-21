@@ -19,6 +19,7 @@ import groupTicketsRouter from "./group-tickets";
 import whatsappRouter from "./whatsapp";
 import whatsappGroupsRouter from "./whatsapp-groups";
 import whatsappInboxRouter from "./whatsapp-inbox";
+import botRouter from "./bot";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(groupTicketsRouter);
 router.use(whatsappRouter);
 router.use(whatsappGroupsRouter);
 router.use(whatsappInboxRouter);
+router.use(botRouter);
 
 export default router;

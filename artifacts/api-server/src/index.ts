@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedDepartmentAccounts } from "./lib/seed-departments";
 import { initWhatsApp } from "./services/whatsapp";
 import { startScheduler } from "./services/scheduler";
+import { startBotScheduler } from "./services/bot-scheduler";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -37,4 +38,5 @@ app.listen(port, async (err) => {
   );
 
   startScheduler();
+  startBotScheduler();
 });
