@@ -36,7 +36,7 @@
  */
 
 import { logger } from "../lib/logger.js";
-import { db, whatsappMessagesTable } from "@workspace/db";
+import { db, whatsappMessagesTable, whatsappGroupNamesTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
@@ -166,6 +166,36 @@ export async function triggerBackfill(): Promise<{ inserted: number }> {
   const before = stored.length;
   await backfillJsonStoreToDB();
   return { inserted: before };
+}
+
+/**
+ * Fetch every WhatsApp group the linked phone participates in and upsert
+ * their subjects (names) into whatsapp_group_names.
+ * Called automatically on every successful connect; also exposed via API for
+ * manual refresh from the inbox toolbar.
+ */
+export async function syncGroupNamesToDB(): Promise<{ upserted: number }> {
+  if (!currentSock) {
+    logger.warn("syncGroupNamesToDB: WhatsApp not connected — skipping");
+    return { upserted: 0 };
+  }
+  try {
+    const groups = await currentSock.groupFetchAllParticipating() as Record<string, { subject: string }>;
+    const entries = Object.entries(groups).filter(([jid]) => jid.endsWith("@g.us"));
+    if (entries.length === 0) return { upserted: 0 };
+    await db
+      .insert(whatsappGroupNamesTable)
+      .values(entries.map(([jid, meta]) => ({ jid, subject: meta.subject, syncedAt: new Date() })))
+      .onConflictDoUpdate({
+        target: whatsappGroupNamesTable.jid,
+        set: { subject: sql`excluded.subject`, syncedAt: sql`now()` },
+      });
+    logger.info({ count: entries.length }, "Synced WhatsApp group names → DB");
+    return { upserted: entries.length };
+  } catch (err) {
+    logger.error({ err }, "Failed to sync group names to DB");
+    return { upserted: 0 };
+  }
 }
 
 /** Append a batch of messages, deduplicating by (jid + timestamp + text). */
@@ -340,6 +370,9 @@ export async function initWhatsApp(dir: string): Promise<void> {
       connectionStatus = "connected";
       logger.info("WhatsApp session connected");
       void backfillJsonStoreToDB();
+      // Populate/refresh group name cache so the inbox can show real names
+      // and filter by business keywords instead of raw JIDs.
+      void syncGroupNamesToDB();
 
       _resolveMessages = async (targetGroups, sinceHours) => {
         const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;

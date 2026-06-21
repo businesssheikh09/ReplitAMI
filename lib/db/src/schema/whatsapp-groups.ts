@@ -9,3 +9,17 @@ export const whatsappMonitoredGroupsTable = pgTable("whatsapp_monitored_groups",
 });
 
 export type WhatsappMonitoredGroup = typeof whatsappMonitoredGroupsTable.$inferSelect;
+
+/**
+ * Lightweight jid → WhatsApp group subject (name) cache.
+ * Populated by syncGroupNamesToDB() on every WhatsApp connect.
+ * Used by the inbox to display real group names and filter by keywords.
+ * Has NO relationship to the monitored-groups (ticket scraping) concept.
+ */
+export const whatsappGroupNamesTable = pgTable("whatsapp_group_names", {
+  jid: text("jid").primaryKey(),
+  subject: text("subject").notNull(),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+});
+
+export type WhatsappGroupName = typeof whatsappGroupNamesTable.$inferSelect;

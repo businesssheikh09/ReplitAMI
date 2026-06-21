@@ -2,36 +2,53 @@ import { Router } from "express";
 import { db, whatsappMessagesTable, whatsappGroupLinksTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
-import { triggerBackfill } from "../services/whatsapp.js";
+import { triggerBackfill, syncGroupNamesToDB } from "../services/whatsapp.js";
 
 const router = Router();
 const canManage = requireRole("admin", "management");
 
 /**
+ * Business keywords — a group must match at least one to appear in the inbox.
+ * Keep in sync with BUSINESS_KEYWORDS in whatsapp-groups.ts.
+ */
+const INBOX_KEYWORDS = [
+  "travel", "tours", "al musafir", "fast star",
+  "bookings", "umrah", "tickets",
+  "ami", "invoices", "hotels", "internal",
+];
+
+/** SQL fragment: n.subject ILIKE '%kw%' OR … for every keyword */
+function keywordFilter(alias: string): string {
+  return INBOX_KEYWORDS.map((kw) => `${alias}.subject ILIKE '%${kw.replace(/'/g, "''")}%'`).join(" OR ");
+}
+
+/**
  * GET /api/whatsapp-inbox/groups
- * All groups that have at least one stored message, with unread counts
- * and a preview of the last message.
+ * Groups that (a) have at least one stored message, (b) have a known name in
+ * whatsapp_group_names, and (c) whose name matches a business keyword.
+ * Returns unread counts and a preview of the last message.
  */
 router.get("/whatsapp-inbox/groups", requireAuth, canManage, async (req, res) => {
   try {
-    const rows = await db.execute(sql`
+    const rows = await db.execute(sql.raw(`
       SELECT
         m.group_jid,
-        COALESCE(g.name, m.group_jid)                            AS group_name,
-        COUNT(*)::int                                             AS total,
-        SUM(CASE WHEN m.is_read = false THEN 1 ELSE 0 END)::int  AS unread,
-        MAX(m.timestamp)                                          AS last_ts,
+        n.subject                                                  AS group_name,
+        COUNT(*)::int                                              AS total,
+        SUM(CASE WHEN m.is_read = false THEN 1 ELSE 0 END)::int   AS unread,
+        MAX(m.timestamp)                                           AS last_ts,
         (SELECT text FROM whatsapp_messages m2
          WHERE m2.group_jid = m.group_jid
-         ORDER BY m2.timestamp DESC LIMIT 1)                     AS last_text,
+         ORDER BY m2.timestamp DESC LIMIT 1)                      AS last_text,
         (SELECT sender_name FROM whatsapp_messages m3
          WHERE m3.group_jid = m.group_jid
-         ORDER BY m3.timestamp DESC LIMIT 1)                     AS last_sender
+         ORDER BY m3.timestamp DESC LIMIT 1)                      AS last_sender
       FROM whatsapp_messages m
-      LEFT JOIN whatsapp_monitored_groups g ON g.jid = m.group_jid
-      GROUP BY m.group_jid, g.name
+      INNER JOIN whatsapp_group_names n ON n.jid = m.group_jid
+      WHERE (${keywordFilter("n")})
+      GROUP BY m.group_jid, n.subject
       ORDER BY MAX(m.timestamp) DESC
-    `);
+    `));
     return res.json(rows.rows);
   } catch (err) {
     req.log.error({ err }, "Failed to list inbox groups");
@@ -88,13 +105,17 @@ router.post("/whatsapp-inbox/mark-read", requireAuth, canManage, async (req, res
 
 /**
  * GET /api/whatsapp-inbox/unread-count
- * Total unread count across all groups (for the nav badge).
+ * Total unread count — only across keyword-matching groups (for the nav badge).
  */
 router.get("/whatsapp-inbox/unread-count", requireAuth, canManage, async (req, res) => {
   try {
-    const result = await db.execute(
-      sql`SELECT COUNT(*)::int AS total FROM whatsapp_messages WHERE is_read = false`
-    );
+    const result = await db.execute(sql.raw(`
+      SELECT COUNT(*)::int AS total
+      FROM whatsapp_messages m
+      INNER JOIN whatsapp_group_names n ON n.jid = m.group_jid
+      WHERE m.is_read = false
+        AND (${keywordFilter("n")})
+    `));
     return res.json({ total: (result.rows[0] as any)?.total ?? 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to get unread count");
@@ -179,6 +200,22 @@ router.post("/whatsapp-inbox/backfill", requireAuth, canManage, async (req, res)
   } catch (err) {
     req.log.error({ err }, "Backfill failed");
     return res.status(500).json({ error: "Backfill failed" });
+  }
+});
+
+/**
+ * POST /api/whatsapp-inbox/sync-group-names
+ * Pulls all group subjects from WhatsApp and upserts them into
+ * whatsapp_group_names. Called by the refresh button in the inbox toolbar.
+ * Returns { ok, upserted } — 409 if WhatsApp is not connected.
+ */
+router.post("/whatsapp-inbox/sync-group-names", requireAuth, canManage, async (req, res) => {
+  try {
+    const result = await syncGroupNamesToDB();
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    req.log.error({ err }, "sync-group-names failed");
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

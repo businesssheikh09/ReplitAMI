@@ -324,8 +324,14 @@ export default function WhatsAppInboxPage() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={() => qc.invalidateQueries({ queryKey: ["whatsapp-inbox-groups"] })}
-            title="Refresh"
+            title="Sync group names then refresh"
+            onClick={async () => {
+              if (waStatus === "connected") {
+                await apiFetch("/api/whatsapp-inbox/sync-group-names", { method: "POST" }).catch(() => null);
+              }
+              void qc.invalidateQueries({ queryKey: ["whatsapp-inbox-groups"] });
+              void qc.invalidateQueries({ queryKey: ["whatsapp-inbox-unread"] });
+            }}
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
