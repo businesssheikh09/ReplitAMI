@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, whatsappMessagesTable, whatsappGroupLinksTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { triggerBackfill } from "../services/whatsapp.js";
 
 const router = Router();
 const canManage = requireRole("admin", "management");
@@ -162,6 +163,22 @@ router.delete("/whatsapp-inbox/links/:id", requireAuth, canManage, async (req, r
   } catch (err) {
     req.log.error({ err }, "Failed to delete group link");
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/whatsapp-inbox/backfill
+ * Imports all messages from the local JSON store into the DB inbox.
+ * Safe to call multiple times — already-imported rows are skipped.
+ */
+router.post("/whatsapp-inbox/backfill", requireAuth, canManage, async (req, res) => {
+  try {
+    const result = await triggerBackfill();
+    req.log.info({ ...result }, "WhatsApp inbox backfill triggered via API");
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    req.log.error({ err }, "Backfill failed");
+    return res.status(500).json({ error: "Backfill failed" });
   }
 });
 

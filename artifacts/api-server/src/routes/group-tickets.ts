@@ -3,7 +3,7 @@ import { db, groupTicketsTable } from "@workspace/db";
 import { eq, desc, ilike, and, SQL } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { scrapeAndUpsert } from "../services/scheduler.js";
-import { getConnectionStatus, getQRCode } from "../services/whatsapp.js";
+import { getConnectionStatus, getQRCode, disconnectWhatsApp } from "../services/whatsapp.js";
 
 const router = Router();
 
@@ -61,5 +61,26 @@ router.get("/group-tickets/status", requireAuth, (_req, res) => {
 router.get("/group-tickets/qr", requireAuth, (_req, res) => {
   res.json({ qr: getQRCode(), status: getConnectionStatus() });
 });
+
+/**
+ * POST /api/whatsapp/logout
+ * Disconnects the active WhatsApp session and wipes the session directory.
+ * The server then re-initialises and a fresh QR code becomes available.
+ */
+router.post(
+  "/whatsapp/logout",
+  requireAuth,
+  requireRole("admin", "management"),
+  async (req, res) => {
+    try {
+      await disconnectWhatsApp();
+      return res.json({ ok: true, message: "WhatsApp disconnected — scan QR to re-link." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      req.log.error({ err }, "Failed to disconnect WhatsApp");
+      return res.status(500).json({ error: msg });
+    }
+  }
+);
 
 export default router;

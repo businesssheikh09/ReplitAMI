@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Plane, Trash2, Search, Loader2, ArrowRight, Clock,
   AlertCircle, CheckCircle2, Star, TicketCheck, PlusCircle,
-  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap, ScanLine, ChevronDown,
+  MinusCircle, RefreshCw, Lock, Users2, Wifi, WifiOff, Zap, ScanLine, ChevronDown, LogOut,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -116,6 +116,7 @@ function GroupTicketsTab() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [whatsappStatus, setWhatsappStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [disconnecting, setDisconnecting] = useState(false);
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDest, setFilterDest] = useState("");
 
@@ -295,6 +296,25 @@ function GroupTicketsTab() {
     }
   }
 
+  const handleDisconnect = async () => {
+    if (!window.confirm("This will disconnect the current WhatsApp account and prompt a new QR code so you can link a different number. Continue?")) return;
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/whatsapp/logout", { method: "POST", headers: authHeaders });
+      if (res.ok) {
+        setWhatsappStatus("disconnected");
+        toast({ title: "WhatsApp disconnected", description: "Scan a new QR code to link a different account." });
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast({ title: "Disconnect failed", description: body.error ?? "Server error", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Disconnect failed", description: "Network error", variant: "destructive" });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   const seatColor = (seats: number) =>
     seats >= 10 ? "text-green-700 font-semibold" :
     seats >= 5  ? "text-amber-600 font-semibold" :
@@ -366,6 +386,18 @@ function GroupTicketsTab() {
                   className="border-green-600 text-green-700 hover:bg-green-50">
                   <ScanLine className="h-4 w-4 mr-1.5" />
                   Scan QR
+                </Button>
+              )}
+              {whatsappStatus === "connected" && canSync && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className={`h-4 w-4 mr-1.5 ${disconnecting ? "animate-spin" : ""}`} />
+                  {disconnecting ? "Disconnecting…" : "Disconnect WA"}
                 </Button>
               )}
               {canSync && (

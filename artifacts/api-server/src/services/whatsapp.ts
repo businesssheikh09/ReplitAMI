@@ -112,6 +112,62 @@ async function persistMessagesToDB(messages: DbMessage[]): Promise<void> {
   }
 }
 
+/**
+ * Import all existing JSON-store messages into the DB inbox.
+ * Messages backfilled this way use senderJid='wa-store-backfill' as a marker,
+ * which lets subsequent calls skip already-imported rows efficiently.
+ * Runs automatically on every WhatsApp connection open.
+ */
+async function backfillJsonStoreToDB(): Promise<void> {
+  try {
+    const stored = loadStore().filter((m) => m.remoteJid.endsWith("@g.us"));
+    if (stored.length === 0) return;
+
+    // Find (groupJid, timestamp) pairs already backfilled so we don't re-insert
+    const existing = await db.execute(
+      sql`SELECT group_jid, timestamp FROM whatsapp_messages WHERE sender_jid = 'wa-store-backfill'`
+    );
+    const seen = new Set(
+      (existing.rows as Array<{ group_jid: string; timestamp: string | number }>).map(
+        (r) => `${r.group_jid}|${Number(r.timestamp)}`
+      )
+    );
+
+    const novel = stored.filter((m) => !seen.has(`${m.remoteJid}|${m.timestamp}`));
+    if (novel.length === 0) return;
+
+    const CHUNK = 200;
+    for (let i = 0; i < novel.length; i += CHUNK) {
+      const chunk = novel.slice(i, i + CHUNK);
+      await db
+        .insert(whatsappMessagesTable)
+        .values(
+          chunk.map((m) => ({
+            groupJid: m.remoteJid,
+            senderJid: "wa-store-backfill",
+            senderName: null,
+            text: m.text,
+            waMessageId: null,
+            timestamp: m.timestamp,
+            isRead: true,
+          }))
+        )
+        .onConflictDoNothing();
+    }
+    logger.info({ count: novel.length }, "Backfilled WhatsApp JSON store → DB");
+  } catch (err) {
+    logger.warn({ err }, "Failed to backfill WhatsApp messages to DB");
+  }
+}
+
+/** Trigger backfill from the public API (called by the inbox sync button). */
+export async function triggerBackfill(): Promise<{ inserted: number }> {
+  const stored = loadStore().filter((m) => m.remoteJid.endsWith("@g.us"));
+  const before = stored.length;
+  await backfillJsonStoreToDB();
+  return { inserted: before };
+}
+
 /** Append a batch of messages, deduplicating by (jid + timestamp + text). */
 function appendMessages(incoming: StoredMessage[]): void {
   if (incoming.length === 0) return;
@@ -147,6 +203,13 @@ let _resolveMessages:
 
 /** Set when connected; used by getLiveGroups() to fetch the group list. */
 let _fetchLiveGroups: (() => Promise<LiveGroup[]>) | null = null;
+
+/** Active Baileys socket — kept so disconnectWhatsApp() can call logout(). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let currentSock: any = null;
+
+/** Set to true when a user-initiated logout is in progress. */
+let logoutRequested = false;
 
 async function loadBaileys() {
   return import("@whiskeysockets/baileys") as Promise<typeof import("@whiskeysockets/baileys")>;
@@ -194,6 +257,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
     } as unknown as Parameters<typeof makeWASocket>[0]["logger"],
   });
 
+  currentSock = sock;
   sock.ev.on("creds.update", saveCreds);
 
   // ── Source 2: real-time incoming messages ─────────────────────────────────
@@ -275,6 +339,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
       currentQR = null; // clear QR once linked
       connectionStatus = "connected";
       logger.info("WhatsApp session connected");
+      void backfillJsonStoreToDB();
 
       _resolveMessages = async (targetGroups, sinceHours) => {
         const sinceTs = Math.floor(Date.now() / 1000) - sinceHours * 3600;
@@ -364,12 +429,19 @@ export async function initWhatsApp(dir: string): Promise<void> {
       const statusCode = (
         lastDisconnect?.error as { output?: { statusCode?: number } } | null
       )?.output?.statusCode;
+      const wasLogout = logoutRequested;
+      logoutRequested = false;
+      currentSock = null;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) {
-        logger.warn("WhatsApp disconnected — reconnecting in 5 s…");
-        setTimeout(() => initWhatsApp(dir), 5000);
+      if (shouldReconnect || wasLogout) {
+        if (wasLogout) {
+          logger.info("WhatsApp account disconnected by user — re-initialising with fresh QR…");
+        } else {
+          logger.warn("WhatsApp disconnected — reconnecting in 5 s…");
+        }
+        setTimeout(() => initWhatsApp(dir), wasLogout ? 1000 : 5000);
       } else {
-        logger.warn("WhatsApp logged out. Delete whatsapp-session/ and restart to re-link.");
+        logger.warn("WhatsApp logged out externally. Delete whatsapp-session/ and restart to re-link.");
       }
     }
   });
@@ -422,13 +494,30 @@ export async function getLiveGroups(): Promise<LiveGroup[]> {
 }
 
 /**
- * Return messages from the last `sinceHours` hours filtered by exact JIDs.
- * Only messages whose remoteJid ends in @g.us are ever returned.
- *
- * @param targetJids - exact @g.us JIDs to include; empty array = all groups
- * @param sinceHours - look-back window (default 24 h)
- * @param jidNames   - optional JID→human-readable-name map for groupName field
+ * Disconnect the current WhatsApp session and wipe the session directory so
+ * the next initWhatsApp call presents a fresh QR code.
+ * Throws if no socket is currently active.
  */
+export async function disconnectWhatsApp(): Promise<void> {
+  if (!currentSock) throw new Error("WhatsApp not connected");
+  logoutRequested = true;
+  try {
+    await currentSock.logout();
+  } catch {
+    try { currentSock.end(undefined); } catch { /* ignore */ }
+  }
+  // Session dir is wiped so the next initWhatsApp starts clean
+  if (sessionDir) {
+    try {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+      fs.mkdirSync(sessionDir, { recursive: true });
+      logger.info("WhatsApp session directory cleared — next start will show a fresh QR code");
+    } catch (err) {
+      logger.warn({ err }, "Failed to clear WhatsApp session directory after logout");
+    }
+  }
+}
+
 export function getRecentGroupMessagesByJids(
   targetJids: string[],
   sinceHours = 24,
