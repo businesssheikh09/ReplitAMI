@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, whatsappMessagesTable, whatsappGroupLinksTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
-import { triggerBackfill, syncGroupNamesToDB } from "../services/whatsapp.js";
+import { triggerBackfill, syncGroupNamesToDB, sendWhatsAppMessage } from "../services/whatsapp.js";
 
 const router = Router();
 const canManage = requireRole("admin", "management");
@@ -198,6 +198,30 @@ router.delete("/whatsapp-inbox/links/:id", requireAuth, canManage, async (req, r
   } catch (err) {
     req.log.error({ err }, "Failed to delete group link");
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /api/whatsapp-inbox/send
+ * Body: { jid, text, quote?: { waId, text, senderJid, senderName } }
+ * Sends a WhatsApp message from the ERP and saves it to the inbox DB.
+ */
+router.post("/whatsapp-inbox/send", requireAuth, canManage, async (req, res) => {
+  const { jid, text, quote } = req.body as {
+    jid?: string;
+    text?: string;
+    quote?: { waId: string; text: string; senderJid: string; senderName?: string | null } | null;
+  };
+  if (!jid || !text?.trim()) {
+    return res.status(400).json({ error: "jid and text are required" });
+  }
+  try {
+    const result = await sendWhatsAppMessage(jid, text.trim(), quote ?? null);
+    return res.json({ ok: true, waMessageId: result.waMessageId });
+  } catch (err) {
+    req.log.error({ err }, "Failed to send WhatsApp message");
+    const message = err instanceof Error ? err.message : "Send failed";
+    return res.status(500).json({ error: message });
   }
 });
 

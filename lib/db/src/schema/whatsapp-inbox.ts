@@ -11,6 +11,12 @@ export const whatsappMessagesTable = pgTable("whatsapp_messages", {
   timestamp: bigint("timestamp", { mode: "number" }).notNull(),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  /** True for messages sent FROM the ERP (right-side bubbles in the inbox). */
+  isSent: boolean("is_sent").notNull().default(false),
+  /** Quoted message context for reply threads. */
+  quotedWaId: text("quoted_wa_id"),
+  quotedText: text("quoted_text"),
+  quotedSenderName: text("quoted_sender_name"),
 });
 
 export type WhatsappMessage = typeof whatsappMessagesTable.$inferSelect;

@@ -88,9 +88,13 @@ interface DbMessage {
   text: string;
   waMessageId: string | null;
   timestamp: number;
+  isSent?: boolean;
+  quotedWaId?: string | null;
+  quotedText?: string | null;
+  quotedSenderName?: string | null;
 }
 
-/** Persist messages to the DB inbox (fire-and-forget; dedup via waMessageId UNIQUE). */
+/** Persist messages to the DB inbox (fire-and-forget). */
 async function persistMessagesToDB(messages: DbMessage[]): Promise<void> {
   if (messages.length === 0) return;
   try {
@@ -104,6 +108,10 @@ async function persistMessagesToDB(messages: DbMessage[]): Promise<void> {
           text: m.text,
           waMessageId: m.waMessageId,
           timestamp: m.timestamp,
+          isSent: m.isSent ?? false,
+          quotedWaId: m.quotedWaId ?? null,
+          quotedText: m.quotedText ?? null,
+          quotedSenderName: m.quotedSenderName ?? null,
         }))
       )
       .onConflictDoNothing();
@@ -297,13 +305,24 @@ export async function initWhatsApp(dir: string): Promise<void> {
     for (const msg of messages) {
       const jid = msg.key.remoteJid ?? "";
       if (!jid.endsWith("@g.us")) continue;
+      // Skip fromMe to avoid duplicating ERP-sent messages (we save those manually)
       if (msg.key.fromMe) continue;
-      const text =
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        "";
+      const ext = msg.message?.extendedTextMessage;
+      const text = msg.message?.conversation || ext?.text || "";
       if (!text) continue;
       const ts = (msg.messageTimestamp as number) ?? Math.floor(Date.now() / 1000);
+
+      // Extract quoted reply context (if any)
+      const ctx = ext?.contextInfo;
+      const quotedWaId = ctx?.stanzaId ?? null;
+      const quotedRaw = ctx?.quotedMessage;
+      const quotedText = quotedRaw
+        ? ((quotedRaw as any).conversation ??
+           (quotedRaw as any).extendedTextMessage?.text ??
+           null)
+        : null;
+      const quotedSenderJid = ctx?.participant ?? null;
+
       toAdd.push({ remoteJid: jid, text, timestamp: ts });
       toDb.push({
         groupJid: jid,
@@ -312,6 +331,9 @@ export async function initWhatsApp(dir: string): Promise<void> {
         text,
         waMessageId: msg.key.id ?? null,
         timestamp: ts,
+        quotedWaId,
+        quotedText,
+        quotedSenderName: quotedSenderJid,
       });
     }
     appendMessages(toAdd);
@@ -549,6 +571,55 @@ export async function disconnectWhatsApp(): Promise<void> {
       logger.warn({ err }, "Failed to clear WhatsApp session directory after logout");
     }
   }
+}
+
+/**
+ * Send a text message to a WhatsApp group from the ERP.
+ * Optionally quote a previous message for threaded replies.
+ * Saves the sent message to the DB so it appears in the inbox immediately.
+ */
+export async function sendWhatsAppMessage(
+  jid: string,
+  text: string,
+  quote?: { waId: string; text: string; senderJid: string; senderName?: string | null } | null,
+): Promise<{ waMessageId: string | null }> {
+  if (!currentSock) throw new Error("WhatsApp not connected");
+
+  const content: Record<string, unknown> = { text };
+
+  if (quote?.waId) {
+    content.contextInfo = {
+      stanzaId: quote.waId,
+      participant: quote.senderJid,
+      quotedMessage: { conversation: quote.text },
+      remoteJid: jid,
+    };
+  }
+
+  const result = await (currentSock as any).sendMessage(jid, content);
+  const waMessageId: string | null = result?.key?.id ?? null;
+  const ts = Math.floor(Date.now() / 1000);
+
+  // Save to DB immediately so it shows in the inbox
+  try {
+    await db.insert(whatsappMessagesTable).values({
+      groupJid: jid,
+      senderJid: "me",
+      senderName: "You",
+      text,
+      waMessageId,
+      timestamp: ts,
+      isRead: true,
+      isSent: true,
+      quotedWaId: quote?.waId ?? null,
+      quotedText: quote?.text ?? null,
+      quotedSenderName: quote?.senderName ?? quote?.senderJid ?? null,
+    });
+  } catch (err) {
+    logger.warn({ err }, "Failed to save sent WhatsApp message to DB");
+  }
+
+  return { waMessageId };
 }
 
 export function getRecentGroupMessagesByJids(
