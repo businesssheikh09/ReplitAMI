@@ -146,13 +146,18 @@ export default function WhatsAppInboxPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /* Auth header injected into every request */
-  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  /* Keep a mutable ref to the latest token — avoids stale-closure 401s in
+     React Query polling callbacks that capture an older version of the closure. */
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
 
   function apiFetchAuth(path: string, init?: RequestInit) {
+    const hdrs: Record<string, string> = tokenRef.current
+      ? { Authorization: `Bearer ${tokenRef.current}` }
+      : {};
     return apiFetch(path, {
       ...init,
-      headers: { ...authHeaders, ...(init?.headers ?? {}) },
+      headers: { ...hdrs, ...(init?.headers as Record<string, string> | undefined ?? {}) },
     });
   }
 

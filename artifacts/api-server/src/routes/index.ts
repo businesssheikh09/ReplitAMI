@@ -16,6 +16,7 @@ import currencySettingsRouter from "./currency-settings";
 import websiteConfigRouter from "./website-config";
 import hotelInvoicesRouter from "./hotel-invoices";
 import groupTicketsRouter from "./group-tickets";
+import whatsappRouter from "./whatsapp";
 import whatsappGroupsRouter from "./whatsapp-groups";
 import whatsappInboxRouter from "./whatsapp-inbox";
 
@@ -38,6 +39,7 @@ router.use(dashboardRouter);
 router.use(currencySettingsRouter);
 router.use(websiteConfigRouter);
 router.use(groupTicketsRouter);
+router.use(whatsappRouter);
 router.use(whatsappGroupsRouter);
 router.use(whatsappInboxRouter);
 
