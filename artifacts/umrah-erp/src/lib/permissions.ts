@@ -6,14 +6,15 @@ const NOT_ACCOUNTS: UserRole[] = ["sales", "management", "operations", "admin"];
 const FINANCE_FULL: UserRole[] = ["accounts", "management", "admin"];
 const FINANCE_OPS: UserRole[] = ["accounts", "management", "operations", "admin"];
 
-// Dashboard: management only (each other role lands on their own first page)
-// accounts: Finance only; sales: CRM+Sales+Ops; operations: CRM+Sales+Ops+Finance invoices/expenses
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/dashboard": ALL,
   "/crm": NOT_ACCOUNTS,
   "/crm/follow-ups": NOT_ACCOUNTS,
   "/quotations": NOT_ACCOUNTS,
   "/hotel-requests": NOT_ACCOUNTS,
+  "/package-inquiries": NOT_ACCOUNTS,
+  "/booking-inquiries": ADMIN_MGMT,
+  "/portal-users": ADMIN_MGMT,
   "/hotels": ["management", "operations", "admin"],
   "/vendors": ["management", "operations", "admin"],
   "/transport": NOT_ACCOUNTS,
@@ -29,6 +30,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/users": ADMIN_MGMT,
   "/documents": NOT_ACCOUNTS,
   "/gds-settings": ADMIN_MGMT,
+  "/ai-settings": ADMIN_MGMT,
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
@@ -47,13 +49,15 @@ export function canAccess(role: string | undefined, route: string): boolean {
   return false;
 }
 
-// Nav items reflect same access as routes
 export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/dashboard": ALL,
   "/crm": NOT_ACCOUNTS,
   "/crm/follow-ups": NOT_ACCOUNTS,
   "/quotations": NOT_ACCOUNTS,
   "/hotel-requests": NOT_ACCOUNTS,
+  "/package-inquiries": NOT_ACCOUNTS,
+  "/booking-inquiries": ADMIN_MGMT,
+  "/portal-users": ADMIN_MGMT,
   "/hotels": ["management", "operations", "admin"],
   "/vendors": ["management", "operations", "admin"],
   "/transport": NOT_ACCOUNTS,
@@ -69,6 +73,7 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/users": ADMIN_MGMT,
   "/documents": NOT_ACCOUNTS,
   "/gds-settings": ADMIN_MGMT,
+  "/ai-settings": ADMIN_MGMT,
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,

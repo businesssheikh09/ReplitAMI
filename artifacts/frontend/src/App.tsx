@@ -5,6 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "@/pages/landing";
 import AdminRedirect from "@/pages/admin";
 import NotFound from "@/pages/not-found";
+import BookFlightPage from "@/pages/book-flight";
+import PortalLoginPage from "@/pages/portal-login";
+import PortalRegisterPage from "@/pages/portal-register";
+import MyBookingsPage from "@/pages/my-bookings";
 
 const queryClient = new QueryClient();
 
@@ -13,6 +17,10 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/admin" component={AdminRedirect} />
+      <Route path="/book-flight/:id" component={BookFlightPage} />
+      <Route path="/portal-login" component={PortalLoginPage} />
+      <Route path="/portal-register" component={PortalRegisterPage} />
+      <Route path="/my-bookings" component={MyBookingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

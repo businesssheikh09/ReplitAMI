@@ -14,3 +14,6 @@ export * from "./group-tickets";
 export * from "./whatsapp-groups";
 export * from "./whatsapp-inbox";
 export * from "./bot-campaigns";
+export * from "./booking-inquiries";
+export * from "./package-inquiries";
+export * from "./portal-users";

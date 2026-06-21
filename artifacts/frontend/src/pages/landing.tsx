@@ -5,6 +5,8 @@ import { HeroSection } from "@/components/hero-section";
 import { AboutSection } from "@/components/about-section";
 import { PackagesSection } from "@/components/packages-section";
 import { ExperienceSection } from "@/components/experience-section";
+import { GroupTicketsSection } from "@/components/group-tickets-section";
+import { CustomizePackageSection } from "@/components/customize-package-section";
 import { Footer } from "@/components/footer";
 import { X } from "lucide-react";
 import { useState } from "react";
@@ -33,6 +35,8 @@ export default function Landing() {
       <main className="flex-1">
         <HeroSection />
         <AboutSection />
+        <GroupTicketsSection />
+        <CustomizePackageSection />
         <PackagesSection />
         <ExperienceSection />
       </main>

@@ -1,2 +1,4 @@
-- [Umrah ERP stack](umrah-erp-stack.md) — Express 5 + Drizzle + PostgreSQL backend; React+Vite frontend; wouter routing; all 12 modules live
-- [Auth pattern](umrah-erp-auth.md) — Simple token (token_userId_timestamp), password stored as plain text in dev; login at admin@umrah.com / admin123
+- [Object Storage Import Fix](obj-storage-import.md) — esbuild needs .js extensions on relative imports; storage.ts must not import zod/v4 (not bundled)
+- [Portal Auth Pattern](portal-auth.md) — portal_session_token column in DB, Bearer token in Authorization header, requirePortalAuth middleware
+- [Payment Deadline Tiers](deadline-tiers.md) — ≤24h→1h deadline, 25-48h→3h, 49-240h→12h, >240h→24h; calculatePaymentDeadline() in deadline-calculator.ts
+- [OCR Stub Pattern](ocr-stub.md) — scanDocument() checks AI_INTEGRATIONS_OPENAI_API_KEY; AI Settings ERP page stores key in process.env (session) with Replit Secrets note

@@ -27,6 +27,10 @@ import WhatsAppInboxPage from "@/pages/whatsapp-inbox";
 import BotCampaignPage from "@/pages/bot-campaign";
 import CurrencySettingsPage from "@/pages/currency-settings";
 import WebsiteSettingsPage from "@/pages/website-settings";
+import BookingInquiriesPage from "@/pages/booking-inquiries";
+import PortalUsersPage from "@/pages/portal-users";
+import PendingQuotationsPage from "@/pages/pending-quotations";
+import AiSettingsPage from "@/pages/ai-settings";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -91,6 +95,11 @@ function Router() {
         <ProtectedRoute path="/quotations" component={QuotationsPage} />
         <ProtectedRoute path="/quotations/:id" component={QuotationDetailPage} />
         <ProtectedRoute path="/hotel-requests" component={HotelRequestsPage} />
+        <ProtectedRoute path="/package-inquiries" component={PendingQuotationsPage} />
+
+        {/* Direct Bookings */}
+        <ProtectedRoute path="/booking-inquiries" component={BookingInquiriesPage} />
+        <ProtectedRoute path="/portal-users" component={PortalUsersPage} />
 
         {/* Operations */}
         <ProtectedRoute path="/hotels" component={HotelsPage} />
@@ -117,6 +126,7 @@ function Router() {
         <ProtectedRoute path="/gds-settings" component={GdsSettingsPage} />
         <ProtectedRoute path="/currency-settings" component={CurrencySettingsPage} />
         <ProtectedRoute path="/website-settings" component={WebsiteSettingsPage} />
+        <ProtectedRoute path="/ai-settings" component={AiSettingsPage} />
 
         <Route component={NotFound} />
       </Switch>

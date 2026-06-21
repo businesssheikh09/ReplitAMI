@@ -20,6 +20,10 @@ import {
   Globe,
   MessageSquare,
   Send,
+  Ticket,
+  Package,
+  UserCheck,
+  Bot,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -45,6 +49,14 @@ const navGroups = [
     items: [
       { title: "Quotations", href: "/quotations", icon: FileText },
       { title: "Hotel Requests", href: "/hotel-requests", icon: Building2 },
+      { title: "Package Inquiries", href: "/package-inquiries", icon: Package },
+    ],
+  },
+  {
+    title: "Direct Bookings",
+    items: [
+      { title: "Booking Inquiries", href: "/booking-inquiries", icon: Ticket },
+      { title: "Portal Users", href: "/portal-users", icon: UserCheck },
     ],
   },
   {
@@ -75,16 +87,12 @@ const navGroups = [
     ],
   },
   {
-    title: "Documents",
-    items: [
-      { title: "Documents", href: "/documents", icon: Files },
-    ],
-  },
-  {
     title: "Admin",
     items: [
       { title: "Users", href: "/users", icon: ShieldCheck },
+      { title: "Documents", href: "/documents", icon: Files },
       { title: "GDS Settings", href: "/gds-settings", icon: Settings2 },
+      { title: "AI Settings", href: "/ai-settings", icon: Bot },
       { title: "Website Settings", href: "/website-settings", icon: Globe },
     ],
   },
@@ -106,13 +114,31 @@ function useInboxUnread() {
   });
 }
 
+function usePortalPending() {
+  const { isAuthenticated, user, token } = useAuth();
+  const role = (user?.role ?? "") as UserRole;
+  const canSee = isAuthenticated && (role === "management" || role === "admin");
+  return useQuery<{ count: number }>({
+    queryKey: ["portal-pending-count", token],
+    queryFn: () =>
+      fetch("/api/portal/users?status=pending_approval", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((users) => ({ count: Array.isArray(users) ? users.length : 0 })),
+    enabled: canSee && !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+}
+
 export function Sidebar() {
   const [location] = useLocation();
-  const { logout, user } = useAuth();
+  const { logout, user, token } = useAuth();
   const role = (user?.role ?? "") as UserRole;
   const isManagement = role === "management" || role === "admin";
   const { data: unreadData } = useInboxUnread();
+  const { data: portalPending } = usePortalPending();
   const unreadCount = unreadData?.total ?? 0;
+  const pendingPortal = portalPending?.count ?? 0;
 
   const filteredGroups = navGroups
     .map((group) => ({
@@ -171,6 +197,11 @@ export function Sidebar() {
                             {unreadCount > 99 ? "99+" : unreadCount}
                           </Badge>
                         )}
+                        {item.href === "/portal-users" && pendingPortal > 0 && (
+                          <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-amber-500 text-white border-0">
+                            {pendingPortal}
+                          </Badge>
+                        )}
                       </span>
                     </Link>
                   );
@@ -193,10 +224,6 @@ export function Sidebar() {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [location] = useLocation();
-
-  if (!isAuthenticated && location !== "/login") {
-    // Handled in App.tsx
-  }
 
   if (location === "/login") {
     return <>{children}</>;
