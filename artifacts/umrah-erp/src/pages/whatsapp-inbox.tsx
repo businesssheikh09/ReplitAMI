@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, fromUnixTime } from "date-fns";
 import {
   MessageSquare, CheckCheck, Link2, Trash2, RefreshCw, ChevronRight,
+  Wifi, WifiOff, ScanLine, Loader2, AlertCircle, LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import QRCode from "qrcode";
 
 interface InboxGroup {
   group_jid: string;
@@ -76,11 +79,85 @@ function apiFetch(path: string, init?: RequestInit) {
 export default function WhatsAppInboxPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { token } = useAuth();
+  const authHeaders = { Authorization: `Bearer ${token}` };
+
   const [selectedJid, setSelectedJid] = useState<string | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkEntityType, setLinkEntityType] = useState("flight_quotation");
   const [linkEntityId, setLinkEntityId] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // ── WhatsApp connection state ────────────────────────────────────────────
+  const [waStatus, setWaStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/group-tickets/status", { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json() as { whatsappStatus: "disconnected" | "connecting" | "connected" };
+        setWaStatus(data.whatsappStatus);
+      }
+    } catch { /* silent */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const fetchQR = useCallback(async () => {
+    setQrLoading(true);
+    try {
+      const res = await fetch("/api/group-tickets/qr", { headers: authHeaders });
+      if (!res.ok) { setQrError("Could not reach server."); return; }
+      const data = await res.json() as { qr: string | null; status: string };
+      if (data.status === "connected") {
+        setWaStatus("connected");
+        setQrOpen(false);
+        toast({ title: "WhatsApp linked!", description: "Your phone is now connected." });
+        return;
+      }
+      if (data.qr) {
+        const url = await QRCode.toDataURL(data.qr, { width: 280, margin: 2 });
+        setQrDataUrl(url);
+        setQrError(null);
+      }
+    } catch { setQrError("Failed to load QR code."); }
+    finally { setQrLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const handleDisconnect = async () => {
+    if (!window.confirm("Disconnect the current WhatsApp account? You can scan a new QR code after.")) return;
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/whatsapp/logout", { method: "POST", headers: authHeaders });
+      if (res.ok) {
+        setWaStatus("disconnected");
+        toast({ title: "WhatsApp disconnected", description: "Scan QR to link a new number." });
+      } else {
+        toast({ title: "Disconnect failed", variant: "destructive" });
+      }
+    } catch { toast({ title: "Disconnect failed", variant: "destructive" }); }
+    finally { setDisconnecting(false); }
+  };
+
+  // Poll status every 15 s
+  useEffect(() => {
+    void fetchStatus();
+    const iv = setInterval(fetchStatus, 15_000);
+    return () => clearInterval(iv);
+  }, [fetchStatus]);
+
+  // Poll QR while dialog is open (Baileys refreshes QR ~every 60 s)
+  useEffect(() => {
+    if (!qrOpen) { setQrDataUrl(null); setQrError(null); return; }
+    void fetchQR();
+    const iv = setInterval(fetchQR, 15_000);
+    return () => clearInterval(iv);
+  }, [qrOpen, fetchQR]);
 
   const groupsQuery = useQuery<InboxGroup[]>({
     queryKey: ["whatsapp-inbox-groups"],
@@ -171,12 +248,65 @@ export default function WhatsAppInboxPage() {
   }
 
   return (
+    <>
+    {/* ── QR Code Dialog ──────────────────────────────────────────────────── */}
+    <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ScanLine className="h-5 w-5 text-blue-900" />
+            Link WhatsApp
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col items-center gap-4 py-2">
+          {qrError ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+              <p className="text-sm text-center text-red-600 font-medium">{qrError}</p>
+            </div>
+          ) : qrLoading && !qrDataUrl ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm">Generating QR code…</p>
+            </div>
+          ) : qrDataUrl ? (
+            <>
+              <img src={qrDataUrl} alt="WhatsApp QR Code" className="rounded-lg border border-gray-200" width={280} height={280} />
+              <p className="text-xs text-muted-foreground text-center">
+                Open WhatsApp → <strong>Settings → Linked Devices → Link a Device</strong>
+              </p>
+              <p className="text-xs text-blue-700 bg-blue-50 rounded px-3 py-1.5 text-center">
+                QR refreshes every 15 s · Scanning connects the whole ERP
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm">Waiting for QR from server…</p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+
     <div className="flex h-[calc(100vh-6rem)] gap-0 overflow-hidden rounded-lg border bg-background shadow-sm">
 
       {/* ── Left panel: group list ──────────────────────────────────────── */}
       <div className="flex w-80 flex-shrink-0 flex-col border-r">
+        {/* Title row */}
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="font-semibold text-sm">Groups</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="font-semibold text-sm">Groups</h2>
+            <div className="flex items-center gap-1 text-xs">
+              {waStatus === "connected" ? (
+                <><Wifi className="h-3 w-3 text-green-500" /><span className="text-green-600">Connected</span></>
+              ) : waStatus === "connecting" ? (
+                <><Wifi className="h-3 w-3 text-amber-500 animate-pulse" /><span className="text-amber-600">Connecting…</span></>
+              ) : (
+                <><WifiOff className="h-3 w-3 text-gray-400" /><span className="text-gray-500">Not linked</span></>
+              )}
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -186,6 +316,30 @@ export default function WhatsAppInboxPage() {
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
+        </div>
+        {/* Connect / disconnect strip */}
+        <div className="flex gap-1.5 border-b px-3 py-2 bg-gray-50/60">
+          {waStatus !== "connected" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 flex-1 text-xs border-green-600 text-green-700 hover:bg-green-50 gap-1.5"
+              onClick={() => setQrOpen(true)}
+            >
+              <ScanLine className="h-3 w-3" /> Scan QR to Connect
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+            >
+              <LogOut className="h-3 w-3" />
+              {disconnecting ? "Disconnecting…" : "Disconnect"}
+            </Button>
+          )}
         </div>
 
         <ScrollArea className="flex-1">
@@ -375,5 +529,6 @@ export default function WhatsAppInboxPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

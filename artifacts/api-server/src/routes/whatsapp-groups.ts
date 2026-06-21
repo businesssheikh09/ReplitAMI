@@ -12,6 +12,7 @@ const canManage = requireRole("admin", "management", "accounts");
 const BUSINESS_KEYWORDS = [
   "travel", "tours", "al musafir", "fast star",
   "bookings", "umrah", "tickets",
+  "ami", "invoices", "hotels", "internal",
 ];
 
 function isBusinessGroup(name: string): boolean {
