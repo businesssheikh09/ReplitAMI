@@ -2,31 +2,29 @@ import { Router } from "express";
 import { db, botCampaignsTable, botCampaignSendsTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { getLiveContacts } from "../services/whatsapp.js";
 
 const router = Router();
 const canManage = requireRole("admin", "management");
 
 /**
  * GET /api/bot/contacts
- * Returns all unique individual contact JIDs found in message history.
- * Contacts are @s.whatsapp.net JIDs (not group @g.us JIDs).
- * Device suffixes (e.g. :15@) are normalised away.
+ * Returns all unique individual contact JIDs extracted from group participant lists.
+ * Contacts are @s.whatsapp.net JIDs de-duplicated across all groups the phone belongs to.
+ * Results are cached on connect and cleared on disconnect so they always reflect the
+ * currently linked phone.
+ * Returns 503 if WhatsApp is not connected.
  */
 router.get("/bot/contacts", requireAuth, canManage, async (req, res) => {
   try {
-    const result = await db.execute(sql.raw(`
-      SELECT
-        REGEXP_REPLACE(sender_jid, ':\\d+@', '@') AS jid,
-        MAX(sender_name) AS name
-      FROM whatsapp_messages
-      WHERE sender_jid LIKE '%@s.whatsapp.net'
-        AND is_sent = false
-      GROUP BY REGEXP_REPLACE(sender_jid, ':\\d+@', '@')
-      ORDER BY MAX(sender_name) ASC NULLS LAST
-    `));
-    return res.json(result.rows ?? result);
-  } catch (err) {
-    req.log.error({ err }, "bot/contacts: query failed");
+    const contacts = await getLiveContacts();
+    return res.json(contacts);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not connected")) {
+      return res.status(503).json({ error: "WhatsApp is not connected" });
+    }
+    req.log.error({ err }, "bot/contacts: failed to fetch live contacts");
     return res.status(500).json({ error: "Failed to fetch contacts" });
   }
 });

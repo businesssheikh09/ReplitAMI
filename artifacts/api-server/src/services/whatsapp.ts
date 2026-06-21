@@ -242,6 +242,13 @@ let _resolveMessages:
 /** Set when connected; used by getLiveGroups() to fetch the group list. */
 let _fetchLiveGroups: (() => Promise<LiveGroup[]>) | null = null;
 
+/**
+ * Cached individual contacts extracted from group participant lists.
+ * Populated on connect, cleared on disconnect/logout.
+ * null = not yet fetched or socket is disconnected.
+ */
+let _cachedContacts: Array<{ jid: string; name: string | null }> | null = null;
+
 /** Active Baileys socket — kept so disconnectWhatsApp() can call logout(). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let currentSock: any = null;
@@ -475,12 +482,42 @@ export async function initWhatsApp(dir: string): Promise<void> {
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
       };
+
+      // Pre-populate the contact cache from group participant lists.
+      // Done async so it doesn't block the connection handler.
+      void (async () => {
+        try {
+          const groups = await sock.groupFetchAllParticipating() as Record<
+            string,
+            { participants?: Array<{ id: string }> }
+          >;
+          const seen = new Set<string>();
+          const contacts: Array<{ jid: string; name: string | null }> = [];
+          for (const meta of Object.values(groups)) {
+            if (!Array.isArray(meta.participants)) continue;
+            for (const p of meta.participants) {
+              const jid = p?.id ?? "";
+              // Accept @s.whatsapp.net (classic) and @lid (multi-device privacy JIDs).
+              // Exclude group JIDs (@g.us) and empty/malformed values.
+              if (!jid.includes("@") || jid.endsWith("@g.us") || seen.has(jid)) continue;
+              seen.add(jid);
+              contacts.push({ jid, name: null });
+            }
+          }
+          contacts.sort((a, b) => a.jid.localeCompare(b.jid));
+          _cachedContacts = contacts;
+          logger.info({ count: contacts.length }, "WhatsApp contact cache populated from group participants");
+        } catch (err) {
+          logger.warn({ err }, "Failed to pre-populate WhatsApp contact cache — will retry on first request");
+        }
+      })();
     }
 
     if (connection === "close") {
       connectionStatus = "disconnected";
       _resolveMessages = null;
       _fetchLiveGroups = null;
+      _cachedContacts = null;
       const statusCode = (
         lastDisconnect?.error as { output?: { statusCode?: number } } | null
       )?.output?.statusCode;
@@ -546,6 +583,38 @@ export async function getRecentGroupMessages(
 export async function getLiveGroups(): Promise<LiveGroup[]> {
   if (!_fetchLiveGroups) throw new Error("WhatsApp not connected");
   return _fetchLiveGroups();
+}
+
+/**
+ * Return all unique individual contacts extracted from group participant lists.
+ * Results are cached after the first successful fetch on connect and cleared
+ * automatically on disconnect/logout — so they always reflect the currently
+ * linked phone, whether it's the same number or a newly scanned QR.
+ * Throws "WhatsApp not connected" if the socket is not open.
+ */
+export async function getLiveContacts(): Promise<Array<{ jid: string; name: string | null }>> {
+  if (!currentSock) throw new Error("WhatsApp not connected");
+
+  // Serve from cache when warm (populated on connect)
+  if (_cachedContacts !== null) return _cachedContacts;
+
+  // Cache miss — fetch on-demand (e.g. pre-populate failed or first request raced connect)
+  const groups = await (currentSock as { groupFetchAllParticipating: () => Promise<Record<string, { participants?: Array<{ id: string }> }>> }).groupFetchAllParticipating();
+  const seen = new Set<string>();
+  const contacts: Array<{ jid: string; name: string | null }> = [];
+  for (const meta of Object.values(groups)) {
+    if (!Array.isArray(meta.participants)) continue;
+    for (const p of meta.participants) {
+      const jid = p?.id ?? "";
+      if (!jid.includes("@") || jid.endsWith("@g.us") || seen.has(jid)) continue;
+      seen.add(jid);
+      contacts.push({ jid, name: null });
+    }
+  }
+  contacts.sort((a, b) => a.jid.localeCompare(b.jid));
+  _cachedContacts = contacts;
+  logger.info({ count: contacts.length }, "WhatsApp contact cache populated (on-demand)");
+  return _cachedContacts;
 }
 
 /**
