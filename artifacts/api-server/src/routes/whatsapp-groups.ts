@@ -8,6 +8,17 @@ const router = Router();
 
 const canManage = requireRole("admin", "management", "accounts");
 
+/** Pre-filter: only return groups whose name contains one of these business keywords. */
+const BUSINESS_KEYWORDS = [
+  "travel", "tours", "al musafir", "fast star",
+  "bookings", "umrah", "tickets",
+];
+
+function isBusinessGroup(name: string): boolean {
+  const lower = name.toLowerCase();
+  return BUSINESS_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 /** GET /api/whatsapp-groups/live
  * Returns all WhatsApp groups the linked phone is currently in.
  * Only @g.us JIDs are returned (group chats, never personal chats).
@@ -16,7 +27,8 @@ const canManage = requireRole("admin", "management", "accounts");
 router.get("/whatsapp-groups/live", requireAuth, canManage, async (req, res) => {
   try {
     const groups = await getLiveGroups();
-    return res.json(groups);
+    const filtered = groups.filter((g) => isBusinessGroup(g.name));
+    return res.json(filtered);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     if (msg === "WhatsApp not connected") {
