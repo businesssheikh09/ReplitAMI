@@ -9,17 +9,31 @@ const canManage = requireRole("admin", "management");
 
 /**
  * Business keywords — a group must match at least one to appear in the inbox.
- * Keep in sync with BUSINESS_KEYWORDS in whatsapp-groups.ts.
+ * ilike  → substring match (safe for multi-char words unlikely to be substrings)
+ * regex  → PostgreSQL ~* with \y word boundaries (use for short words like "ami"
+ *           that would otherwise match inside "family", "sami", "amirah", etc.)
  */
-const INBOX_KEYWORDS = [
-  "travel", "tours", "al musafir", "fast star",
-  "bookings", "umrah", "tickets",
-  "ami", "invoices", "hotels", "internal",
+const INBOX_KEYWORDS: Array<{ ilike?: string; regex?: string }> = [
+  { ilike: "travel" },
+  { ilike: "tours" },
+  { ilike: "al musafir" },
+  { ilike: "fast star" },
+  { ilike: "bookings" },
+  { ilike: "umrah" },
+  { ilike: "tickets" },
+  { regex: "\\yami\\y" },   // word-boundary: matches "AMI" alone, not "fAMIly" or "SAMi"
+  { ilike: "invoices" },
+  { ilike: "hotels" },
+  { ilike: "internal" },
 ];
 
-/** SQL fragment: n.subject ILIKE '%kw%' OR … for every keyword */
+/** SQL fragment: one condition per keyword, OR-joined. */
 function keywordFilter(alias: string): string {
-  return INBOX_KEYWORDS.map((kw) => `${alias}.subject ILIKE '%${kw.replace(/'/g, "''")}%'`).join(" OR ");
+  return INBOX_KEYWORDS.map((kw) => {
+    if (kw.ilike) return `${alias}.subject ILIKE '%${kw.ilike.replace(/'/g, "''")}%'`;
+    if (kw.regex) return `${alias}.subject ~* '${kw.regex}'`;
+    return "false";
+  }).join(" OR ");
 }
 
 /**
