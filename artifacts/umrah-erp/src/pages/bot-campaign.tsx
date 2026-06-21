@@ -87,7 +87,7 @@ export default function BotCampaignPage() {
 
   /* ── Mutations ── */
   const createAndStartMutation = useMutation({
-    mutationFn: async (payload: { message: string; contacts: BotContact[] }) => {
+    mutationFn: async (payload: { message: string }) => {
       const camp = await apiFetchAuth("/api/bot/campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -171,7 +171,7 @@ export default function BotCampaignPage() {
   /* ── Handlers ── */
   function handleStart() {
     if (!canStart) return;
-    createAndStartMutation.mutate({ message: message.trim(), contacts });
+    createAndStartMutation.mutate({ message: message.trim() });
   }
 
   /* ════════════════════════════════════════════════════════════════════
@@ -362,7 +362,7 @@ export default function BotCampaignPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-green-700">
                       <CheckCheck className="h-4 w-4 inline mr-1" />
-                      {contacts.length} contacts ready
+                      {contacts.length.toLocaleString()} contacts ready
                     </span>
                     <Button
                       variant="ghost"
@@ -377,7 +377,7 @@ export default function BotCampaignPage() {
                   </div>
                   <ScrollArea className="h-40 rounded-md border">
                     <div className="p-2 space-y-0.5">
-                      {contacts.map((c) => (
+                      {contacts.slice(0, 100).map((c) => (
                         <div
                           key={c.jid}
                           className="text-xs px-2 py-1 rounded hover:bg-muted/50 truncate"
@@ -385,6 +385,11 @@ export default function BotCampaignPage() {
                           {contactLabel(c.jid, c.name)}
                         </div>
                       ))}
+                      {contacts.length > 100 && (
+                        <div className="text-xs px-2 py-1 text-muted-foreground italic">
+                          … and {(contacts.length - 100).toLocaleString()} more contacts
+                        </div>
+                      )}
                     </div>
                   </ScrollArea>
                 </>

@@ -76,16 +76,29 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
 /**
  * POST /api/bot/campaign
  * Creates a new campaign (status: idle). Stops any existing active campaign first.
+ * Contacts are fetched server-side from the live WhatsApp session — the client
+ * only needs to supply the message text. This avoids sending thousands of JIDs
+ * over the wire and keeps the payload small.
  */
 router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
-  const { message, contacts } = req.body as {
-    message: string;
-    contacts: Array<{ jid: string; name: string | null }>;
-  };
+  const { message } = req.body as { message: string };
 
   if (!message?.trim()) return res.status(400).json({ error: "message is required" });
-  if (!Array.isArray(contacts) || contacts.length === 0)
-    return res.status(400).json({ error: "contacts list is required" });
+
+  let contacts: Array<{ jid: string; name: string | null }>;
+  try {
+    contacts = await getLiveContacts();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not connected")) {
+      return res.status(503).json({ error: "WhatsApp is not connected" });
+    }
+    req.log.error({ err }, "bot/campaign POST: failed to fetch contacts");
+    return res.status(500).json({ error: "Failed to fetch contacts" });
+  }
+
+  if (contacts.length === 0)
+    return res.status(400).json({ error: "No contacts available — WhatsApp groups may be empty" });
 
   try {
     await db
