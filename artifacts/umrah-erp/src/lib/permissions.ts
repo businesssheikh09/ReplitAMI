@@ -30,6 +30,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/documents": NOT_ACCOUNTS,
   "/gds-settings": ADMIN_MGMT,
   "/website-settings": ADMIN_MGMT,
+  "/whatsapp-inbox": ADMIN_MGMT,
 };
 
 export function canAccess(role: string | undefined, route: string): boolean {
@@ -68,6 +69,7 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/documents": NOT_ACCOUNTS,
   "/gds-settings": ADMIN_MGMT,
   "/website-settings": ADMIN_MGMT,
+  "/whatsapp-inbox": ADMIN_MGMT,
 };
 
 export const ROLE_LABELS: Record<string, string> = {

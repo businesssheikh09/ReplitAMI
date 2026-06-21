@@ -43,6 +43,13 @@
       "when": 1750512000000,
       "tag": "0005_whatsapp_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1750598400000,
+      "tag": "0006_whatsapp_inbox",
+      "breakpoints": true
     }
   ]
 }

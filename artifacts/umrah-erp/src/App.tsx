@@ -23,6 +23,7 @@ import HotelInvoicesListPage from "@/pages/hotel-invoices-list";
 import UsersPage from "@/pages/users";
 import DocumentsPage from "@/pages/documents";
 import GdsSettingsPage from "@/pages/gds-settings";
+import WhatsAppInboxPage from "@/pages/whatsapp-inbox";
 import CurrencySettingsPage from "@/pages/currency-settings";
 import WebsiteSettingsPage from "@/pages/website-settings";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -104,6 +105,9 @@ function Router() {
         <ProtectedRoute path="/accounting/hotel-invoice/new" component={HotelInvoiceFormPage} />
         <ProtectedRoute path="/accounting/hotel-invoice/:id" component={HotelInvoiceFormPage} />
         <ProtectedRoute path="/hotel-invoices" component={HotelInvoicesListPage} />
+
+        {/* Messaging */}
+        <ProtectedRoute path="/whatsapp-inbox" component={WhatsAppInboxPage} />
 
         {/* Admin */}
         <ProtectedRoute path="/users" component={UsersPage} />

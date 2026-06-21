@@ -36,6 +36,8 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { db, whatsappMessagesTable } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 
@@ -76,6 +78,37 @@ function persistStore(msgs: StoredMessage[]): void {
     fs.writeFileSync(storePath(), JSON.stringify(pruned), "utf8");
   } catch (err) {
     logger.warn({ err }, "Failed to persist WhatsApp message store");
+  }
+}
+
+interface DbMessage {
+  groupJid: string;
+  senderJid: string;
+  senderName: string | null;
+  text: string;
+  waMessageId: string | null;
+  timestamp: number;
+}
+
+/** Persist messages to the DB inbox (fire-and-forget; dedup via waMessageId UNIQUE). */
+async function persistMessagesToDB(messages: DbMessage[]): Promise<void> {
+  if (messages.length === 0) return;
+  try {
+    await db
+      .insert(whatsappMessagesTable)
+      .values(
+        messages.map((m) => ({
+          groupJid: m.groupJid,
+          senderJid: m.senderJid,
+          senderName: m.senderName,
+          text: m.text,
+          waMessageId: m.waMessageId,
+          timestamp: m.timestamp,
+        }))
+      )
+      .onConflictDoNothing();
+  } catch (err) {
+    logger.warn({ err }, "Failed to persist WhatsApp messages to DB");
   }
 }
 
@@ -166,6 +199,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
   // ── Source 2: real-time incoming messages ─────────────────────────────────
   sock.ev.on("messages.upsert", ({ messages }) => {
     const toAdd: StoredMessage[] = [];
+    const toDb: DbMessage[] = [];
     for (const msg of messages) {
       const jid = msg.key.remoteJid ?? "";
       if (!jid.endsWith("@g.us")) continue;
@@ -175,13 +209,19 @@ export async function initWhatsApp(dir: string): Promise<void> {
         msg.message?.extendedTextMessage?.text ||
         "";
       if (!text) continue;
-      toAdd.push({
-        remoteJid: jid,
+      const ts = (msg.messageTimestamp as number) ?? Math.floor(Date.now() / 1000);
+      toAdd.push({ remoteJid: jid, text, timestamp: ts });
+      toDb.push({
+        groupJid: jid,
+        senderJid: msg.key.participant ?? "unknown@s.whatsapp.net",
+        senderName: (msg as any).pushName ?? null,
         text,
-        timestamp: (msg.messageTimestamp as number) ?? Math.floor(Date.now() / 1000),
+        waMessageId: msg.key.id ?? null,
+        timestamp: ts,
       });
     }
     appendMessages(toAdd);
+    void persistMessagesToDB(toDb);
   });
 
   // ── Source 1: WhatsApp history sync on (re)connection ────────────────────
@@ -189,6 +229,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
   // Capturing it here fills the gap for messages received during downtime.
   sock.ev.on("messaging-history.set", ({ messages }) => {
     const toAdd: StoredMessage[] = [];
+    const toDb: DbMessage[] = [];
     for (const msg of messages) {
       const jid = msg.key?.remoteJid ?? "";
       if (!jid.endsWith("@g.us")) continue;
@@ -205,10 +246,19 @@ export async function initWhatsApp(dir: string): Promise<void> {
             ? Number(msg.messageTimestamp)
             : Math.floor(Date.now() / 1000);
       toAdd.push({ remoteJid: jid, text, timestamp: ts });
+      toDb.push({
+        groupJid: jid,
+        senderJid: msg.key?.participant ?? "unknown@s.whatsapp.net",
+        senderName: (msg as any).pushName ?? null,
+        text,
+        waMessageId: msg.key?.id ?? null,
+        timestamp: ts,
+      });
     }
     if (toAdd.length > 0) {
       logger.info({ count: toAdd.length }, "Backfilled messages from WhatsApp history sync");
       appendMessages(toAdd);
+      void persistMessagesToDB(toDb);
     }
   });
 

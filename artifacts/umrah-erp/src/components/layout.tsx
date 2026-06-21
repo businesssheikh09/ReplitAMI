@@ -18,11 +18,14 @@ import {
   Settings2,
   ArrowRightLeft,
   Globe,
+  MessageSquare,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { NAV_ITEM_ROLES, ROLE_LABELS, ROLE_COLORS, type UserRole } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const navGroups = [
   {
@@ -64,6 +67,12 @@ const navGroups = [
     ],
   },
   {
+    title: "Messaging",
+    items: [
+      { title: "WhatsApp Inbox", href: "/whatsapp-inbox", icon: MessageSquare },
+    ],
+  },
+  {
     title: "Documents",
     items: [
       { title: "Documents", href: "/documents", icon: Files },
@@ -79,11 +88,26 @@ const navGroups = [
   },
 ];
 
+function useInboxUnread() {
+  const { isAuthenticated, user } = useAuth();
+  const role = (user?.role ?? "") as UserRole;
+  const canSee = isAuthenticated && (role === "management" || role === "admin");
+  return useQuery<{ total: number }>({
+    queryKey: ["whatsapp-inbox-unread"],
+    queryFn: () => fetch("/api/whatsapp-inbox/unread-count", { credentials: "include" }).then((r) => r.json()),
+    enabled: canSee,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+}
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout, user } = useAuth();
   const role = (user?.role ?? "") as UserRole;
   const isManagement = role === "management" || role === "admin";
+  const { data: unreadData } = useInboxUnread();
+  const unreadCount = unreadData?.total ?? 0;
 
   const filteredGroups = navGroups
     .map((group) => ({
@@ -137,6 +161,11 @@ export function Sidebar() {
                       >
                         <Icon className="mr-2 h-4 w-4" />
                         {item.title}
+                        {item.href === "/whatsapp-inbox" && unreadCount > 0 && (
+                          <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs" variant="destructive">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </Badge>
+                        )}
                       </span>
                     </Link>
                   );

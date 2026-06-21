@@ -17,6 +17,7 @@ import websiteConfigRouter from "./website-config";
 import hotelInvoicesRouter from "./hotel-invoices";
 import groupTicketsRouter from "./group-tickets";
 import whatsappGroupsRouter from "./whatsapp-groups";
+import whatsappInboxRouter from "./whatsapp-inbox";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(currencySettingsRouter);
 router.use(websiteConfigRouter);
 router.use(groupTicketsRouter);
 router.use(whatsappGroupsRouter);
+router.use(whatsappInboxRouter);
 
 export default router;
