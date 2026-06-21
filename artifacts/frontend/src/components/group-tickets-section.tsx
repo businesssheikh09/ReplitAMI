@@ -1,22 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { Plane, Calendar, Users, ChevronRight, Clock, Search, AlertCircle } from "lucide-react";
+import { Plane, Calendar, Users, ChevronRight, Search, AlertCircle } from "lucide-react";
 
 interface GroupTicket {
   id: number;
   flightNumber: string;
-  airline: string;
+  airlineCode: string;
   origin: string;
   destination: string;
   flightDate: string;
   departureTime: string | null;
   arrivalTime: string | null;
-  seatsAvailable: number | null;
+  seats: number | null;
   fareAmount: number | null;
   fareCurrency: string;
-  class: string | null;
-  notes: string | null;
+  groupName: string | null;
 }
 
 const AIRLINE_NAMES: Record<string, string> = {
@@ -58,7 +57,11 @@ export function GroupTicketsSection() {
 
   const { data: tickets = [], isLoading, isError } = useQuery<GroupTicket[]>({
     queryKey: ["public-group-tickets"],
-    queryFn: () => fetch("/api/public/group-tickets").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/public/group-tickets");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    },
     staleTime: 2 * 60 * 1000,
   });
 
@@ -78,7 +81,7 @@ export function GroupTicketsSection() {
         (CITY_NAMES[t.origin] ?? "").toLowerCase().includes(q) ||
         (CITY_NAMES[t.destination] ?? "").toLowerCase().includes(q) ||
         t.flightNumber.toLowerCase().includes(q) ||
-        (AIRLINE_NAMES[t.airline] ?? t.airline).toLowerCase().includes(q);
+        (AIRLINE_NAMES[t.airlineCode] ?? t.airlineCode ?? "").toLowerCase().includes(q);
       return matchesTab && matchesSearch;
     });
   }, [tickets, activeTab, search]);
@@ -167,9 +170,9 @@ export function GroupTicketsSection() {
               </div>
               <div className="grid gap-3">
                 {dayTickets.map((ticket) => {
-                  const airlineCode = ticket.airline?.split(" ")[0]?.replace(/[^A-Z0-9]/g, "") ?? "";
+                  const airlineCode = ticket.airlineCode ?? "";
                   const colorClass = AIRLINE_COLORS[airlineCode] ?? "bg-gray-50 text-gray-700 border-gray-200";
-                  const airlineName = AIRLINE_NAMES[airlineCode] ?? ticket.airline;
+                  const airlineName = AIRLINE_NAMES[airlineCode] ?? airlineCode;
                   const from = CITY_NAMES[ticket.origin] ?? ticket.origin;
                   const to = CITY_NAMES[ticket.destination] ?? ticket.destination;
 
@@ -217,10 +220,10 @@ export function GroupTicketsSection() {
                         ) : (
                           <p className="text-sm font-semibold text-muted-foreground italic">Price on Call</p>
                         )}
-                        {ticket.seatsAvailable != null && (
-                          <p className={`text-xs mt-0.5 font-medium ${ticket.seatsAvailable <= 5 ? "text-red-500" : "text-muted-foreground"}`}>
+                        {ticket.seats != null && (
+                          <p className={`text-xs mt-0.5 font-medium ${ticket.seats <= 5 ? "text-red-500" : "text-muted-foreground"}`}>
                             <Users className="inline h-3 w-3 mr-0.5" />
-                            {ticket.seatsAvailable} seats
+                            {ticket.seats} seats
                           </p>
                         )}
                       </div>
