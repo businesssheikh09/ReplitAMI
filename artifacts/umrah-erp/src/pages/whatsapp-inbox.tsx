@@ -67,7 +67,10 @@ function formatTs(ts: number) {
 }
 
 function apiFetch(path: string, init?: RequestInit) {
-  return fetch(path, { credentials: "include", ...init });
+  return fetch(path, { credentials: "include", ...init }).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r;
+  });
 }
 
 export default function WhatsAppInboxPage() {
