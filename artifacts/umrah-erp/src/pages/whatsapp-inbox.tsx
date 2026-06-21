@@ -4,7 +4,7 @@ import { format, fromUnixTime } from "date-fns";
 import {
   MessageSquare, CheckCheck, Link2, Trash2, RefreshCw, ChevronRight,
   Wifi, WifiOff, ScanLine, Loader2, AlertCircle, LogOut,
-  Send, CornerUpLeft, X,
+  Send, CornerUpLeft, X, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +142,7 @@ export default function WhatsAppInboxPage() {
   const [compose, setCompose] = useState("");
   const [replyTo, setReplyTo] = useState<QuoteState | null>(null);
   const [hoveredMsgId, setHoveredMsgId] = useState<number | null>(null);
+  const [groupSearch, setGroupSearch] = useState("");
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -161,32 +162,22 @@ export default function WhatsAppInboxPage() {
     });
   }
 
-  /* ── WA status ── */
-  const [waStatus, setWaStatus] = useState<"connected" | "connecting" | "disconnected">(
-    "disconnected",
-  );
-  const [fetchStatus, setFetchStatus] = useState(0);
-
-  const fetchWaStatus = useCallback(async () => {
-    try {
-      const r = await apiFetchAuth("/api/whatsapp/status");
-      const d = await r.json();
-      setWaStatus(d.connected ? "connected" : d.connecting ? "connecting" : "disconnected");
-    } catch {
-      setWaStatus("disconnected");
-    }
-  }, [token]);
-
-  useEffect(() => {
-    void fetchWaStatus();
-    const iv = setInterval(fetchWaStatus, 8_000);
-    return () => clearInterval(iv);
-  }, [fetchWaStatus]);
-
-  /* Refetch groups after status change */
-  useEffect(() => {
-    setFetchStatus((n) => n + 1);
-  }, [waStatus]);
+  /* ── WA status (polled via React Query) ── */
+  const waStatusQuery = useQuery<{ status: string; connected: boolean; connecting: boolean }>({
+    queryKey: ["whatsapp-status"],
+    queryFn: () =>
+      apiFetchAuth("/api/whatsapp/status")
+        .then((r) => r.json())
+        .catch(() => ({ status: "disconnected", connected: false, connecting: false })),
+    refetchInterval: 8_000,
+    retry: false,
+  });
+  const waStatus: "connected" | "connecting" | "disconnected" =
+    waStatusQuery.data?.connected
+      ? "connected"
+      : waStatusQuery.data?.connecting
+        ? "connecting"
+        : "disconnected";
 
   /* ── QR code ── */
   const fetchQR = useCallback(async () => {
@@ -215,7 +206,7 @@ export default function WhatsAppInboxPage() {
 
   /* ── Queries ── */
   const groupsQuery = useQuery<InboxGroup[]>({
-    queryKey: ["whatsapp-inbox-groups", fetchStatus],
+    queryKey: ["whatsapp-inbox-groups"],
     queryFn: () => apiFetchAuth("/api/whatsapp-inbox/groups").then((r) => r.json()),
     refetchInterval: 8_000,
   });
@@ -344,6 +335,11 @@ export default function WhatsAppInboxPage() {
 
   /* ── Derived values ── */
   const groups = groupsQuery.data ?? [];
+  const filteredGroups = groupSearch.trim()
+    ? groups.filter((g) =>
+        g.group_name.toLowerCase().includes(groupSearch.trim().toLowerCase()),
+      )
+    : groups;
   const messages = (messagesQuery.data ?? []).slice().reverse();
   const links = linksQuery.data ?? [];
   const selectedGroup = groups.find((g) => g.group_jid === selectedJid);
@@ -353,6 +349,7 @@ export default function WhatsAppInboxPage() {
     setSelectedJid(jid);
     setReplyTo(null);
     setCompose("");
+    setGroupSearch("");
   }
 
   function handleMarkRead() {
@@ -491,6 +488,28 @@ export default function WhatsAppInboxPage() {
             </div>
           </div>
 
+          {/* Search bar */}
+          <div className="border-b px-3 py-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={groupSearch}
+                onChange={(e) => setGroupSearch(e.target.value)}
+                placeholder="Search groups…"
+                className="w-full rounded-md border bg-muted/40 py-1.5 pl-8 pr-8 text-sm outline-none placeholder:text-muted-foreground/60 focus:bg-background focus:ring-2 focus:ring-green-400"
+              />
+              {groupSearch && (
+                <button
+                  onClick={() => setGroupSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Group list */}
           <ScrollArea className="flex-1">
             {groupsQuery.isLoading && (
@@ -501,7 +520,12 @@ export default function WhatsAppInboxPage() {
                 No messages yet. Connect WhatsApp and messages will appear here.
               </div>
             )}
-            {groups.map((g) => {
+            {!groupsQuery.isLoading && groups.length > 0 && filteredGroups.length === 0 && (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                No groups match "<span className="font-medium">{groupSearch}</span>"
+              </div>
+            )}
+            {filteredGroups.map((g) => {
               const isSelected = selectedJid === g.group_jid;
               const hasUnread = g.unread > 0;
               return (
