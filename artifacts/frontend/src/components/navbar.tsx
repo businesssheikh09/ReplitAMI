@@ -64,7 +64,7 @@ export function Navbar() {
             Book a Flight
           </a>
           <a
-            href="/"
+            href="/login"
             className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors border-l border-border/50 pl-3"
             title="ERP Staff Login"
           >
@@ -92,7 +92,7 @@ export function Navbar() {
           ) : (
             <button onClick={() => { navigate("/portal-login"); setMenuOpen(false); }} className="block text-sm font-medium text-primary">Portal Login</button>
           )}
-          <a href="/" onClick={() => setMenuOpen(false)} className="block text-xs text-muted-foreground/60 hover:text-muted-foreground pt-2 border-t border-border/40">
+          <a href="/login" onClick={() => setMenuOpen(false)} className="block text-xs text-muted-foreground/60 hover:text-muted-foreground pt-2 border-t border-border/40">
             Staff / ERP Login
           </a>
         </div>
