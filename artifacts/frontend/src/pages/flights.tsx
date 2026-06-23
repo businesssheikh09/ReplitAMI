@@ -82,15 +82,27 @@ function getTicketMMDD(dateStr: string): number {
 }
 
 function isTicketFuture(dateStr: string): boolean {
-  const ticketMMDD = getTicketMMDD(dateStr);
+  const parts = dateStr.split("-");
+  const ticketM = parseInt(parts[1] ?? "1", 10);
+  const ticketD = parseInt(parts[2] ?? "1", 10);
+  const ticketMMDD = ticketM * 100 + ticketD;
+
   const today = new Date();
   const todayM = today.getMonth() + 1;
-  const todayD = today.getDate();
-  const todayMMDD = todayM * 100 + todayD;
-  // If we're in Oct-Dec and the ticket is in Jan-Mar, it's a future flight
-  // (within the next ~3 months rolling window)
-  if (todayM >= 10 && ticketMMDD <= 399) return true;
-  return ticketMMDD >= todayMMDD;
+  const todayMMDD = todayM * 100 + today.getDate();
+
+  if (todayM >= 10) {
+    // Late year (Oct–Dec): Jan–Mar are upcoming (year wrap); same-period check normally
+    if (ticketM <= 3) return true;
+    return ticketMMDD >= todayMMDD;
+  } else if (todayM <= 3) {
+    // Early year (Jan–Mar): Oct–Dec tickets are from the previous year — exclude them
+    if (ticketM >= 10) return false;
+    return ticketMMDD >= todayMMDD;
+  } else {
+    // Mid year (Apr–Sep): straightforward comparison, no wrap
+    return ticketMMDD >= todayMMDD;
+  }
 }
 
 function formatFlightDate(dateStr: string): string {
