@@ -73,10 +73,31 @@ router.post("/public/package-inquiries", async (req, res) => {
 
 router.get("/package-inquiries", requireAuth, async (req, res) => {
   try {
-    const { status } = req.query as Record<string, string>;
+    const { status, departureFrom, departureTo } = req.query as Record<string, string>;
     let rows = await db.select().from(packageInquiriesTable).orderBy(desc(packageInquiriesTable.createdAt));
+
     if (status && status !== "all") rows = rows.filter((r) => r.status === status);
-    return res.json(rows);
+    if (departureFrom) rows = rows.filter((r) => r.departureDate >= departureFrom);
+    if (departureTo) rows = rows.filter((r) => r.departureDate <= departureTo);
+
+    const hotelIds = [...new Set([
+      ...rows.map((r) => r.makkahHotelId).filter(Boolean),
+      ...rows.map((r) => r.madinahHotelId).filter(Boolean),
+    ])] as number[];
+
+    const hotels: Record<number, { name: string; stars: number | null }> = {};
+    if (hotelIds.length > 0) {
+      const allHotels = await db.select({ id: hotelsTable.id, name: hotelsTable.name, stars: hotelsTable.stars }).from(hotelsTable);
+      allHotels.filter((h) => hotelIds.includes(h.id)).forEach((h) => { hotels[h.id] = { name: h.name, stars: h.stars }; });
+    }
+
+    const enriched = rows.map((r) => ({
+      ...r,
+      makkahHotelName: r.makkahHotelId ? (hotels[r.makkahHotelId]?.name ?? null) : null,
+      madinahHotelName: r.madinahHotelId ? (hotels[r.madinahHotelId]?.name ?? null) : null,
+    }));
+
+    return res.json(enriched);
   } catch (err) {
     req.log.error({ err }, "List package inquiries error");
     return res.status(500).json({ error: "Internal server error" });
