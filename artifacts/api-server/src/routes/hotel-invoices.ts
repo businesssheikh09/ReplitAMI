@@ -9,7 +9,9 @@ const router = Router();
 // ── DN sequence helper ────────────────────────────────────────────────────────
 
 async function getNextDnNumber(): Promise<string> {
-  const result = await db.execute(sql`SELECT nextval('dn_invoice_seq')::int AS seq`);
+  const result = await db.execute(
+    sql`SELECT COALESCE(MAX(id), 2186) + 1 AS seq FROM hotel_invoices`,
+  );
   const seq = (result.rows[0] as any)?.seq ?? 2187;
   return `DN-${seq}`;
 }
