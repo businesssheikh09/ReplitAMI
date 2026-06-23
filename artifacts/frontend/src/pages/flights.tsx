@@ -81,6 +81,18 @@ function getTicketMMDD(dateStr: string): number {
   return m * 100 + d;
 }
 
+function isTicketFuture(dateStr: string): boolean {
+  const ticketMMDD = getTicketMMDD(dateStr);
+  const today = new Date();
+  const todayM = today.getMonth() + 1;
+  const todayD = today.getDate();
+  const todayMMDD = todayM * 100 + todayD;
+  // If we're in Oct-Dec and the ticket is in Jan-Mar, it's a future flight
+  // (within the next ~3 months rolling window)
+  if (todayM >= 10 && ticketMMDD <= 399) return true;
+  return ticketMMDD >= todayMMDD;
+}
+
 function formatFlightDate(dateStr: string): string {
   const parts = dateStr.split("-");
   const m = parseInt(parts[1] ?? "1", 10);
@@ -120,15 +132,24 @@ export default function FlightsPage() {
     staleTime: 60_000,
   });
 
-  const today = new Date();
-  const todayMMDD = (today.getMonth() + 1) * 100 + today.getDate();
-
   const availableTickets = groupTickets
     .filter((t) => {
       if (t.seats <= 0 || t.fareAmount === null) return false;
-      return getTicketMMDD(t.flightDate) >= todayMMDD;
+      return isTicketFuture(t.flightDate);
     })
-    .sort((a, b) => getTicketMMDD(a.flightDate) - getTicketMMDD(b.flightDate));
+    .sort((a, b) => {
+      // Sort ascending by MMDD; Jan-Mar tickets sort after Oct-Dec when in late year
+      const today = new Date();
+      const todayM = today.getMonth() + 1;
+      const aMMDD = getTicketMMDD(a.flightDate);
+      const bMMDD = getTicketMMDD(b.flightDate);
+      if (todayM >= 10) {
+        const aAdj = aMMDD <= 399 ? aMMDD + 1300 : aMMDD;
+        const bAdj = bMMDD <= 399 ? bMMDD + 1300 : bMMDD;
+        return aAdj - bAdj;
+      }
+      return aMMDD - bMMDD;
+    });
 
   const filteredTickets = availableTickets.filter((t) => {
     if (!routeFilter) return true;
@@ -473,7 +494,7 @@ export default function FlightsPage() {
                 {selectedFlight.origin} → {selectedFlight.destination}
               </div>
               <div className="text-muted-foreground">
-                {selectedFlight.departureDate}
+                {formatFlightDate(selectedFlight.departureDate)}
                 {selectedFlight.airline && ` · ${selectedFlight.airline}`}
                 {selectedFlight.fare && ` · PKR ${Number(selectedFlight.fare).toLocaleString()}`}
               </div>
