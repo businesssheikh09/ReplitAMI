@@ -25,6 +25,11 @@ const INBOX_KEYWORDS: Array<{ ilike?: string; regex?: string }> = [
   { ilike: "invoices" },
   { ilike: "hotels" },
   { ilike: "internal" },
+  { ilike: "umra" },
+  { ilike: "air" },
+  { ilike: "hotel" },
+  { ilike: "booking" },
+  { ilike: "account" },
 ];
 
 /** SQL fragment: one condition per keyword, OR-joined. */

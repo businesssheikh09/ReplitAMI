@@ -13,6 +13,7 @@ const BUSINESS_KEYWORDS = [
   "travel", "tours", "al musafir", "fast star",
   "bookings", "umrah", "tickets",
   "ami", "invoices", "hotels", "internal",
+  "umra", "air", "hotel", "booking", "account",
 ];
 
 function isBusinessGroup(name: string): boolean {
