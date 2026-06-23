@@ -30,13 +30,13 @@ interface Client {
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   quoted: "Quoted",
-  confirmed: "Confirmed",
+  converted: "Converted",
   cancelled: "Cancelled",
 };
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700",
   quoted: "bg-blue-50 text-blue-700",
-  confirmed: "bg-teal-50 text-teal-700",
+  converted: "bg-teal-50 text-teal-700",
   cancelled: "bg-red-50 text-red-700",
 };
 
@@ -73,11 +73,12 @@ function ConvertModal({ inquiry, onClose, token }: { inquiry: PackageInquiry; on
       if (!qRes.ok) throw new Error("Failed to create quotation");
       const q = await qRes.json();
 
-      await fetch(`/api/package-inquiries/${inquiry.id}`, {
+      const pRes = await fetch(`/api/package-inquiries/${inquiry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: "quoted", quotationId: q.id }),
+        body: JSON.stringify({ status: "converted", quotationId: q.id }),
       });
+      if (!pRes.ok) throw new Error("Quotation created but failed to link inquiry — note quotation ID: " + q.id);
       return q.id as number;
     },
     onSuccess: (quotationId) => {
@@ -226,7 +227,7 @@ function InquiryModal({ inquiry, onClose, token, onConvert }: { inquiry: Package
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            {["pending", "quoted", "confirmed", "cancelled"].map((s) => (
+            {["pending", "quoted", "converted", "cancelled"].map((s) => (
               <button
                 key={s}
                 onClick={() => updateStatus.mutate(s)}

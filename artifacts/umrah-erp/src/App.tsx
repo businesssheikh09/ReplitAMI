@@ -94,9 +94,9 @@ function Router() {
 
         {/* Sales */}
         <ProtectedRoute path="/quotations" component={QuotationsPage} />
+        <ProtectedRoute path="/quotations/pending" component={PendingQuotationsPage} />
         <ProtectedRoute path="/quotations/:id" component={QuotationDetailPage} />
         <ProtectedRoute path="/hotel-requests" component={HotelRequestsPage} />
-        <ProtectedRoute path="/package-inquiries" component={PendingQuotationsPage} />
 
         {/* Direct Bookings */}
         <ProtectedRoute path="/booking-inquiries" component={BookingInquiriesPage} />

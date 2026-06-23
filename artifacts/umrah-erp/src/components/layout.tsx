@@ -49,8 +49,8 @@ const navGroups = [
     title: "Sales",
     items: [
       { title: "Quotations", href: "/quotations", icon: FileText },
+      { title: "Pending Quotations", href: "/quotations/pending", icon: Package },
       { title: "Hotel Requests", href: "/hotel-requests", icon: Building2 },
-      { title: "Package Inquiries", href: "/package-inquiries", icon: Package },
     ],
   },
   {
@@ -219,7 +219,7 @@ export function Sidebar() {
                             {pendingPortal}
                           </Badge>
                         )}
-                        {item.href === "/package-inquiries" && pendingPkgInquiries > 0 && (
+                        {item.href === "/quotations/pending" && pendingPkgInquiries > 0 && (
                           <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-orange-500 text-white border-0">
                             {pendingPkgInquiries}
                           </Badge>
