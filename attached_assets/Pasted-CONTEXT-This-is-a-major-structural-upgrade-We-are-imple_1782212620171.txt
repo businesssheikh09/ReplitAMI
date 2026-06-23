@@ -1,0 +1,34 @@
+CONTEXT: This is a major structural upgrade. We are implementing a Double-Entry Accounting Engine with custom account mappings and modifying our existing WhatsApp Campaign Bot's timing logic. Do not read or touch old files outside these scopes to minimize token costs.
+
+============================================================
+TASK 1: MASTER DOUBLE-ENTRY ACCOUNTING & CONVERSION ENGINE
+============================================================
+1. Implement a QuickBooks-style professional Ledger system. Every transaction conversion must create balanced Debits (DR) and Credits (CR) where DR - CR = 0.
+2. Initialize or update our Chart of Accounts to include these specific required account names:
+   - Vendor Accounts (Supplier/GDS balances)
+   - Party Accounts (Client/Agent balances)
+   - Umra Account (Core revenue/package ledger)
+   - Air Booking Account (Flight specific ledger)
+   - Hotel Booking Account (Accommodation specific ledger)
+   - MSFR Account (Custom management settlement/operating ledger)
+   - Currency Conversion Difference Account (Realized Forex Gain/Loss)
+   - Profit Account (Net corporate margin tracking)
+
+3. ENTRY CONVERSION LOGIC: When an entry is finalized, run an automated function that instantly routes and records values across these specific accounts:
+   - Debit the Party Account for the full selling price.
+   - Credit Vendor Accounts for raw costs.
+   - Separate and credit revenues accurately into the Air Booking Account, Hotel Booking Account, or Umra Account based on item type.
+   - Automatically calculate exchange rate variances from our currency conversion panel and post them to the Currency Conversion Difference Account.
+   - Credit the remaining balance to the Profit and MSFR Accounts.
+   - Maintain a strict audit trail with immutable General Journal ledger rows using precise decimal formatting.
+
+============================================================
+TASK 2: ADJUST EXISTING WHATSAPP BOT TIMING ENGINE
+============================================================
+1. DO NOT create a new bot. Locate our existing WhatsApp campaign scheduler backend file and its DB tracking logic.
+2. Modify the interval logic to use a DYNAMIC TIMING CALCULATOR: When a campaign starts, calculate the total number of contacts in that queue.
+3. Automatically adjust the sending gap to use the MAXIMUM possible number of seconds between messages so that the entire campaign stretches out safely and finishes right at the 48-hour mark (172,800 seconds total).
+4. Use this math formula inside the existing interval loop: 
+   Delay Interval (Seconds) = 172,800 / Total Number of Contacts in Campaign.
+5. Enforce a hard safety floor: If the list is so small that the formula calculates less than 20 seconds, default to a minimum safe 20-second gap. Otherwise, let it take the maximum calculated slow delay to maximize account safety.
+6. Ensure the existing progress bar, countdown timers, and Pause/Resume/Stop features adapt smoothly to this new dynamic delay value.
