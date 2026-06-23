@@ -9,4 +9,8 @@
 export type ListFlightQuotationsParams = {
 clientId?: number;
 status?: string;
+/**
+ * Only return flights with departureDate on or after this date (YYYY-MM-DD)
+ */
+fromDate?: Date;
 };

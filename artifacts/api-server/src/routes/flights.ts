@@ -1,20 +1,21 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { flightQuotationsTable, clientsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 
 const router = Router();
 
 router.get("/flight-quotations", async (req, res) => {
   try {
     const { clientId, status, fromDate } = req.query as Record<string, string>;
-    let flights = await db.select().from(flightQuotationsTable);
-    if (clientId) flights = flights.filter(f => f.clientId === parseInt(clientId));
-    if (status) flights = flights.filter(f => f.status === status);
-    if (fromDate) {
-      const cutoff = new Date(fromDate);
-      flights = flights.filter(f => f.departureDate >= cutoff);
-    }
+    const conditions = [];
+    if (clientId) conditions.push(eq(flightQuotationsTable.clientId, parseInt(clientId)));
+    if (status) conditions.push(eq(flightQuotationsTable.status, status));
+    if (fromDate) conditions.push(gte(flightQuotationsTable.departureDate, new Date(fromDate)));
+    const flights = await db
+      .select()
+      .from(flightQuotationsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
     const clients = await db.select().from(clientsTable);
     const clientMap = new Map(clients.map(c => [c.id, c.name]));
     return res.json(flights.map(f => ({

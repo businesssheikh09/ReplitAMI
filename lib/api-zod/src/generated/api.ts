@@ -9,6 +9,54 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List group ticket inventory
+ */
+export const ListGroupTicketsQueryParams = zod.object({
+  "origin": zod.coerce.string().optional(),
+  "destination": zod.coerce.string().optional(),
+  "date": zod.coerce.string().optional()
+})
+
+export const ListGroupTicketsResponseItem = zod.object({
+  "id": zod.number(),
+  "airlineCode": zod.string(),
+  "flightNumber": zod.string(),
+  "flightDate": zod.string(),
+  "origin": zod.string(),
+  "destination": zod.string(),
+  "seats": zod.number(),
+  "departureTime": zod.string().nullish(),
+  "arrivalTime": zod.string().nullish(),
+  "fareAmount": zod.number().nullish(),
+  "fareCurrency": zod.string(),
+  "groupName": zod.string().nullish(),
+  "rawMessage": zod.string().nullish(),
+  "scrapedAt": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListGroupTicketsResponse = zod.array(ListGroupTicketsResponseItem)
+
+
+/**
+ * @summary Manually trigger WhatsApp scrape and upsert
+ */
+export const SyncGroupTicketsResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string(),
+  "whatsappStatus": zod.enum(['disconnected', 'connecting', 'connected'])
+})
+
+
+/**
+ * @summary Get WhatsApp connection status
+ */
+export const GetGroupTicketStatusResponse = zod.object({
+  "whatsappStatus": zod.enum(['disconnected', 'connecting', 'connected'])
+})
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -1174,7 +1222,8 @@ export const UpdateVisaApplicationResponse = zod.object({
  */
 export const ListFlightQuotationsQueryParams = zod.object({
   "clientId": zod.coerce.number().optional(),
-  "status": zod.coerce.string().optional()
+  "status": zod.coerce.string().optional(),
+  "fromDate": zod.date().optional().describe('Only return flights with departureDate on or after this date (YYYY-MM-DD)')
 })
 
 export const ListFlightQuotationsResponseItem = zod.object({

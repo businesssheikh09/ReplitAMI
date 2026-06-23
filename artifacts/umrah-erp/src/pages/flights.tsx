@@ -692,16 +692,15 @@ export default function FlightsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const { data: flights = [], isLoading } = useListFlightQuotations({ status: statusFilter !== "all" ? statusFilter : undefined });
+  const fromDateParam = hidePast ? new Date().toISOString().slice(0, 10) : undefined;
+  const { data: flights = [], isLoading } = useListFlightQuotations({
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    fromDate: fromDateParam,
+  });
   const { data: clients = [] } = useListClients({});
   const createFlight = useCreateFlightQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] }); setOpen(false); toast({ title: "Flight quotation created" }); } } });
   const updateFlight = useUpdateFlightQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] }); toast({ title: "Status updated" }); } } });
   const deleteFlight = useDeleteFlightQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] }); toast({ title: "Deleted" }); } } });
-
-  const todayMidnight = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
-  const displayFlights = hidePast
-    ? (flights as any[]).filter((f: any) => new Date(f.departureDate) >= todayMidnight)
-    : (flights as any[]);
 
   // Fetch exchange rates on mount
   useEffect(() => {
@@ -1106,14 +1105,14 @@ export default function FlightsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayFlights.length === 0 ? (
+                    {(flights as any[]).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={10} className="text-center h-32 text-muted-foreground">
                           <Plane className="mx-auto h-8 w-8 mb-2" />
                           {hidePast ? "No upcoming flights · Uncheck 'Hide past flights' to see historical records" : "No quotations · Search fares above and click Select"}
                         </TableCell>
                       </TableRow>
-                    ) : displayFlights.map((f: any) => (
+                    ) : (flights as any[]).map((f: any) => (
                       <TableRow key={f.id}>
                         <TableCell className="font-medium">{f.clientName}</TableCell>
                         <TableCell className="text-sm font-mono">{f.origin} → {f.destination}</TableCell>

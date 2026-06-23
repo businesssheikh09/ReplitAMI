@@ -1212,6 +1212,12 @@ paths:
           in: query
           schema:
             type: string
+        - name: fromDate
+          in: query
+          description: Only return flights with departureDate on or after this date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
       responses:
         "200":
           description: OK

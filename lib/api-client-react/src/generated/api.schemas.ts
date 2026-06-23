@@ -1179,6 +1179,58 @@ export interface DocumentGenerateInput {
   entityId: number;
 }
 
+export interface GroupTicket {
+  id: number;
+  airlineCode: string;
+  flightNumber: string;
+  flightDate: string;
+  origin: string;
+  destination: string;
+  seats: number;
+  /** @nullable */
+  departureTime?: string | null;
+  /** @nullable */
+  arrivalTime?: string | null;
+  /** @nullable */
+  fareAmount?: number | null;
+  fareCurrency: string;
+  /** @nullable */
+  groupName?: string | null;
+  /** @nullable */
+  rawMessage?: string | null;
+  scrapedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type GroupTicketSyncResponseWhatsappStatus = typeof GroupTicketSyncResponseWhatsappStatus[keyof typeof GroupTicketSyncResponseWhatsappStatus];
+
+
+export const GroupTicketSyncResponseWhatsappStatus = {
+  disconnected: 'disconnected',
+  connecting: 'connecting',
+  connected: 'connected',
+} as const;
+
+export interface GroupTicketSyncResponse {
+  ok: boolean;
+  message: string;
+  whatsappStatus: GroupTicketSyncResponseWhatsappStatus;
+}
+
+export type GroupTicketStatusResponseWhatsappStatus = typeof GroupTicketStatusResponseWhatsappStatus[keyof typeof GroupTicketStatusResponseWhatsappStatus];
+
+
+export const GroupTicketStatusResponseWhatsappStatus = {
+  disconnected: 'disconnected',
+  connecting: 'connecting',
+  connected: 'connected',
+} as const;
+
+export interface GroupTicketStatusResponse {
+  whatsappStatus: GroupTicketStatusResponseWhatsappStatus;
+}
+
 export interface WebsiteConfig {
   siteName: string;
   heroBadge: string;
@@ -1210,6 +1262,12 @@ export interface WebsiteConfigInput {
   announcementBanner?: string;
   announcementEnabled?: boolean;
 }
+
+export type ListGroupTicketsParams = {
+origin?: string;
+destination?: string;
+date?: string;
+};
 
 export type ListUsersParams = {
 role?: string;
@@ -1265,6 +1323,10 @@ assignedTo?: number;
 export type ListFlightQuotationsParams = {
 clientId?: number;
 status?: string;
+/**
+ * Only return flights with departureDate on or after this date (YYYY-MM-DD)
+ */
+fromDate?: string;
 };
 
 export type ListInvoicesParams = {

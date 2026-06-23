@@ -49,6 +49,9 @@ import type {
   GetNextDnNumber200,
   GetRecentActivityParams,
   GetRevenueChartParams,
+  GroupTicket,
+  GroupTicketStatusResponse,
+  GroupTicketSyncResponse,
   HealthStatus,
   Hotel,
   HotelInput,
@@ -68,6 +71,7 @@ import type {
   ListDocumentsParams,
   ListExpensesParams,
   ListFlightQuotationsParams,
+  ListGroupTicketsParams,
   ListHotelRequestsParams,
   ListHotelsParams,
   ListInvoicesParams,
@@ -116,6 +120,237 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+export const getListGroupTicketsUrl = (params?: ListGroupTicketsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/group-tickets?${stringifiedParams}` : `/api/group-tickets`
+}
+
+/**
+ * @summary List group ticket inventory
+ */
+export const listGroupTickets = async (params?: ListGroupTicketsParams, options?: RequestInit): Promise<GroupTicket[]> => {
+
+  return customFetch<GroupTicket[]>(getListGroupTicketsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGroupTicketsQueryKey = (params?: ListGroupTicketsParams,) => {
+    return [
+    `/api/group-tickets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListGroupTicketsQueryOptions = <TData = Awaited<ReturnType<typeof listGroupTickets>>, TError = ErrorType<unknown>>(params?: ListGroupTicketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGroupTickets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGroupTicketsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGroupTickets>>> = ({ signal }) => listGroupTickets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGroupTickets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGroupTicketsQueryResult = NonNullable<Awaited<ReturnType<typeof listGroupTickets>>>
+export type ListGroupTicketsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List group ticket inventory
+ */
+
+export function useListGroupTickets<TData = Awaited<ReturnType<typeof listGroupTickets>>, TError = ErrorType<unknown>>(
+ params?: ListGroupTicketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGroupTickets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGroupTicketsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSyncGroupTicketsUrl = () => {
+
+
+
+
+  return `/api/group-tickets/sync`
+}
+
+/**
+ * @summary Manually trigger WhatsApp scrape and upsert
+ */
+export const syncGroupTickets = async ( options?: RequestInit): Promise<GroupTicketSyncResponse> => {
+
+  return customFetch<GroupTicketSyncResponse>(getSyncGroupTicketsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSyncGroupTicketsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncGroupTickets>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncGroupTickets>>, TError,void, TContext> => {
+
+const mutationKey = ['syncGroupTickets'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncGroupTickets>>, void> = () => {
+
+
+          return  syncGroupTickets(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncGroupTicketsMutationResult = NonNullable<Awaited<ReturnType<typeof syncGroupTickets>>>
+
+    export type SyncGroupTicketsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Manually trigger WhatsApp scrape and upsert
+ */
+export const useSyncGroupTickets = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncGroupTickets>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncGroupTickets>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSyncGroupTicketsMutationOptions(options));
+    }
+
+export const getGetGroupTicketStatusUrl = () => {
+
+
+
+
+  return `/api/group-tickets/status`
+}
+
+/**
+ * @summary Get WhatsApp connection status
+ */
+export const getGroupTicketStatus = async ( options?: RequestInit): Promise<GroupTicketStatusResponse> => {
+
+  return customFetch<GroupTicketStatusResponse>(getGetGroupTicketStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGroupTicketStatusQueryKey = () => {
+    return [
+    `/api/group-tickets/status`
+    ] as const;
+    }
+
+
+export const getGetGroupTicketStatusQueryOptions = <TData = Awaited<ReturnType<typeof getGroupTicketStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupTicketStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGroupTicketStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupTicketStatus>>> = ({ signal }) => getGroupTicketStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGroupTicketStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGroupTicketStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getGroupTicketStatus>>>
+export type GetGroupTicketStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get WhatsApp connection status
+ */
+
+export function useGetGroupTicketStatus<TData = Awaited<ReturnType<typeof getGroupTicketStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupTicketStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGroupTicketStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
 
 
 
