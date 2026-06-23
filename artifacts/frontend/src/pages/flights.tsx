@@ -18,6 +18,19 @@ import {
 const CABIN_CLASSES = ["economy", "business", "first"];
 const TRIP_TYPES = ["one_way", "round_trip"];
 
+const PUBLIC_MARKUP_PKR = 2000;
+
+const ROUTE_FILTERS: { label: string; match: string[] | null }[] = [
+  { label: "All Types",       match: null },
+  { label: "KSA One Way",     match: ["JED","RUH","MED","DMM","TIF","TUU","GIZ","AHB"] },
+  { label: "UAE One Way",     match: ["DXB","AUH","SHJ","AAN","RKT","FJR"] },
+  { label: "Oman One Way",    match: ["MCT","SLL","DQM","OHS","MSH"] },
+  { label: "Bahrain One Way", match: ["BAH"] },
+  { label: "Qatar One Way",   match: ["DOH"] },
+  { label: "UK One Way",      match: ["LHR","LGW","MAN","EDI","BHX","GLA","BRS"] },
+  { label: "Umrah",           match: ["JED","MED"] },
+];
+
 interface GroupTicket {
   id: number;
   airlineCode: string;
@@ -47,14 +60,6 @@ const emptyForm: BookingForm = {
   clientWhatsapp: "",
 };
 
-function parseRoute(sector: string): { origin: string; destination: string } {
-  const parts = sector.split(/[-–→]/);
-  if (parts.length >= 2) {
-    return { origin: parts[0].trim(), destination: parts[parts.length - 1].trim() };
-  }
-  return { origin: sector, destination: "" };
-}
-
 interface SelectedFlight {
   origin: string;
   destination: string;
@@ -69,12 +74,33 @@ interface SelectedFlight {
   flightDataJson?: any;
 }
 
+function getTicketMMDD(dateStr: string): number {
+  const parts = dateStr.split("-");
+  const m = parseInt(parts[1] ?? "1", 10);
+  const d = parseInt(parts[2] ?? "1", 10);
+  return m * 100 + d;
+}
+
+function formatFlightDate(dateStr: string): string {
+  const parts = dateStr.split("-");
+  const m = parseInt(parts[1] ?? "1", 10);
+  const d = parseInt(parts[2] ?? "1", 10);
+  return new Date(2000, m - 1, d).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function publicFare(amount: number, currency: string): number {
+  return currency === "PKR" ? amount + PUBLIC_MARKUP_PKR : amount;
+}
+
 export default function FlightsPage() {
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<"search" | "group">("group");
+  const [routeFilter, setRouteFilter] = useState<string | null>(null);
 
-  // Live Search state
   const [tripType, setTripType] = useState("one_way");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -83,7 +109,6 @@ export default function FlightsPage() {
   const [pax, setPax] = useState(1);
   const [cabinClass, setCabinClass] = useState("economy");
 
-  // Booking modal state
   const [selectedFlight, setSelectedFlight] = useState<SelectedFlight | null>(null);
   const [form, setForm] = useState<BookingForm>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
@@ -91,14 +116,26 @@ export default function FlightsPage() {
 
   const { data: groupTickets = [], isLoading: loadingTickets } = useQuery<GroupTicket[]>({
     queryKey: ["public-group-tickets"],
-    queryFn: () =>
-      fetch("/api/public/group-tickets").then((r) => r.json()),
+    queryFn: () => fetch("/api/public/group-tickets").then((r) => r.json()),
     staleTime: 60_000,
   });
 
-  const availableTickets = groupTickets.filter(
-    (t) => t.seats > 0 && t.fareAmount !== null
-  );
+  const today = new Date();
+  const todayMMDD = (today.getMonth() + 1) * 100 + today.getDate();
+
+  const availableTickets = groupTickets
+    .filter((t) => {
+      if (t.seats <= 0 || t.fareAmount === null) return false;
+      return getTicketMMDD(t.flightDate) >= todayMMDD;
+    })
+    .sort((a, b) => getTicketMMDD(a.flightDate) - getTicketMMDD(b.flightDate));
+
+  const filteredTickets = availableTickets.filter((t) => {
+    if (!routeFilter) return true;
+    const filter = ROUTE_FILTERS.find((f) => f.label === routeFilter);
+    if (!filter || !filter.match) return true;
+    return filter.match.includes(t.destination.toUpperCase());
+  });
 
   async function submitRequest() {
     if (!selectedFlight) return;
@@ -128,6 +165,7 @@ export default function FlightsPage() {
   }
 
   function openBookingForGroupTicket(t: GroupTicket) {
+    const displayFare = t.fareAmount ? publicFare(t.fareAmount, t.fareCurrency) : null;
     setSelectedFlight({
       origin: t.origin,
       destination: t.destination,
@@ -136,7 +174,7 @@ export default function FlightsPage() {
       cabinClass: "economy",
       passengerCount: 1,
       airline: t.flightNumber,
-      fare: t.fareAmount ? String(t.fareAmount) : undefined,
+      fare: displayFare ? String(displayFare) : undefined,
       requestType: "group",
       flightDataJson: {
         groupTicketId: t.id,
@@ -190,7 +228,7 @@ export default function FlightsPage() {
 
       {/* Tabs */}
       <div className="container mx-auto px-4 max-w-4xl">
-        <div className="flex border-b border-border mb-8">
+        <div className="flex border-b border-border mb-6">
           {[
             { key: "group", label: "Group Tickets" },
             { key: "search", label: "Custom Request" },
@@ -211,74 +249,99 @@ export default function FlightsPage() {
 
         {/* Group Tickets tab */}
         {activeTab === "group" && (
-          <div className="space-y-4 pb-16">
+          <div className="pb-16">
+            {/* Route filter chips */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {ROUTE_FILTERS.map((f) => {
+                const isActive = routeFilter === f.label || (f.label === "All Types" && routeFilter === null);
+                return (
+                  <button
+                    key={f.label}
+                    onClick={() => setRouteFilter(f.label === "All Types" ? null : f.label)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-foreground border-border hover:border-primary/60 hover:text-primary"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+
             {loadingTickets ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : availableTickets.length === 0 ? (
+            ) : filteredTickets.length === 0 ? (
               <div className="text-center py-20 text-muted-foreground">
                 <Plane className="h-10 w-10 mx-auto opacity-20 mb-3" />
-                <p>No group flights available right now.</p>
-                <p className="text-sm mt-1">Try the Custom Request tab to enquire about any route.</p>
+                <p>No group flights available{routeFilter ? ` for "${routeFilter}"` : ""} right now.</p>
+                <p className="text-sm mt-1">Try another filter or the Custom Request tab to enquire about any route.</p>
               </div>
             ) : (
-              availableTickets.slice(0, 50).map((t) => (
-                <div
-                  key={t.id}
-                  className="rounded-2xl border bg-card shadow-sm hover:shadow-md transition-shadow p-5"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold text-lg">
-                          {t.origin} → {t.destination}
-                        </span>
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-mono">
-                          {t.flightNumber}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          Date: <strong className="text-foreground ml-1">{t.flightDate}</strong>
-                        </span>
-                        {t.departureTime && (
-                          <span>
-                            {t.departureTime}
-                            {t.arrivalTime && ` → ${t.arrivalTime}`}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {t.seats} seats
-                        </span>
+              <div className="space-y-4">
+                {filteredTickets.slice(0, 80).map((t) => {
+                  const shownFare = t.fareAmount ? publicFare(t.fareAmount, t.fareCurrency) : null;
+                  return (
+                    <div
+                      key={t.id}
+                      className="rounded-2xl border bg-card shadow-sm hover:shadow-md transition-shadow p-5"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="font-semibold text-lg">
+                              {t.origin} → {t.destination}
+                            </span>
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-mono">
+                              {t.flightNumber}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              <strong className="text-foreground">{formatFlightDate(t.flightDate)}</strong>
+                            </span>
+                            {t.departureTime && (
+                              <span>
+                                {t.departureTime}
+                                {t.arrivalTime && ` → ${t.arrivalTime}`}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {t.seats} seats
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-3">
+                          <div className="text-right">
+                            {shownFare ? (
+                              <>
+                                <div className="text-2xl font-bold text-primary">
+                                  {t.fareCurrency} {shownFare.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-muted-foreground">per person</div>
+                              </>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">Ask for price</div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => openBookingForGroupTicket(t)}
+                            className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+                          >
+                            Request Booking
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-3">
-                      <div className="text-right">
-                        {t.fareAmount ? (
-                          <>
-                            <div className="text-2xl font-bold text-primary">
-                              {t.fareCurrency} {t.fareAmount.toLocaleString()}
-                            </div>
-                            <div className="text-xs text-muted-foreground">per person</div>
-                          </>
-                        ) : (
-                          <div className="text-sm text-muted-foreground">Ask for price</div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => openBookingForGroupTicket(t)}
-                        className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
-                      >
-                        Request Booking
-                        <ArrowRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
