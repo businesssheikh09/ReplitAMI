@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "wouter";
 import { useGetWebsiteConfig } from "@workspace/api-client-react";
 import { Check } from "lucide-react";
 
@@ -104,15 +105,16 @@ export function PackagesSection() {
                     </li>
                   ))}
                 </ul>
-                <button
-                  className={`w-full py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+                <Link
+                  href={`/packages/${pkg.id}`}
+                  className={`block w-full py-2.5 px-4 rounded-md text-sm font-medium text-center transition-colors ${
                     pkg.popular
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-secondary text-foreground hover:bg-secondary/80"
                   }`}
                 >
                   Inquire Now
-                </button>
+                </Link>
               </div>
             </div>
           ))}
