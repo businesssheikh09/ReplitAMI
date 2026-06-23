@@ -13,6 +13,7 @@ import {
   X,
   Calendar,
   Loader2,
+  Info,
 } from "lucide-react";
 
 const CABIN_CLASSES = ["economy", "business", "first"];
@@ -514,6 +515,17 @@ export default function FlightsPage() {
                 {selectedFlight.tripType.replace("_", " ")} · {selectedFlight.cabinClass} · {selectedFlight.passengerCount} pax
               </div>
             </div>
+
+            {/* Service fee note for custom requests */}
+            {selectedFlight.requestType === "direct" && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2 text-xs text-amber-800">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  A <strong>service fee of PKR 2,000</strong> applies on the confirmed fare.
+                  Final price will be shared when our team contacts you.
+                </span>
+              </div>
+            )}
 
             {/* Contact form */}
             <div className="space-y-3">

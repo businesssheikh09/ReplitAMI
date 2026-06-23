@@ -1,39 +1,16 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Plane,
-  Search,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  User,
-  Phone,
-  Mail,
-  MessageSquare,
-  Calendar,
-  Users,
-  RefreshCw,
+  Search, RefreshCw, Plane, ChevronRight, Users, CheckCircle2, XCircle, MessageSquare,
+  Clock, User, Phone, Mail, Ticket,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -41,37 +18,39 @@ interface FlightRequest {
   id: number;
   requestNumber: string;
   requestType: string;
-  source: string;
   clientName: string;
-  clientEmail: string | null;
   clientPhone: string;
-  clientWhatsapp: string | null;
+  clientEmail: string | null;
   tripType: string;
   origin: string;
   destination: string;
   departureDate: string;
-  returnDate: string | null;
   passengerCount: number;
   cabinClass: string;
   airline: string | null;
   fare: string | null;
-  flightDataJson: any;
+  actualFare: number | null;
+  bookingFare: number | null;
   status: string;
   assignedTo: number | null;
   assignedToName: string | null;
-  adminNotes: string | null;
   createdAt: string;
-  updatedAt: string;
+}
+
+interface FlightRequestEvent {
+  id: number;
+  action: string;
+  userName: string | null;
+  metadata: Record<string, any> | null;
+  createdAt: string;
 }
 
 interface FlightRequestDetail extends FlightRequest {
-  events: Array<{
-    id: number;
-    action: string;
-    userName: string | null;
-    metadata: any;
-    createdAt: string;
-  }>;
+  clientWhatsapp: string | null;
+  returnDate: string | null;
+  adminNotes: string | null;
+  flightDataJson: any;
+  events: FlightRequestEvent[];
 }
 
 interface AssignableUser {
@@ -89,11 +68,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
-  issued: "Issued",
-  cancelled: "Cancelled",
+  pending: "Pending", approved: "Approved", rejected: "Rejected",
+  issued: "Issued", cancelled: "Cancelled",
 };
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -103,10 +79,16 @@ const ACTION_ICONS: Record<string, React.ReactNode> = {
   noted: <MessageSquare className="h-3 w-3 text-blue-500" />,
   assigned: <User className="h-3 w-3 text-purple-500" />,
   cancelled: <XCircle className="h-3 w-3 text-gray-500" />,
+  issued: <Ticket className="h-3 w-3 text-blue-500" />,
 };
 
 function formatDate(d: string) {
   try { return format(new Date(d), "dd MMM yyyy, HH:mm"); } catch { return d; }
+}
+
+function fmtPKR(n: number | null | undefined) {
+  if (n == null) return "—";
+  return `PKR ${Number(n).toLocaleString()}`;
 }
 
 export default function FlightRequestsPage() {
@@ -125,6 +107,10 @@ export default function FlightRequestsPage() {
   const [noteText, setNoteText] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [assigneeId, setAssigneeId] = useState<string>("");
+
+  // Fare inputs
+  const [actualFareInput, setActualFareInput] = useState<string>("");
+  const [bookingFareInput, setBookingFareInput] = useState<string>("");
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -157,6 +143,14 @@ export default function FlightRequestsPage() {
       fetch("/api/users/assignable", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
     enabled: !!token,
   });
+
+  // Sync fare inputs when detail loads
+  useEffect(() => {
+    if (detail) {
+      setActualFareInput(detail.actualFare != null ? String(detail.actualFare) : "");
+      setBookingFareInput(detail.bookingFare != null ? String(detail.bookingFare) : "");
+    }
+  }, [detail?.id]);
 
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
@@ -193,9 +187,9 @@ export default function FlightRequestsPage() {
 
   const selected = detail;
 
-  function handleApprove() {
-    patchMutation.mutate({ status: "approved" });
-  }
+  function handleApprove() { patchMutation.mutate({ status: "approved" }); }
+  function handleMarkIssued() { patchMutation.mutate({ status: "issued" }); }
+  function handleCancel() { patchMutation.mutate({ status: "cancelled" }); }
 
   function handleReject() {
     if (!rejectReason.trim()) return;
@@ -211,6 +205,17 @@ export default function FlightRequestsPage() {
     if (!noteText.trim()) return;
     eventMutation.mutate({ action: "noted", metadata: { note: noteText } });
   }
+
+  function handleSaveFares() {
+    patchMutation.mutate({
+      actualFare: actualFareInput ? Number(actualFareInput) : null,
+      bookingFare: bookingFareInput ? Number(bookingFareInput) : null,
+    });
+  }
+
+  const markup = (actualFareInput && bookingFareInput)
+    ? Number(bookingFareInput) - Number(actualFareInput)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -239,9 +244,7 @@ export default function FlightRequestsPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -265,7 +268,7 @@ export default function FlightRequestsPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-        {["pending","approved","rejected","issued","cancelled"].map((s) => {
+        {["pending", "approved", "rejected", "issued", "cancelled"].map((s) => {
           const count = requests.filter((r) => r.status === s).length;
           return (
             <div key={s} className="rounded-xl border bg-card p-3 text-center cursor-pointer hover:bg-accent/30 transition-colors"
@@ -295,7 +298,7 @@ export default function FlightRequestsPage() {
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Route</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Travel Date</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Pax</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Airline / Fare</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Airline / Fares</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Assigned</th>
                 <th className="px-4 py-3" />
@@ -323,7 +326,20 @@ export default function FlightRequestsPage() {
                   </td>
                   <td className="px-4 py-3 text-xs">
                     <div>{r.airline ?? "—"}</div>
-                    <div className="text-muted-foreground">{r.fare ? `PKR ${r.fare}` : "—"}</div>
+                    {r.bookingFare != null ? (
+                      <div>
+                        <span className="font-medium text-primary">{fmtPKR(r.bookingFare)}</span>
+                        {r.actualFare != null && (
+                          <span className="text-muted-foreground ml-1 text-[10px]">
+                            (cost {fmtPKR(r.actualFare)})
+                          </span>
+                        )}
+                      </div>
+                    ) : r.fare ? (
+                      <div className="text-muted-foreground">PKR {r.fare}</div>
+                    ) : (
+                      <div className="text-muted-foreground">—</div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[r.status] ?? "bg-gray-100 text-gray-700"}`}>
@@ -342,7 +358,13 @@ export default function FlightRequestsPage() {
       )}
 
       {/* Detail Modal */}
-      <Dialog open={!!selectedId} onOpenChange={(open) => { if (!open) { setSelectedId(null); setShowRejectInput(false); setShowNoteInput(false); } }}>
+      <Dialog open={!!selectedId} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedId(null);
+          setShowRejectInput(false);
+          setShowNoteInput(false);
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -406,16 +428,14 @@ export default function FlightRequestsPage() {
                   </div>
                   {selected.airline && (
                     <div>
-                      <Label className="text-xs text-muted-foreground">Airline</Label>
+                      <Label className="text-xs text-muted-foreground">Airline / Flight#</Label>
                       <p>{selected.airline}</p>
                     </div>
                   )}
-                  {selected.fare && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Fare</Label>
-                      <p className="font-medium text-primary">PKR {selected.fare}</p>
-                    </div>
-                  )}
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Type</Label>
+                    <p className="capitalize">{selected.requestType}</p>
+                  </div>
                 </div>
                 {selected.flightDataJson && (
                   <details className="mt-2">
@@ -425,6 +445,41 @@ export default function FlightRequestsPage() {
                     </pre>
                   </details>
                 )}
+              </div>
+
+              {/* Pricing */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pricing (PKR)</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1">Actual Fare (Cost)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={actualFareInput}
+                      onChange={(e) => setActualFareInput(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1">Booking Fare (Client Price)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={bookingFareInput}
+                      onChange={(e) => setBookingFareInput(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                {markup != null && (
+                  <p className={`text-xs font-medium ${markup >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                    Markup: PKR {markup.toLocaleString()}
+                  </p>
+                )}
+                <Button size="sm" variant="outline" onClick={handleSaveFares} disabled={patchMutation.isPending}>
+                  Save Fares
+                </Button>
               </div>
 
               {/* Admin notes */}
@@ -460,7 +515,7 @@ export default function FlightRequestsPage() {
                 )}
               </div>
 
-              {/* Actions */}
+              {/* Actions — Pending */}
               {selected.status === "pending" && (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
@@ -482,7 +537,6 @@ export default function FlightRequestsPage() {
                       Reject
                     </Button>
                   </div>
-
                   {showRejectInput && (
                     <div className="space-y-2">
                       <Textarea
@@ -501,6 +555,29 @@ export default function FlightRequestsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Actions — Approved */}
+              {selected.status === "approved" && (
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={handleMarkIssued}
+                    disabled={patchMutation.isPending}
+                  >
+                    <Ticket className="h-4 w-4 mr-1.5" />
+                    Mark as Issued
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={handleCancel}
+                    disabled={patchMutation.isPending}
+                  >
+                    <XCircle className="h-4 w-4 mr-1.5" />
+                    Cancel
+                  </Button>
                 </div>
               )}
 

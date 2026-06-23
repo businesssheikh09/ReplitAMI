@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, numeric, jsonb, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -25,6 +25,8 @@ export const flightRequestsTable = pgTable("flight_requests", {
 
   airline: text("airline"),
   fare: text("fare"),
+  actualFare: numeric("actual_fare", { precision: 12, scale: 2 }),
+  bookingFare: numeric("booking_fare", { precision: 12, scale: 2 }),
   flightDataJson: jsonb("flight_data_json"),
 
   status: text("status").notNull().default("pending"),

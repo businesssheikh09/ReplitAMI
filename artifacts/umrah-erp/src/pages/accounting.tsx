@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown, Hotel, ExternalLink, BarChart2 } from "lucide-react";
+import { Plus, Receipt, DollarSign, TrendingUp, TrendingDown, Hotel, ExternalLink, BarChart2, Plane } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 
@@ -269,6 +269,103 @@ function AnalysisTab({ dnInvs }: { dnInvs: any[] }) {
   );
 }
 
+// ── Flight Revenue Tab ────────────────────────────────────────────────────────
+function FlightRevenueTab() {
+  const { token } = useAuth();
+
+  const { data: issued = [], isLoading } = useQuery<any[]>({
+    queryKey: ["flight-requests-issued", token],
+    queryFn: () =>
+      fetch("/api/flight-requests?status=issued", {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
+    enabled: !!token,
+    staleTime: 60_000,
+  });
+
+  const totalBooking = issued.reduce((s, r) => s + (r.bookingFare ?? 0), 0);
+  const totalActual  = issued.reduce((s, r) => s + (r.actualFare  ?? 0), 0);
+  const totalMarkup  = totalBooking - totalActual;
+
+  const kpis = [
+    { label: "Issued Flights", value: String(issued.length), color: "text-blue-600" },
+    { label: "Total Booking Fare (PKR)", value: totalBooking.toLocaleString(), color: "text-primary" },
+    { label: "Total Actual Cost (PKR)", value: totalActual.toLocaleString(), color: "text-orange-600" },
+    { label: "Total Markup (PKR)", value: totalMarkup.toLocaleString(), color: totalMarkup >= 0 ? "text-emerald-600" : "text-red-500" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {kpis.map((k) => (
+          <Card key={k.label}>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground mb-1">{k.label}</p>
+              <p className={`text-xl font-bold ${k.color}`}>{k.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="pt-4">
+          {isLoading ? (
+            <div className="h-40 flex items-center justify-center text-muted-foreground">Loading…</div>
+          ) : issued.length === 0 ? (
+            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground gap-2">
+              <Plane className="h-8 w-8 opacity-30" />
+              <p>No issued flights yet</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ref #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Airline</TableHead>
+                  <TableHead className="text-right">Actual Fare</TableHead>
+                  <TableHead className="text-right">Booking Fare</TableHead>
+                  <TableHead className="text-right">Markup</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {issued.map((r: any) => {
+                  const markup = (r.bookingFare ?? 0) - (r.actualFare ?? 0);
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-mono text-xs text-primary">{r.requestNumber}</TableCell>
+                      <TableCell>
+                        <div className="font-medium text-sm">{r.clientName}</div>
+                        <div className="text-xs text-muted-foreground">{r.clientPhone}</div>
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">{r.origin} → {r.destination}</TableCell>
+                      <TableCell className="text-sm">{r.departureDate}</TableCell>
+                      <TableCell className="text-sm">{r.airline ?? "—"}</TableCell>
+                      <TableCell className="text-right text-sm">
+                        {r.actualFare != null ? `PKR ${Number(r.actualFare).toLocaleString()}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-primary">
+                        {r.bookingFare != null ? `PKR ${Number(r.bookingFare).toLocaleString()}` : "—"}
+                      </TableCell>
+                      <TableCell className={`text-right text-sm font-semibold ${markup >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                        {r.bookingFare != null || r.actualFare != null ? `PKR ${markup.toLocaleString()}` : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AccountingPage() {
   const qc = useQueryClient();
@@ -407,6 +504,9 @@ export default function AccountingPage() {
           <TabsTrigger value="expenses">Expenses ({exps.length})</TabsTrigger>
           <TabsTrigger value="analysis" className="flex items-center gap-1">
             <BarChart2 className="h-3.5 w-3.5" /> Analysis
+          </TabsTrigger>
+          <TabsTrigger value="flights" className="flex items-center gap-1">
+            <Plane className="h-3.5 w-3.5" /> Flight Revenue
           </TabsTrigger>
         </TabsList>
 
@@ -571,6 +671,11 @@ export default function AccountingPage() {
         {/* ── Analysis / Progress Report ── */}
         <TabsContent value="analysis" className="mt-4">
           <AnalysisTab dnInvs={dnInvs} />
+        </TabsContent>
+
+        {/* ── Flight Revenue ── */}
+        <TabsContent value="flights" className="mt-4">
+          <FlightRevenueTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,14 +1,64 @@
 import { Router } from "express";
-import { db, flightRequestsTable, flightRequestEventsTable, usersTable } from "@workspace/db";
-import { eq, desc, and, ilike, or, sql } from "drizzle-orm";
+import { db, flightRequestsTable, flightRequestEventsTable, usersTable, chartOfAccountsTable, generalJournalTable } from "@workspace/db";
+import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
+
+const PKR_MARKUP = 2000;
 
 function generateRequestNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const rand = String(Math.floor(Math.random() * 9000) + 1000);
   return `FR-${date}-${rand}`;
+}
+
+async function getOrCreateAccount(code: string, name: string, type: string): Promise<number> {
+  const [existing] = await db
+    .select({ id: chartOfAccountsTable.id })
+    .from(chartOfAccountsTable)
+    .where(eq(chartOfAccountsTable.code, code))
+    .limit(1);
+  if (existing) return existing.id;
+  const [created] = await db
+    .insert(chartOfAccountsTable)
+    .values({ code, name, type, description: "Auto-created for flight accounting" })
+    .returning({ id: chartOfAccountsTable.id });
+  return created.id;
+}
+
+async function postFlightJournal(
+  requestId: number,
+  requestNumber: string,
+  bookingFare: number,
+  actualFare: number,
+) {
+  try {
+    const [arId, revId] = await Promise.all([
+      getOrCreateAccount("AR-FLIGHT", "Accounts Receivable — Flights", "ASSET"),
+      getOrCreateAccount("FLIGHT-REV", "Flight Revenue", "REVENUE"),
+    ]);
+
+    const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(generalJournalTable);
+    const seq = Number(n) + 1;
+    const yr = new Date().getFullYear();
+    const entryNumber = `JE-FL-${yr}-${String(seq).padStart(5, "0")}`;
+    const markup = bookingFare - actualFare;
+
+    await db.insert(generalJournalTable).values({
+      entryNumber,
+      date: new Date(),
+      description: `Flight issued: ${requestNumber} — Booking PKR ${bookingFare.toLocaleString()} (Actual PKR ${actualFare.toLocaleString()}, Markup PKR ${markup.toLocaleString()})`,
+      debitAccountId: arId,
+      creditAccountId: revId,
+      amount: String(bookingFare),
+      currency: "PKR",
+      sourceType: "flight_request",
+      sourceId: requestId,
+    });
+  } catch (err) {
+    // non-blocking — don't fail the PATCH
+  }
 }
 
 // ── Public ───────────────────────────────────────────────────────────────────
@@ -28,6 +78,24 @@ router.post("/public/flight-requests", async (req, res) => {
       });
     }
 
+    // Derive both fares from the single `fare` value sent by the frontend
+    let resolvedActual: string | null = null;
+    let resolvedBooking: string | null = null;
+    if (fare) {
+      const fareNum = Number(fare);
+      if (!isNaN(fareNum) && fareNum > 0) {
+        if (requestType === "group") {
+          // Frontend already added markup; actual = fare - markup
+          resolvedBooking = String(fareNum);
+          resolvedActual = String(Math.max(0, fareNum - PKR_MARKUP));
+        } else {
+          // Direct: fare is net; booking = fare + markup
+          resolvedActual = String(fareNum);
+          resolvedBooking = String(fareNum + PKR_MARKUP);
+        }
+      }
+    }
+
     const [request] = await db.insert(flightRequestsTable).values({
       requestNumber: generateRequestNumber(),
       requestType: requestType ?? "direct",
@@ -45,6 +113,8 @@ router.post("/public/flight-requests", async (req, res) => {
       cabinClass: cabinClass ?? "economy",
       airline: airline ?? null,
       fare: fare ?? null,
+      actualFare: resolvedActual,
+      bookingFare: resolvedBooking,
       flightDataJson: flightDataJson ?? null,
       status: "pending",
     }).returning();
@@ -92,35 +162,19 @@ router.get("/flight-requests", requireAuth, async (req, res) => {
       .from(flightRequestsTable)
       .orderBy(desc(flightRequestsTable.createdAt));
 
-    if (status && status !== "all") {
-      rows = rows.filter((r) => r.status === status);
-    }
-    if (dateFrom) {
-      rows = rows.filter((r) => r.departureDate >= dateFrom);
-    }
-    if (dateTo) {
-      rows = rows.filter((r) => r.departureDate <= dateTo);
-    }
-    if (airline) {
-      const a = airline.toLowerCase();
-      rows = rows.filter((r) => r.airline?.toLowerCase().includes(a));
-    }
-    if (origin) {
-      const o = origin.toUpperCase();
-      rows = rows.filter((r) => r.origin.toUpperCase().includes(o));
-    }
-    if (destination) {
-      const d = destination.toUpperCase();
-      rows = rows.filter((r) => r.destination.toUpperCase().includes(d));
-    }
+    if (status && status !== "all") rows = rows.filter((r) => r.status === status);
+    if (dateFrom) rows = rows.filter((r) => r.departureDate >= dateFrom);
+    if (dateTo) rows = rows.filter((r) => r.departureDate <= dateTo);
+    if (airline) { const a = airline.toLowerCase(); rows = rows.filter((r) => r.airline?.toLowerCase().includes(a)); }
+    if (origin) { const o = origin.toUpperCase(); rows = rows.filter((r) => r.origin.toUpperCase().includes(o)); }
+    if (destination) { const d = destination.toUpperCase(); rows = rows.filter((r) => r.destination.toUpperCase().includes(d)); }
     if (search) {
       const s = search.toLowerCase();
-      rows = rows.filter(
-        (r) =>
-          r.clientName.toLowerCase().includes(s) ||
-          r.clientPhone.includes(s) ||
-          (r.clientEmail?.toLowerCase() ?? "").includes(s) ||
-          r.requestNumber.toLowerCase().includes(s)
+      rows = rows.filter((r) =>
+        r.clientName.toLowerCase().includes(s) ||
+        r.clientPhone.includes(s) ||
+        (r.clientEmail?.toLowerCase() ?? "").includes(s) ||
+        r.requestNumber.toLowerCase().includes(s),
       );
     }
 
@@ -128,17 +182,17 @@ router.get("/flight-requests", requireAuth, async (req, res) => {
     const userMap: Record<number, string> = {};
     if (assigneeIds.length > 0) {
       const users = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable);
-      users.filter((u) => assigneeIds.includes(u.id)).forEach((u) => {
-        userMap[u.id] = u.name;
-      });
+      users.filter((u) => assigneeIds.includes(u.id)).forEach((u) => { userMap[u.id] = u.name; });
     }
 
-    const enriched = rows.map((r) => ({
-      ...r,
-      assignedToName: r.assignedTo ? (userMap[r.assignedTo] ?? null) : null,
-    }));
-
-    return res.json(enriched);
+    return res.json(
+      rows.map((r) => ({
+        ...r,
+        actualFare: r.actualFare != null ? parseFloat(r.actualFare) : null,
+        bookingFare: r.bookingFare != null ? parseFloat(r.bookingFare) : null,
+        assignedToName: r.assignedTo ? (userMap[r.assignedTo] ?? null) : null,
+      })),
+    );
   } catch (err) {
     req.log.error({ err }, "List flight requests error");
     return res.status(500).json({ error: "Internal server error" });
@@ -171,7 +225,13 @@ router.get("/flight-requests/:id", requireAuth, async (req, res) => {
       assignedToName = u?.name ?? null;
     }
 
-    return res.json({ ...row, assignedToName, events });
+    return res.json({
+      ...row,
+      actualFare: row.actualFare != null ? parseFloat(row.actualFare) : null,
+      bookingFare: row.bookingFare != null ? parseFloat(row.bookingFare) : null,
+      assignedToName,
+      events,
+    });
   } catch (err) {
     req.log.error({ err }, "Get flight request error");
     return res.status(500).json({ error: "Internal server error" });
@@ -180,11 +240,13 @@ router.get("/flight-requests/:id", requireAuth, async (req, res) => {
 
 router.patch("/flight-requests/:id", requireAuth, async (req, res) => {
   try {
-    const { status, assignedTo, adminNotes } = req.body;
+    const { status, assignedTo, adminNotes, actualFare, bookingFare } = req.body;
     const update: Record<string, any> = { updatedAt: new Date() };
     if (status !== undefined) update.status = status;
     if (assignedTo !== undefined) update.assignedTo = assignedTo ? Number(assignedTo) : null;
     if (adminNotes !== undefined) update.adminNotes = adminNotes;
+    if (actualFare !== undefined) update.actualFare = actualFare != null ? String(Number(actualFare)) : null;
+    if (bookingFare !== undefined) update.bookingFare = bookingFare != null ? String(Number(bookingFare)) : null;
 
     const [updated] = await db
       .update(flightRequestsTable)
@@ -195,16 +257,26 @@ router.patch("/flight-requests/:id", requireAuth, async (req, res) => {
     if (!updated) return res.status(404).json({ error: "Not found" });
 
     const reqUser = (req as any).user;
-    const action = status ?? "updated";
     await db.insert(flightRequestEventsTable).values({
       requestId: updated.id,
       userId: reqUser?.id ?? null,
       userName: reqUser?.name ?? null,
-      action,
+      action: status ?? "updated",
       metadata: req.body,
     });
 
-    return res.json(updated);
+    // Auto-post journal entry when marking as issued
+    if (status === "issued" && updated.bookingFare) {
+      const bf = parseFloat(updated.bookingFare);
+      const af = updated.actualFare ? parseFloat(updated.actualFare) : Math.max(0, bf - PKR_MARKUP);
+      await postFlightJournal(updated.id, updated.requestNumber, bf, af);
+    }
+
+    return res.json({
+      ...updated,
+      actualFare: updated.actualFare != null ? parseFloat(updated.actualFare) : null,
+      bookingFare: updated.bookingFare != null ? parseFloat(updated.bookingFare) : null,
+    });
   } catch (err) {
     req.log.error({ err }, "Update flight request error");
     return res.status(500).json({ error: "Internal server error" });
