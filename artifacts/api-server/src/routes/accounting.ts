@@ -168,23 +168,23 @@ router.get("/accounting/accounts", async (req, res) => {
 router.get("/accounting/journal", async (req, res) => {
   try {
     const { sourceType, limit: limitQ, offset: offsetQ } = req.query as Record<string, string>;
-    const limitN = Math.min(parseInt(limitQ ?? "200"), 500);
+    const limitN = Math.min(parseInt(limitQ ?? "500"), 1000);
     const offsetN = parseInt(offsetQ ?? "0");
 
     const accounts = await db.select().from(chartOfAccountsTable);
     const acctMap = new Map(accounts.map((a) => [a.id, a]));
 
-    let entries = await db
+    const entries = await db
       .select()
       .from(generalJournalTable)
       .orderBy(desc(generalJournalTable.id))
       .limit(limitN)
       .offset(offsetN);
 
-    if (sourceType) entries = entries.filter((e) => e.sourceType === sourceType);
+    const filtered = sourceType ? entries.filter((e) => e.sourceType === sourceType) : entries;
 
     return res.json(
-      entries.map((e) => ({
+      filtered.map((e) => ({
         ...e,
         amount: parseFloat(e.amount),
         date: e.date instanceof Date ? e.date.toISOString() : e.date,
@@ -195,6 +195,57 @@ router.get("/accounting/journal", async (req, res) => {
     );
   } catch (err) {
     req.log.error({ err }, "List journal entries error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/accounting/journal", async (req, res) => {
+  try {
+    const { debitAccountId, creditAccountId, amount, description, date, currency } = req.body;
+    if (!debitAccountId || !creditAccountId || !amount || !description) {
+      return res.status(400).json({ error: "debitAccountId, creditAccountId, amount, description required" });
+    }
+    if (debitAccountId === creditAccountId) {
+      return res.status(400).json({ error: "Debit and credit accounts must be different" });
+    }
+    const amt = parseFloat(String(amount));
+    if (isNaN(amt) || amt <= 0) {
+      return res.status(400).json({ error: "Amount must be a positive number" });
+    }
+    // Ensure accounts exist (seeds if needed)
+    const { ensureAccounts } = await import("../services/journal-poster.js");
+    await ensureAccounts();
+
+    const yr = new Date().getFullYear();
+    const count = await db.select().from(generalJournalTable);
+    const seq = count.length + 1;
+    const entryNumber = `JE-${yr}-${String(seq).padStart(5, "0")}`;
+
+    const [entry] = await db.insert(generalJournalTable).values({
+      entryNumber,
+      date: date ? new Date(date) : new Date(),
+      description: String(description),
+      debitAccountId: parseInt(String(debitAccountId)),
+      creditAccountId: parseInt(String(creditAccountId)),
+      amount: String(amt),
+      currency: currency ?? "SAR",
+      sourceType: "manual",
+      sourceId: null,
+    }).returning();
+
+    const accounts = await db.select().from(chartOfAccountsTable);
+    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+
+    return res.status(201).json({
+      ...entry,
+      amount: parseFloat(entry.amount),
+      date: entry.date instanceof Date ? entry.date.toISOString() : entry.date,
+      createdAt: entry.createdAt instanceof Date ? entry.createdAt.toISOString() : entry.createdAt,
+      debitAccount: acctMap.get(entry.debitAccountId) ?? null,
+      creditAccount: acctMap.get(entry.creditAccountId) ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Create journal entry error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
