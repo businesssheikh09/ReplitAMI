@@ -679,6 +679,7 @@ export default function FlightsPage() {
 
   // Quotation form
   const [statusFilter, setStatusFilter] = useState("all");
+  const [hidePast, setHidePast] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ clientId: "", origin: "", destination: "", departureDate: "", returnDate: "", passengers: 1, cabinClass: "economy", airline: "", amount: "", currency: "USD", tripType: "one_way" });
 
@@ -696,6 +697,11 @@ export default function FlightsPage() {
   const createFlight = useCreateFlightQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] }); setOpen(false); toast({ title: "Flight quotation created" }); } } });
   const updateFlight = useUpdateFlightQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] }); toast({ title: "Status updated" }); } } });
   const deleteFlight = useDeleteFlightQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] }); toast({ title: "Deleted" }); } } });
+
+  const todayMidnight = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+  const displayFlights = hidePast
+    ? (flights as any[]).filter((f: any) => new Date(f.departureDate) >= todayMidnight)
+    : (flights as any[]);
 
   // Fetch exchange rates on mount
   useEffect(() => {
@@ -1001,15 +1007,21 @@ export default function FlightsPage() {
       {activeTab === "quotations" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {["draft", "sent", "booked", "ticketed", "cancelled"].map(s => (
-                  <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {["draft", "sent", "booked", "ticketed", "cancelled"].map(s => (
+                    <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2">
+                <Checkbox id="hide-past" checked={hidePast} onCheckedChange={v => setHidePast(Boolean(v))} />
+                <Label htmlFor="hide-past" className="text-sm cursor-pointer select-none">Hide past flights</Label>
+              </div>
+            </div>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />New Quote</Button></DialogTrigger>
               <DialogContent className="sm:max-w-[580px]">
@@ -1094,13 +1106,14 @@ export default function FlightsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(flights as any[]).length === 0 ? (
+                    {displayFlights.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={10} className="text-center h-32 text-muted-foreground">
-                          <Plane className="mx-auto h-8 w-8 mb-2" />No quotations · Search fares above and click Select
+                          <Plane className="mx-auto h-8 w-8 mb-2" />
+                          {hidePast ? "No upcoming flights · Uncheck 'Hide past flights' to see historical records" : "No quotations · Search fares above and click Select"}
                         </TableCell>
                       </TableRow>
-                    ) : (flights as any[]).map((f: any) => (
+                    ) : displayFlights.map((f: any) => (
                       <TableRow key={f.id}>
                         <TableCell className="font-medium">{f.clientName}</TableCell>
                         <TableCell className="text-sm font-mono">{f.origin} → {f.destination}</TableCell>

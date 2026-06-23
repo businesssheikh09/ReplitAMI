@@ -7,10 +7,14 @@ const router = Router();
 
 router.get("/flight-quotations", async (req, res) => {
   try {
-    const { clientId, status } = req.query as Record<string, string>;
+    const { clientId, status, fromDate } = req.query as Record<string, string>;
     let flights = await db.select().from(flightQuotationsTable);
     if (clientId) flights = flights.filter(f => f.clientId === parseInt(clientId));
     if (status) flights = flights.filter(f => f.status === status);
+    if (fromDate) {
+      const cutoff = new Date(fromDate);
+      flights = flights.filter(f => f.departureDate >= cutoff);
+    }
     const clients = await db.select().from(clientsTable);
     const clientMap = new Map(clients.map(c => [c.id, c.name]));
     return res.json(flights.map(f => ({
