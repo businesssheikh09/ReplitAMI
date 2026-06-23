@@ -67,7 +67,8 @@ export default function AiSettingsPage() {
           <li>Paste the key below and click Save</li>
         </ol>
         <div className="text-xs text-muted-foreground pt-1 border-t border-border">
-          The key is stored as a server environment variable and never exposed to the browser.
+          The key is stored as <code className="bg-white border border-border rounded px-1">OPENAI_API_KEY</code> in the server environment.
+          To persist across restarts, add <code className="bg-white border border-border rounded px-1">OPENAI_API_KEY</code> as a Replit Secret.
           OCR uses <strong>gpt-4o-mini</strong> with vision — extremely cost-effective (fractions of a cent per scan).
         </div>
       </div>

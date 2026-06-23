@@ -21,11 +21,10 @@ const STUB_RESULT: ScanResult = {
 };
 
 export async function scanDocument(_objectKey: string): Promise<ScanResult> {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  const baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const apiKey = process.env.OPENAI_API_KEY;
 
-  if (!apiKey || !baseUrl) {
-    logger.warn("OCR skipped — OpenAI not configured. Add key in ERP → AI Settings.");
+  if (!apiKey) {
+    logger.warn("OCR skipped — OpenAI not configured. Add OPENAI_API_KEY in ERP → AI Settings.");
     return STUB_RESULT;
   }
 
@@ -33,7 +32,7 @@ export async function scanDocument(_objectKey: string): Promise<ScanResult> {
     const pathPart = _objectKey.replace(/^\/objects\//, "");
     const imageUrl = `${process.env.API_BASE_URL ?? ""}/api/storage/objects/${pathPart}`;
     const body = {
-      model: "gpt-5.1",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "user",
@@ -49,7 +48,7 @@ export async function scanDocument(_objectKey: string): Promise<ScanResult> {
       max_tokens: 300,
     };
 
-    const resp = await fetch(`${baseUrl}/chat/completions`, {
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify(body),
