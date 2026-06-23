@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useListQuotations, useCreateQuotation, useListClients } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Eye, FileText } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Plus, Search, Eye, FileText, Package } from "lucide-react";
 
 const STATUS_BADGE: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -28,6 +29,18 @@ export default function QuotationsPage() {
   const [form, setForm] = useState({ clientId: "", title: "", validUntil: "", currency: "USD", notes: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { token } = useAuth();
+
+  const { data: pkgInquiries = [] } = useQuery<{ quotationId: number | null }[]>({
+    queryKey: ["package-inquiries-all-for-badge", token],
+    queryFn: () =>
+      fetch("/api/package-inquiries?status=all", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+    enabled: !!token,
+    staleTime: 60_000,
+  });
+  const fromPackageIds = new Set(
+    (pkgInquiries as { quotationId: number | null }[]).filter((p) => p.quotationId != null).map((p) => p.quotationId as number)
+  );
 
   const { data: quotations = [], isLoading } = useListQuotations({ search: search || undefined, status: statusFilter !== "all" ? statusFilter : undefined });
   const { data: clients = [] } = useListClients({});
@@ -143,7 +156,14 @@ export default function QuotationsPage() {
                   <TableRow key={q.id}>
                     <TableCell className="font-mono text-sm font-medium">{q.referenceNo}</TableCell>
                     <TableCell>{q.clientName}</TableCell>
-                    <TableCell className="text-muted-foreground">{q.title || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <span>{q.title || "—"}</span>
+                      {fromPackageIds.has(q.id) && (
+                        <span className="ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <Package className="h-3 w-3" />From Package
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-semibold">{q.currency} {(q.totalAmount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-sm">{new Date(q.validUntil).toLocaleDateString()}</TableCell>
                     <TableCell>

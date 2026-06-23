@@ -132,6 +132,19 @@ function usePortalPending() {
   });
 }
 
+function usePackageInquiriesPending() {
+  const { isAuthenticated, token } = useAuth();
+  return useQuery<{ count: number }>({
+    queryKey: ["package-inquiries-count", token],
+    queryFn: () =>
+      fetch("/api/package-inquiries/count", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json()),
+    enabled: isAuthenticated && !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+}
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout, user, token } = useAuth();
@@ -139,8 +152,10 @@ export function Sidebar() {
   const isManagement = role === "management" || role === "admin";
   const { data: unreadData } = useInboxUnread();
   const { data: portalPending } = usePortalPending();
+  const { data: pkgInquiries } = usePackageInquiriesPending();
   const unreadCount = unreadData?.total ?? 0;
   const pendingPortal = portalPending?.count ?? 0;
+  const pendingPkgInquiries = pkgInquiries?.count ?? 0;
 
   const filteredGroups = navGroups
     .map((group) => ({
@@ -202,6 +217,11 @@ export function Sidebar() {
                         {item.href === "/portal-users" && pendingPortal > 0 && (
                           <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-amber-500 text-white border-0">
                             {pendingPortal}
+                          </Badge>
+                        )}
+                        {item.href === "/package-inquiries" && pendingPkgInquiries > 0 && (
+                          <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-orange-500 text-white border-0">
+                            {pendingPkgInquiries}
                           </Badge>
                         )}
                       </span>
