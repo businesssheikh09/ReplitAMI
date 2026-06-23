@@ -18,6 +18,8 @@ export const groupTicketsTable = pgTable(
     fareCurrency: text("fare_currency").notNull().default("PKR"),
     groupName: text("group_name"),
     rawMessage: text("raw_message"),
+    externalTicketId: text("external_ticket_id"),
+    externalPortalCode: text("external_portal_code"),
     scrapedAt: timestamp("scraped_at").notNull().defaultNow(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

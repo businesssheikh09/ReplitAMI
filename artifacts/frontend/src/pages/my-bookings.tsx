@@ -76,17 +76,18 @@ export default function MyBookingsPage() {
     if (!inquiry.paymentReceipt) return;
     setUploading(inquiry.id);
     try {
-      const uploadRes = await fetch(
-        `/api/storage/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`,
-        { method: "POST" },
-      );
-      const { uploadUrl, objectKey } = await uploadRes.json();
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      const uploadRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      const { uploadURL, objectPath } = await uploadRes.json();
+      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
 
       await fetch("/api/public/payment-receipts", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ inquiryId: inquiry.id, objectKey }),
+        body: JSON.stringify({ inquiryId: inquiry.id, objectKey: objectPath }),
       });
 
       await qc.invalidateQueries({ queryKey: ["my-bookings"] });

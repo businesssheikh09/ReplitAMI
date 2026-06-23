@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users, FileText, Receipt, DollarSign, Activity, Car, BookOpen,
   TrendingUp, Clock, Hotel, Plane, Store, Building2, ShieldCheck,
-  ArrowRightLeft, PhoneCall, CreditCard, CalendarCheck, Plus,
+  ArrowRightLeft, PhoneCall, CreditCard, CalendarCheck, Plus, RefreshCw,
 } from "lucide-react";
 import { useGetDashboardStats, useGetRecentActivity, useGetRevenueChart } from "@workspace/api-client-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { canAccess, ROLE_LABELS, ROLE_COLORS } from "@/lib/permissions";
 
@@ -84,9 +85,54 @@ const TILES: Array<{ section: string } | TileData> = [
   { href: "/users",     icon: ShieldCheck,label: "Users",   gradient: "bg-gradient-to-br from-gray-700 to-gray-500",  route: "/users",   tileRoles: ["management", "admin"] },
 ];
 
+// ── Inventory Sweep Widget ────────────────────────────────────────────────────
+function SweepStatusWidget({ token }: { token: string | null }) {
+  const { data } = useQuery<{ lastSweepAt: string | null; lastExpiredCount: number; intervalMs: number }>({
+    queryKey: ["sweep-status"],
+    queryFn: () =>
+      fetch("/api/inventory-sweep/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
+    enabled: !!token,
+    refetchInterval: 60_000,
+  });
+
+  if (!data) return null;
+
+  const lastSweep = data.lastSweepAt ? new Date(data.lastSweepAt) : null;
+  const minsAgo = lastSweep ? Math.round((Date.now() - lastSweep.getTime()) / 60_000) : null;
+
+  return (
+    <Card className="shadow-sm border-teal-100">
+      <CardContent className="pt-4 pb-4 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 text-teal-700">
+          <RefreshCw className="h-4 w-4" />
+          <span className="text-sm font-semibold">Inventory Sweep</span>
+        </div>
+        <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <span>
+            Last run:{" "}
+            <span className="font-medium text-foreground">
+              {minsAgo === null ? "Never" : minsAgo === 0 ? "just now" : `${minsAgo} min ago`}
+            </span>
+          </span>
+          <span>
+            Receipts expired this sweep:{" "}
+            <span className="font-medium text-foreground">{data.lastExpiredCount}</span>
+          </span>
+          <span>
+            Interval:{" "}
+            <span className="font-medium text-foreground">{data.intervalMs / 60_000} min</span>
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const role = user?.role;
 
   const { data: stats } = useGetDashboardStats();
@@ -170,6 +216,9 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      {/* ── Inventory Sweep Status ─────────────────────────────────── */}
+      <SweepStatusWidget token={token} />
 
       {/* ── Charts + Activity ──────────────────────────────────────── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

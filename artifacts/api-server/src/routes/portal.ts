@@ -5,6 +5,7 @@ import { randomBytes } from "crypto";
 import { requireAuth } from "../middlewares/auth.js";
 import { requirePortalAuth } from "../middlewares/portal-auth.js";
 import { scanDocument } from "../services/document-scan.js";
+import { getSweepStatus } from "../services/inventory-sweep.js";
 
 const router = Router();
 
@@ -177,6 +178,12 @@ router.post("/portal/users/:id/scan-doc/:docId", requireAuth, async (req, res) =
     req.log.error({ err }, "Scan portal doc error");
     return res.status(500).json({ error: "Internal server error" });
   }
+});
+
+// ── Inventory sweep status (ERP) ────────────────────────────────────────────
+
+router.get("/inventory-sweep/status", requireAuth, (_req, res) => {
+  res.json(getSweepStatus());
 });
 
 export default router;

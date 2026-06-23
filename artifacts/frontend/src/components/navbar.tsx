@@ -49,13 +49,21 @@ export function Navbar() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => navigate("/portal-login")}
-              className="hidden sm:inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-primary/20 bg-transparent px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-primary/5 transition-colors"
-            >
-              <User className="h-4 w-4" />
-              Portal Login
-            </button>
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={() => navigate("/portal-login")}
+                className="h-9 inline-flex items-center justify-center gap-1.5 rounded-md border border-primary/20 bg-transparent px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-primary/5 transition-colors"
+              >
+                <User className="h-4 w-4" />
+                Login
+              </button>
+              <button
+                onClick={() => navigate("/portal-register")}
+                className="h-9 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+              >
+                Register
+              </button>
+            </div>
           )}
           <a
             href="#group-tickets"
@@ -90,7 +98,10 @@ export function Navbar() {
               <button onClick={() => { logout(); setMenuOpen(false); }} className="block text-sm text-muted-foreground">Sign Out</button>
             </>
           ) : (
-            <button onClick={() => { navigate("/portal-login"); setMenuOpen(false); }} className="block text-sm font-medium text-primary">Portal Login</button>
+            <>
+              <button onClick={() => { navigate("/portal-login"); setMenuOpen(false); }} className="block text-sm font-medium text-primary">Login</button>
+              <button onClick={() => { navigate("/portal-register"); setMenuOpen(false); }} className="block text-sm font-medium text-primary-foreground bg-primary px-3 py-1.5 rounded-lg w-fit">Register</button>
+            </>
           )}
           <a href="/login" onClick={() => setMenuOpen(false)} className="block text-xs text-muted-foreground/60 hover:text-muted-foreground pt-2 border-t border-border/40">
             Staff / ERP Login
