@@ -70,17 +70,19 @@ function PaxCard({
     if (!file) return;
     setUploading(true);
     try {
-      const uploadRes = await fetch(`/api/storage/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`, {
+      const uploadRes = await fetch("/api/storage/uploads/request-url", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
       });
-      const { uploadUrl, objectKey } = await uploadRes.json();
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      onChange(index, "documentObjectKey", objectKey);
+      const { uploadURL, objectPath } = await uploadRes.json();
+      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      onChange(index, "documentObjectKey", objectPath);
 
       const scanRes = await fetch("/api/public/scan-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objectKey }),
+        body: JSON.stringify({ objectKey: objectPath }),
       });
       const scan = await scanRes.json();
       if (scan.firstName) {

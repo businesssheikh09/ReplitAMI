@@ -30,7 +30,8 @@ export async function scanDocument(_objectKey: string): Promise<ScanResult> {
   }
 
   try {
-    const imageUrl = `${process.env.API_BASE_URL ?? ""}/api/storage/objects/${_objectKey}`;
+    const pathPart = _objectKey.replace(/^\/objects\//, "");
+    const imageUrl = `${process.env.API_BASE_URL ?? ""}/api/storage/objects/${pathPart}`;
     const body = {
       model: "gpt-5.1",
       messages: [
