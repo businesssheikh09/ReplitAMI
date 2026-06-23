@@ -25,6 +25,7 @@ import bookingInquiriesRouter from "./booking-inquiries.js";
 import packageInquiriesRouter from "./package-inquiries.js";
 import portalRouter from "./portal.js";
 import aiSettingsRouter from "./ai-settings.js";
+import flightRequestsRouter from "./flight-requests.js";
 
 const router: IRouter = Router();
 
@@ -35,6 +36,7 @@ router.use(bookingInquiriesRouter);
 router.use(packageInquiriesRouter);
 router.use(portalRouter);
 router.use(aiSettingsRouter);
+router.use(flightRequestsRouter);
 router.use(authRouter);
 router.use(usersRouter);
 router.use(clientsRouter);

@@ -35,6 +35,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
+  "/flight-requests": NOT_ACCOUNTS,
 };
 
 export function canAccess(role: string | undefined, route: string): boolean {
@@ -79,6 +80,7 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
+  "/flight-requests": NOT_ACCOUNTS,
 };
 
 export const ROLE_LABELS: Record<string, string> = {

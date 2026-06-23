@@ -25,6 +25,7 @@ import {
   UserCheck,
   Bot,
   Landmark,
+  PlaneTakeoff,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ const navGroups = [
     items: [
       { title: "Booking Inquiries", href: "/booking-inquiries", icon: Ticket },
       { title: "Portal Users", href: "/portal-users", icon: UserCheck },
+      { title: "Flight Requests", href: "/flight-requests", icon: PlaneTakeoff },
     ],
   },
   {
@@ -145,6 +147,19 @@ function usePackageInquiriesPending() {
   });
 }
 
+function useFlightRequestsPending() {
+  const { isAuthenticated, token } = useAuth();
+  return useQuery<{ count: number }>({
+    queryKey: ["flight-requests-count", token],
+    queryFn: () =>
+      fetch("/api/flight-requests/count", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json()),
+    enabled: isAuthenticated && !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+}
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout, user, token } = useAuth();
@@ -153,9 +168,11 @@ export function Sidebar() {
   const { data: unreadData } = useInboxUnread();
   const { data: portalPending } = usePortalPending();
   const { data: pkgInquiries } = usePackageInquiriesPending();
+  const { data: flightRequestsData } = useFlightRequestsPending();
   const unreadCount = unreadData?.total ?? 0;
   const pendingPortal = portalPending?.count ?? 0;
   const pendingPkgInquiries = pkgInquiries?.count ?? 0;
+  const pendingFlightRequests = flightRequestsData?.count ?? 0;
 
   const filteredGroups = navGroups
     .map((group) => ({
@@ -222,6 +239,11 @@ export function Sidebar() {
                         {item.href === "/quotations/pending" && pendingPkgInquiries > 0 && (
                           <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-orange-500 text-white border-0">
                             {pendingPkgInquiries}
+                          </Badge>
+                        )}
+                        {item.href === "/flight-requests" && pendingFlightRequests > 0 && (
+                          <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-sky-500 text-white border-0">
+                            {pendingFlightRequests}
                           </Badge>
                         )}
                       </span>

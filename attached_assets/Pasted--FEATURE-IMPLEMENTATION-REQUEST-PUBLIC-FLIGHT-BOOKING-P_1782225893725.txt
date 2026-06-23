@@ -1,0 +1,449 @@
+# FEATURE IMPLEMENTATION REQUEST: PUBLIC FLIGHT BOOKING PORTAL + APPROVAL WORKFLOW
+
+## IMPORTANT ARCHITECTURAL RULES
+
+Before making any changes, follow these constraints:
+
+* DO NOT modify existing GDS integrations.
+* DO NOT modify ticket issuance logic.
+* DO NOT modify accounting ledgers.
+* DO NOT modify supplier APIs.
+* DO NOT modify existing ERP booking workflows.
+* Reuse existing UI components wherever possible.
+* Preserve current database relationships.
+* Build this as an isolated extension layer.
+
+The goal is to expose flight search publicly while routing all bookings into a manual approval workflow inside the ERP.
+
+---
+
+# PHASE 1 — PUBLIC FLIGHT SEARCH PAGE
+
+## Objective
+
+Replicate the ERP Flights page experience on the public website.
+
+### Requirements
+
+Locate the existing ERP Flights page and use it as the design source of truth.
+
+Clone the entire search header section including:
+
+### Top Toggle Bar
+
+Create two tabs:
+
+#### Tab 1: Live Search
+
+Default selected tab.
+
+Display:
+
+* One Way
+* Round Trip
+* Multi-City
+
+Search fields:
+
+* Origin (IATA)
+* Destination (IATA)
+* Departure Date
+* Return Date
+* Passenger Counts
+* Cabin Class
+
+GDS Provider Selection:
+
+* Galileo
+* Amadeus
+* Sabre
+* Any additional providers already supported
+
+All existing search behavior should remain unchanged.
+
+---
+
+#### Tab 2: Group Tickets
+
+When selected:
+
+Hide Live Search controls.
+
+Display:
+
+* Real-time Group Ticket Inventory
+* WhatsApp-scraped inventory records
+* Available seats
+* Routing
+* Airline
+* Fare
+* Travel dates
+
+Use existing inventory APIs if available.
+
+---
+
+# UI REQUIREMENTS
+
+Match ERP styling exactly:
+
+* Same spacing
+* Same typography
+* Same colors
+* Same button styling
+* Same border radius
+* Same hover states
+* Same responsive behavior
+
+The public page should feel visually identical to the ERP Flights module.
+
+---
+
+# PHASE 2 — BOOKING REQUEST PIPELINE
+
+## Objective
+
+Prevent automatic ticket issuance from the public website.
+
+### Existing Behavior
+
+Current flow:
+
+Search → Select Flight → Book → Issue Ticket
+
+### New Public Flow
+
+Search → Select Flight → Submit Request
+
+No ticket issuance.
+
+No PNR creation.
+
+No payment capture.
+
+No accounting entries.
+
+No supplier booking.
+
+---
+
+## Database
+
+Create new table:
+
+flight_requests
+
+Fields:
+
+id
+request_number
+request_type
+source
+
+client_name
+client_email
+client_phone
+client_whatsapp
+
+trip_type
+
+origin
+destination
+
+departure_date
+return_date
+
+passenger_count
+
+cabin_class
+
+airline
+
+fare
+
+flight_data_json
+
+status
+
+assigned_to
+
+admin_notes
+
+created_at
+updated_at
+
+---
+
+## Status Values
+
+pending
+
+approved
+
+rejected
+
+issued
+
+cancelled
+
+---
+
+## Submission Logic
+
+When user clicks:
+
+* Book
+* Request
+* Reserve
+
+Capture all search and fare details.
+
+Save into:
+
+flight_requests
+
+Set:
+
+status = pending
+
+source = website
+
+---
+
+## Success Modal
+
+Display:
+
+Booking Request Submitted
+
+Your flight request has been received successfully.
+
+Our reservations team will review availability and contact you shortly with confirmation and payment instructions.
+
+Reference Number:
+{{request_number}}
+
+Thank you.
+
+---
+
+# PHASE 3 — ERP MANAGEMENT SECTION
+
+## Sidebar Integration
+
+Location:
+
+Sales
+
+Current structure:
+
+Sales
+├─ Quotations
+├─ Pending Quotations
+├─ Hotel Requests
+
+Add:
+
+├─ Pending Flight Requests
+
+---
+
+## Permissions
+
+Visible only to:
+
+* Admin
+* Management
+* Reservations Team
+
+Hidden from:
+
+* Customer users
+* Suppliers
+* External agents
+
+---
+
+# PHASE 4 — PENDING FLIGHT REQUESTS SCREEN
+
+Create full management interface.
+
+### Table Columns
+
+Request #
+
+Date
+
+Client Name
+
+Phone
+
+WhatsApp
+
+Email
+
+Trip Type
+
+Route
+
+Travel Date
+
+Passengers
+
+Airline
+
+Fare
+
+Status
+
+Assigned To
+
+Actions
+
+---
+
+## Filters
+
+Status
+
+Date Range
+
+Airline
+
+Route
+
+Assigned User
+
+Search by:
+
+* Name
+* Phone
+* Email
+* Request Number
+
+---
+
+## Detail Drawer / Modal
+
+When opening a request show:
+
+Customer Information
+
+Full Flight Details
+
+Fare Breakdown
+
+Search Snapshot
+
+Admin Notes
+
+Activity Timeline
+
+---
+
+# ACTION BUTTONS
+
+Approve & Issue
+
+Reject
+
+Assign Agent
+
+Add Notes
+
+Contact via WhatsApp
+
+Email Client
+
+---
+
+# APPROVE FLOW
+
+When clicking:
+
+Approve & Issue
+
+Show confirmation dialog.
+
+After approval:
+
+status = approved
+
+Create internal task for reservations team.
+
+DO NOT automatically issue tickets.
+
+Actual ticket issuance remains inside existing ERP workflow.
+
+---
+
+# REJECT FLOW
+
+Require rejection reason.
+
+Update:
+
+status = rejected
+
+Store reason in audit log.
+
+---
+
+# PHASE 5 — AUDIT & TRACKING
+
+Create activity logging.
+
+Track:
+
+Request Created
+
+Viewed
+
+Assigned
+
+Approved
+
+Rejected
+
+Converted To Booking
+
+Issued
+
+Cancelled
+
+Include:
+
+User
+Timestamp
+Action
+
+---
+
+# PHASE 6 — FUTURE READY ARCHITECTURE
+
+Build all code with future support for:
+
+* B2B Agents
+* Customer Portal
+* WhatsApp Integration
+* Automated Follow-Ups
+* Payment Collection
+* Approval Workflows
+* Flight API Expansion
+* Mobile Applications
+
+Use clean service-layer architecture.
+
+Avoid duplicated business logic.
+
+Reuse existing ERP components whenever possible.
+
+Before coding, generate:
+
+1. Database migration plan
+2. Component map
+3. Route map
+4. Permission matrix
+5. Implementation roadmap
+
+Then begin implementation.

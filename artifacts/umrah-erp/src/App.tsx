@@ -32,6 +32,7 @@ import PortalUsersPage from "@/pages/portal-users";
 import PendingQuotationsPage from "@/pages/pending-quotations";
 import AiSettingsPage from "@/pages/ai-settings";
 import GeneralJournalPage from "@/pages/general-journal";
+import FlightRequestsPage from "@/pages/flight-requests";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -101,6 +102,7 @@ function Router() {
         {/* Direct Bookings */}
         <ProtectedRoute path="/booking-inquiries" component={BookingInquiriesPage} />
         <ProtectedRoute path="/portal-users" component={PortalUsersPage} />
+        <ProtectedRoute path="/flight-requests" component={FlightRequestsPage} />
 
         {/* Operations */}
         <ProtectedRoute path="/hotels" component={HotelsPage} />

@@ -10,6 +10,7 @@ import PackageDetailPage from "@/pages/package-detail";
 import PortalLoginPage from "@/pages/portal-login";
 import PortalRegisterPage from "@/pages/portal-register";
 import MyBookingsPage from "@/pages/my-bookings";
+import FlightsPage from "@/pages/flights";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/portal-login" component={PortalLoginPage} />
       <Route path="/portal-register" component={PortalRegisterPage} />
       <Route path="/my-bookings" component={MyBookingsPage} />
+      <Route path="/flights" component={FlightsPage} />
       <Route component={NotFound} />
     </Switch>
   );

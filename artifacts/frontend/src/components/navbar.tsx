@@ -22,7 +22,7 @@ export function Navbar() {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8">
           <a href="#about" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Our Promise</a>
-          <a href="#group-tickets" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Group Flights</a>
+          <Link href="/flights" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Flights</Link>
           <a href="#customize" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Build Package</a>
           <a href="#packages" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Journeys</a>
           <a href="#experience" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Experience</a>
@@ -65,12 +65,12 @@ export function Navbar() {
               </button>
             </div>
           )}
-          <a
-            href="#group-tickets"
+          <Link
+            href="/flights"
             className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
           >
             Book a Flight
-          </a>
+          </Link>
           <a
             href="/login"
             className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors border-l border-border/50 pl-3"

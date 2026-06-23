@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 
 export interface ScanResult {
   rawText: string;
@@ -20,7 +21,7 @@ const STUB_RESULT: ScanResult = {
   nationality: null,
 };
 
-export async function scanDocument(_objectKey: string): Promise<ScanResult> {
+export async function scanDocument(objectKey: string): Promise<ScanResult> {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
@@ -29,8 +30,16 @@ export async function scanDocument(_objectKey: string): Promise<ScanResult> {
   }
 
   try {
-    const pathPart = _objectKey.replace(/^\/objects\//, "");
-    const imageUrl = `${process.env.API_BASE_URL ?? ""}/api/storage/objects/${pathPart}`;
+    const storage = new ObjectStorageService();
+    const file = await storage.getObjectEntityFile(objectKey);
+
+    const [buffer] = await file.download();
+    const base64 = buffer.toString("base64");
+
+    const [metadata] = await file.getMetadata();
+    const mimeType = (metadata.contentType as string) || "image/jpeg";
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
     const body = {
       model: "gpt-4o-mini",
       messages: [
@@ -41,7 +50,7 @@ export async function scanDocument(_objectKey: string): Promise<ScanResult> {
               type: "text",
               text: `Extract the following fields from this travel document image and return ONLY valid JSON with keys: firstName, lastName, dateOfBirth (YYYY-MM-DD), documentNumber, expiryDate (YYYY-MM-DD), nationality. If a field is not visible return null.`,
             },
-            { type: "image_url", image_url: { url: imageUrl } },
+            { type: "image_url", image_url: { url: dataUrl } },
           ],
         },
       ],
@@ -54,9 +63,13 @@ export async function scanDocument(_objectKey: string): Promise<ScanResult> {
       body: JSON.stringify(body),
     });
 
-    if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
-    const data = await resp.json() as any;
-    const raw = data.choices?.[0]?.message?.content ?? "";
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`OpenAI ${resp.status}: ${errText}`);
+    }
+
+    const data = (await resp.json()) as any;
+    const raw: string = data.choices?.[0]?.message?.content ?? "";
 
     const cleaned = raw.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
