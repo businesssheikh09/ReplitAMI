@@ -5,10 +5,6 @@ import { logger } from "../lib/logger.js";
 
 type BotContact = { jid: string; name: string | null };
 
-function randomDelayMs(): number {
-  return Math.floor(Math.random() * 20_000) + 20_000;
-}
-
 async function tick(): Promise<void> {
   const now = new Date();
 
@@ -38,9 +34,15 @@ async function tick(): Promise<void> {
   try {
     const result = await sendWhatsAppMessage(contact.jid, campaign.message);
     waMessageId = result.waMessageId;
-    logger.info({ campaignId: campaign.id, jid: contact.jid, index: campaign.currentIndex }, "Bot sent message");
+    logger.info(
+      { campaignId: campaign.id, jid: contact.jid, index: campaign.currentIndex },
+      "Bot sent message",
+    );
   } catch (err) {
-    logger.warn({ err, jid: contact.jid, campaignId: campaign.id }, "Bot failed to send — skipping contact");
+    logger.warn(
+      { err, jid: contact.jid, campaignId: campaign.id },
+      "Bot failed to send — skipping contact",
+    );
   }
 
   await db.insert(botCampaignSendsTable).values({
@@ -57,14 +59,18 @@ async function tick(): Promise<void> {
       .update(botCampaignsTable)
       .set({ currentIndex: newIndex, status: "done", nextSendAt: null })
       .where(eq(botCampaignsTable.id, campaign.id));
-    logger.info({ campaignId: campaign.id, total: contacts.length }, "Bot campaign finished — all contacts done");
+    logger.info(
+      { campaignId: campaign.id, total: contacts.length },
+      "Bot campaign finished — all contacts done",
+    );
   } else {
-    const delay = randomDelayMs();
+    // Use the stored dynamic delay — consistent throughout the run
+    const delayMs = (campaign.delaySeconds ?? 20) * 1000;
     await db
       .update(botCampaignsTable)
       .set({
         currentIndex: newIndex,
-        nextSendAt: new Date(Date.now() + delay),
+        nextSendAt: new Date(Date.now() + delayMs),
       })
       .where(eq(botCampaignsTable.id, campaign.id));
   }

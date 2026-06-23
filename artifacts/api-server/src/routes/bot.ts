@@ -10,10 +10,6 @@ const canManage = requireRole("admin", "management");
 /**
  * GET /api/bot/contacts
  * Returns all unique individual contact JIDs extracted from group participant lists.
- * Contacts are @s.whatsapp.net JIDs de-duplicated across all groups the phone belongs to.
- * Results are cached on connect and cleared on disconnect so they always reflect the
- * currently linked phone.
- * Returns 503 if WhatsApp is not connected.
  */
 router.get("/bot/contacts", requireAuth, canManage, async (req, res) => {
   try {
@@ -32,8 +28,7 @@ router.get("/bot/contacts", requireAuth, canManage, async (req, res) => {
 /**
  * GET /api/bot/campaign/active
  * Returns the single most-recent campaign that is idle/running/paused,
- * plus live progress counts and last-sent contact.
- * Returns null when no active campaign exists.
+ * plus live progress counts, delaySeconds, and estimatedFinishAt.
  */
 router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
   try {
@@ -47,6 +42,15 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
     if (!campaign) return res.json(null);
 
     const contacts = campaign.contacts as Array<{ jid: string; name: string | null }>;
+    const delaySeconds = campaign.delaySeconds ?? 20;
+
+    const remaining = contacts.length - campaign.currentIndex;
+    const estimatedFinishAt =
+      campaign.nextSendAt && remaining > 0
+        ? new Date(
+            new Date(campaign.nextSendAt).getTime() + (remaining - 1) * delaySeconds * 1000,
+          ).toISOString()
+        : null;
 
     const [lastSend] = await db
       .select()
@@ -62,6 +66,8 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
       total: contacts.length,
       sent: campaign.currentIndex,
       nextSendAt: campaign.nextSendAt,
+      delaySeconds,
+      estimatedFinishAt,
       lastSent: lastSend
         ? { jid: lastSend.jid, name: lastSend.name, sentAt: lastSend.sentAt }
         : null,
@@ -76,9 +82,6 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
 /**
  * POST /api/bot/campaign
  * Creates a new campaign (status: idle). Stops any existing active campaign first.
- * Contacts are fetched server-side from the live WhatsApp session — the client
- * only needs to supply the message text. This avoids sending thousands of JIDs
- * over the wire and keeps the payload small.
  */
 router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
   const { message } = req.body as { message: string };
@@ -121,21 +124,40 @@ router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
 
 /**
  * POST /api/bot/campaign/:id/start
- * Sets status to running and schedules the first send (random 20-40s from now).
+ * Computes dynamic delay = max(20, floor(172800 / totalContacts)) seconds,
+ * saves it on the campaign row, sets status=running and schedules first send.
  */
 router.post("/bot/campaign/:id/start", requireAuth, canManage, async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const delay = Math.floor(Math.random() * 20_000) + 20_000;
   try {
+    const [camp] = await db
+      .select()
+      .from(botCampaignsTable)
+      .where(eq(botCampaignsTable.id, id));
+
+    if (!camp) return res.status(404).json({ error: "Campaign not found" });
+
+    const contacts = camp.contacts as Array<{ jid: string; name: string | null }>;
+    const total = Math.max(contacts.length, 1);
+    const delaySeconds = Math.max(20, Math.floor(172800 / total));
+
     const [updated] = await db
       .update(botCampaignsTable)
-      .set({ status: "running", nextSendAt: new Date(Date.now() + delay) })
+      .set({
+        status: "running",
+        delaySeconds,
+        nextSendAt: new Date(Date.now() + delaySeconds * 1000),
+      })
       .where(eq(botCampaignsTable.id, id))
       .returning();
-    req.log.info({ campaignId: id, delaySec: Math.round(delay / 1000) }, "Bot campaign started");
-    return res.json(updated);
+
+    req.log.info(
+      { campaignId: id, total, delaySeconds },
+      "Bot campaign started — dynamic delay computed",
+    );
+    return res.json({ ...updated, delaySeconds });
   } catch (err) {
     req.log.error({ err }, "bot/campaign/start: failed");
     return res.status(500).json({ error: "Failed to start campaign" });
@@ -165,20 +187,29 @@ router.post("/bot/campaign/:id/pause", requireAuth, canManage, async (req, res) 
 
 /**
  * POST /api/bot/campaign/:id/resume
- * Picks up from current index with a fresh random 20-40s delay.
+ * Uses the stored delaySeconds — does NOT recalculate.
  */
 router.post("/bot/campaign/:id/resume", requireAuth, canManage, async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const delay = Math.floor(Math.random() * 20_000) + 20_000;
   try {
+    const [camp] = await db
+      .select()
+      .from(botCampaignsTable)
+      .where(eq(botCampaignsTable.id, id));
+
+    if (!camp) return res.status(404).json({ error: "Campaign not found" });
+
+    const delaySeconds = camp.delaySeconds ?? 20;
+
     const [updated] = await db
       .update(botCampaignsTable)
-      .set({ status: "running", nextSendAt: new Date(Date.now() + delay) })
+      .set({ status: "running", nextSendAt: new Date(Date.now() + delaySeconds * 1000) })
       .where(eq(botCampaignsTable.id, id))
       .returning();
-    req.log.info({ campaignId: id }, "Bot campaign resumed");
+
+    req.log.info({ campaignId: id, delaySeconds }, "Bot campaign resumed");
     return res.json(updated);
   } catch (err) {
     req.log.error({ err }, "bot/campaign/resume: failed");

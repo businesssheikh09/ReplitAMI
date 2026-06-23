@@ -9,6 +9,7 @@ export const botCampaignsTable = pgTable("bot_campaigns", {
   currentIndex: integer("current_index").notNull().default(0),
   status: text("status").notNull().default("idle"),
   nextSendAt: timestamp("next_send_at"),
+  delaySeconds: integer("delay_seconds").notNull().default(20),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

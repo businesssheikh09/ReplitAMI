@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Send, Loader2, AlertCircle, Users, CheckCheck,
-  RefreshCw, X, Play, Pause, Square, Clock,
+  RefreshCw, Play, Pause, Square, Clock, Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,14 +27,45 @@ type ActiveCampaign = {
   total: number;
   sent: number;
   nextSendAt: string | null;
+  delaySeconds: number;
+  estimatedFinishAt: string | null;
   lastSent: { jid: string; name: string | null; sentAt: string } | null;
   createdAt: string;
 };
 
-/* ── Helper to display a contact's label ──────────────────────────── */
+/* ── Helpers ──────────────────────────────────────────────────────── */
+
 function contactLabel(jid: string, name: string | null | undefined): string {
   const phone = jid.replace("@s.whatsapp.net", "");
   return name ? `${name} (${phone})` : phone;
+}
+
+function fmtDuration(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return `${h}h ${rm}m`;
+  }
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
+function fmtEta(isoFinish: string): string {
+  const diff = new Date(isoFinish).getTime() - Date.now();
+  if (diff <= 0) return "finishing soon";
+  const totalMin = Math.ceil(diff / 60_000);
+  if (totalMin >= 60) {
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `~${h}h ${m}m remaining`;
+  }
+  return `~${totalMin}m remaining`;
+}
+
+function computeDynamicDelay(contactCount: number): number {
+  return Math.max(20, Math.floor(172800 / Math.max(contactCount, 1)));
 }
 
 /* ── Page component ───────────────────────────────────────────────── */
@@ -44,8 +75,6 @@ export default function BotCampaignPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  /* Keep a stable ref to the current token — prevents stale-closure 401s
-     in React Query polling callbacks that close over an older value. */
   const tokenRef = useRef(token);
   useEffect(() => { tokenRef.current = token; }, [token]);
 
@@ -94,12 +123,19 @@ export default function BotCampaignPage() {
         body: JSON.stringify(payload),
       }).then((r) => r.json() as Promise<{ id: number }>);
 
-      await apiFetchAuth(`/api/bot/campaign/${camp.id}/start`, { method: "POST" });
-      return camp;
+      const started = await apiFetchAuth(`/api/bot/campaign/${camp.id}/start`, {
+        method: "POST",
+      }).then((r) => r.json() as Promise<{ delaySeconds: number }>);
+
+      return started;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       void activeCampaignQuery.refetch();
-      toast({ title: "Campaign started", description: "First message will send in 20–40 seconds." });
+      const delaySec = data?.delaySeconds ?? 20;
+      toast({
+        title: "Campaign started",
+        description: `First message in ${fmtDuration(delaySec)} — one every ${fmtDuration(delaySec)}.`,
+      });
     },
     onError: () => toast({ title: "Failed to start campaign", variant: "destructive" }),
   });
@@ -119,7 +155,11 @@ export default function BotCampaignPage() {
       apiFetchAuth(`/api/bot/campaign/${id}/resume`, { method: "POST" }).then((r) => r.json()),
     onSuccess: () => {
       void activeCampaignQuery.refetch();
-      toast({ title: "Campaign resumed", description: "Next message in 20–40 seconds." });
+      const delaySec = activeCampaignQuery.data?.delaySeconds ?? 20;
+      toast({
+        title: "Campaign resumed",
+        description: `Next message in ${fmtDuration(delaySec)}.`,
+      });
     },
     onError: () => toast({ title: "Failed to resume", variant: "destructive" }),
   });
@@ -145,7 +185,7 @@ export default function BotCampaignPage() {
     return () => clearInterval(iv);
   }, [isRunning]);
 
-  /* ── Derived values — ALL declared before JSX ── */
+  /* ── Derived values ── */
   const contacts = contactsQuery.data ?? [];
   const isPaused = campaign?.status === "paused";
   const isIdle = campaign?.status === "idle";
@@ -155,7 +195,7 @@ export default function BotCampaignPage() {
     ? Math.min(100, Math.round((campaign.sent / Math.max(campaign.total, 1)) * 100))
     : 0;
 
-  const countdown =
+  const countdownSec =
     isRunning && campaign?.nextSendAt
       ? Math.max(0, Math.round((new Date(campaign.nextSendAt).getTime() - now) / 1000))
       : null;
@@ -167,6 +207,8 @@ export default function BotCampaignPage() {
     stopMutation.isPending;
 
   const canStart = message.trim().length > 0 && contacts.length > 0 && !isBusy;
+
+  const previewDelay = computeDynamicDelay(contacts.length);
 
   /* ── Handlers ── */
   function handleStart() {
@@ -187,7 +229,7 @@ export default function BotCampaignPage() {
           Message Campaign
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Blast a single message to all contacts — one every 20–40 seconds to stay safe.
+          Blast a single message to all contacts — delay is calculated automatically to spread sends evenly across 48 hours.
         </p>
       </div>
 
@@ -200,7 +242,7 @@ export default function BotCampaignPage() {
       )}
 
       {/* ══════════════════════════════════════════
-          ACTIVE CAMPAIGN PANEL (running / paused / idle)
+          ACTIVE CAMPAIGN PANEL
          ══════════════════════════════════════════ */}
       {!activeCampaignQuery.isLoading && hasActiveCampaign && (
         <Card>
@@ -235,18 +277,36 @@ export default function BotCampaignPage() {
                 <span className="text-muted-foreground">{progressPct}%</span>
               </div>
               <Progress value={progressPct} className="h-2" />
+              {campaign!.estimatedFinishAt && isRunning && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Timer className="h-3 w-3" />
+                  {fmtEta(campaign!.estimatedFinishAt)}
+                </p>
+              )}
+            </div>
+
+            {/* Delay info */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>
+                One message every{" "}
+                <span className="font-semibold text-foreground">
+                  {fmtDuration(campaign!.delaySeconds)}
+                </span>
+                {" "}— {campaign!.total} contacts spread across 48 h max
+              </span>
             </div>
 
             {/* Countdown */}
-            {isRunning && countdown !== null && (
+            {isRunning && countdownSec !== null && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
                 Next message in{" "}
                 <span className={cn(
                   "font-mono font-semibold tabular-nums",
-                  countdown <= 5 ? "text-orange-600" : "text-foreground",
+                  countdownSec <= 10 ? "text-orange-600" : "text-foreground",
                 )}>
-                  {countdown}s
+                  {fmtDuration(countdownSec)}
                 </span>
               </div>
             )}
@@ -254,7 +314,7 @@ export default function BotCampaignPage() {
             {isPaused && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Pause className="h-4 w-4" />
-                Paused at contact {campaign!.sent + 1} of {campaign!.total}
+                Paused at contact {campaign!.sent + 1} of {campaign!.total} — resumes with {fmtDuration(campaign!.delaySeconds)} gap
               </div>
             )}
 
@@ -375,6 +435,17 @@ export default function BotCampaignPage() {
                         : <RefreshCw className="h-3 w-3" />}
                     </Button>
                   </div>
+
+                  {/* Dynamic delay preview */}
+                  <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 flex items-center gap-1.5">
+                    <Timer className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      With {contacts.length.toLocaleString()} contacts, gap will be{" "}
+                      <span className="font-semibold">{fmtDuration(previewDelay)}</span> between messages
+                      {previewDelay === 20 ? " (minimum floor)" : " — spread evenly across 48 h"}.
+                    </span>
+                  </div>
+
                   <ScrollArea className="h-40 rounded-md border">
                     <div className="p-2 space-y-0.5">
                       {contacts.slice(0, 100).map((c) => (
@@ -408,15 +479,22 @@ export default function BotCampaignPage() {
               onChange={(e) => setMessage(e.target.value)}
               className="resize-none"
             />
-            <p className="text-xs text-muted-foreground">
-              This message will be sent to each contact one at a time, with a random 20–40 second gap between sends.
-            </p>
+            {contacts.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Sends to {contacts.length.toLocaleString()} contacts with a {fmtDuration(previewDelay)} gap — total campaign duration ~{fmtDuration(contacts.length * previewDelay)}.
+              </p>
+            )}
           </div>
 
           {/* Safety notice */}
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
-            <p className="font-semibold">Ban prevention is active</p>
-            <p>Each message is sent with a randomized 20–40 second delay to mimic natural human behaviour. Do not close the server while a campaign is running.</p>
+            <p className="font-semibold">Ban prevention — dynamic 48 h spread</p>
+            <p>
+              Gap is calculated at start:{" "}
+              <code className="font-mono bg-amber-100 px-1 rounded">max(20 s, 172800 s ÷ contacts)</code>.
+              Large lists get tens of minutes between sends; small lists use the 20-second floor.
+              Pause / resume keeps the same gap throughout the campaign.
+            </p>
           </div>
 
           {/* Start button */}
@@ -433,7 +511,7 @@ export default function BotCampaignPage() {
             ) : (
               <>
                 <Send className="h-4 w-4 mr-2" />
-                Start Campaign — blast {contacts.length} contacts
+                Start Campaign — blast {contacts.length.toLocaleString()} contacts
               </>
             )}
           </Button>
