@@ -133,7 +133,7 @@ router.get("/portal/users", requireAuth, async (req, res) => {
 
 router.get("/portal/users/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [user] = await db.select().from(portalUsersTable).where(eq(portalUsersTable.id, id)).limit(1);
     if (!user) return res.status(404).json({ error: "Not found" });
 
@@ -152,7 +152,7 @@ router.patch("/portal/users/:id/status", requireAuth, async (req, res) => {
     const [updated] = await db
       .update(portalUsersTable)
       .set({ status, rejectionReason: rejectionReason ?? null, updatedAt: new Date() })
-      .where(eq(portalUsersTable.id, parseInt(req.params.id)))
+      .where(eq(portalUsersTable.id, parseInt(String(req.params.id))))
       .returning();
     const { passwordHash: _, portalSessionToken: __, ...safe } = updated;
     return res.json(safe);
@@ -164,7 +164,7 @@ router.patch("/portal/users/:id/status", requireAuth, async (req, res) => {
 
 router.post("/portal/users/:id/scan-doc/:docId", requireAuth, async (req, res) => {
   try {
-    const docId = parseInt(req.params.docId);
+    const docId = parseInt(String(req.params.docId));
     const [doc] = await db.select().from(portalUserDocumentsTable).where(eq(portalUserDocumentsTable.id, docId)).limit(1);
     if (!doc) return res.status(404).json({ error: "Document not found" });
 

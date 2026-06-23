@@ -191,7 +191,7 @@ router.get("/booking-inquiries", requireAuth, async (req, res) => {
 
 router.get("/booking-inquiries/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [inquiry] = await db
       .select()
       .from(publicBookingInquiriesTable)
@@ -228,7 +228,7 @@ router.patch("/booking-inquiries/:id", requireAuth, async (req, res) => {
     const [updated] = await db
       .update(publicBookingInquiriesTable)
       .set({ status, notes, updatedAt: new Date() })
-      .where(eq(publicBookingInquiriesTable.id, parseInt(req.params.id)))
+      .where(eq(publicBookingInquiriesTable.id, parseInt(String(req.params.id))))
       .returning();
     return res.json(updated);
   } catch (err) {
@@ -248,7 +248,7 @@ router.patch("/payment-receipts/:id/verify", requireAuth, async (req, res) => {
         verifiedBy: req.user!.id,
         verifiedAt: new Date(),
       })
-      .where(eq(paymentReceiptsTable.id, parseInt(req.params.id)))
+      .where(eq(paymentReceiptsTable.id, parseInt(String(req.params.id))))
       .returning();
     return res.json(updated);
   } catch (err) {

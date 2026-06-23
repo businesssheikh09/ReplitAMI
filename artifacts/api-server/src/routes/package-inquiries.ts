@@ -98,7 +98,7 @@ router.get("/package-inquiries/:id", requireAuth, async (req, res) => {
     const [row] = await db
       .select()
       .from(packageInquiriesTable)
-      .where(eq(packageInquiriesTable.id, parseInt(req.params.id)))
+      .where(eq(packageInquiriesTable.id, parseInt(String(req.params.id))))
       .limit(1);
     if (!row) return res.status(404).json({ error: "Not found" });
 
@@ -129,7 +129,7 @@ router.patch("/package-inquiries/:id", requireAuth, async (req, res) => {
     const [updated] = await db
       .update(packageInquiriesTable)
       .set(update)
-      .where(eq(packageInquiriesTable.id, parseInt(req.params.id)))
+      .where(eq(packageInquiriesTable.id, parseInt(String(req.params.id))))
       .returning();
     return res.json(updated);
   } catch (err) {
