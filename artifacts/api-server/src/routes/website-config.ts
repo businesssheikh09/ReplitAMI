@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { websiteConfigTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -46,13 +47,7 @@ router.get("/website-config", async (req, res) => {
   res.json(rowsToConfig(rows));
 });
 
-router.put("/website-config", async (req, res) => {
-  const session = (req as any).session;
-  if (!session?.userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
+router.put("/website-config", requireAuth, async (req, res) => {
   const body = req.body as Record<string, unknown>;
 
   const keyMap: Record<string, string> = {
