@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, numeric, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -61,6 +61,32 @@ export const activityLogsTable = pgTable("activity_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Double-Entry Accounting ───────────────────────────────────────────────────
+
+export const chartOfAccountsTable = pgTable("chart_of_accounts", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const generalJournalTable = pgTable("general_journal", {
+  id: serial("id").primaryKey(),
+  entryNumber: text("entry_number").notNull().unique(),
+  date: timestamp("date").notNull(),
+  description: text("description").notNull(),
+  debitAccountId: integer("debit_account_id").notNull(),
+  creditAccountId: integer("credit_account_id").notNull(),
+  amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("SAR"),
+  sourceType: text("source_type"),
+  sourceId: integer("source_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertInvoiceSchema = createInsertSchema(invoicesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoicesTable.$inferSelect;
@@ -68,3 +94,6 @@ export type Invoice = typeof invoicesTable.$inferSelect;
 export const insertExpenseSchema = createInsertSchema(expensesTable).omit({ id: true, createdAt: true });
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expensesTable.$inferSelect;
+
+export type ChartOfAccount = typeof chartOfAccountsTable.$inferSelect;
+export type GeneralJournalEntry = typeof generalJournalTable.$inferSelect;

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { hotelInvoicesTable, clientsTable, vendorsTable, usersTable, hotelsTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
+import { postHotelInvoice } from "../services/journal-poster.js";
 
 const router = Router();
 
@@ -131,6 +132,13 @@ router.post("/invoices/hotel", async (req, res) => {
     }).returning();
 
     const lookup = await buildLookup();
+    // Post journal entries (fire-and-forget)
+    postHotelInvoice({
+      invoiceId: row.id,
+      receivableSar: row.receivableSar != null ? parseFloat(row.receivableSar) : null,
+      payableSar: row.payableSar != null ? parseFloat(row.payableSar) : null,
+      dnNumber: row.dnNumber,
+    }).catch(() => {});
     return res.status(201).json(serializeInvoice(row, lookup));
   } catch (err) {
     req.log.error({ err }, "Create hotel invoice error");

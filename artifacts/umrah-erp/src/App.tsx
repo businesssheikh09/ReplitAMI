@@ -31,6 +31,7 @@ import BookingInquiriesPage from "@/pages/booking-inquiries";
 import PortalUsersPage from "@/pages/portal-users";
 import PendingQuotationsPage from "@/pages/pending-quotations";
 import AiSettingsPage from "@/pages/ai-settings";
+import GeneralJournalPage from "@/pages/general-journal";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -115,6 +116,7 @@ function Router() {
         <ProtectedRoute path="/accounting/hotel-invoice/new" component={HotelInvoiceFormPage} />
         <ProtectedRoute path="/accounting/hotel-invoice/:id" component={HotelInvoiceFormPage} />
         <ProtectedRoute path="/hotel-invoices" component={HotelInvoicesListPage} />
+        <ProtectedRoute path="/general-journal" component={GeneralJournalPage} />
 
         {/* Messaging */}
         <ProtectedRoute path="/whatsapp-inbox" component={WhatsAppInboxPage} />

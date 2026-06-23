@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { invoicesTable, paymentsTable, expensesTable, clientsTable, vendorsTable, documentsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { invoicesTable, paymentsTable, expensesTable, clientsTable, vendorsTable, documentsTable, chartOfAccountsTable, generalJournalTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { postInvoicePayment } from "../services/journal-poster.js";
 
 const router = Router();
 
@@ -130,6 +131,13 @@ router.post("/invoices/:id/payments", async (req, res) => {
       const totalAmount = parseFloat(invoice.amount);
       const newStatus = newPaid >= totalAmount ? "paid" : "partial";
       await db.update(invoicesTable).set({ paidAmount: newPaid.toString(), status: newStatus }).where(eq(invoicesTable.id, invoiceId));
+      // Post journal entry (non-blocking, fire-and-forget on error)
+      postInvoicePayment({
+        invoiceId,
+        amount: req.body.amount,
+        currency: req.body.currency ?? invoice.currency,
+        invoiceType: invoice.type,
+      }).catch(() => {});
     }
 
     return res.status(201).json({
@@ -139,6 +147,54 @@ router.post("/invoices/:id/payments", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Record payment error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Chart of Accounts ─────────────────────────────────────────────────────────
+
+router.get("/accounting/accounts", async (req, res) => {
+  try {
+    const accounts = await db.select().from(chartOfAccountsTable).orderBy(chartOfAccountsTable.code);
+    return res.json(accounts);
+  } catch (err) {
+    req.log.error({ err }, "List accounts error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── General Journal ───────────────────────────────────────────────────────────
+
+router.get("/accounting/journal", async (req, res) => {
+  try {
+    const { sourceType, limit: limitQ, offset: offsetQ } = req.query as Record<string, string>;
+    const limitN = Math.min(parseInt(limitQ ?? "200"), 500);
+    const offsetN = parseInt(offsetQ ?? "0");
+
+    const accounts = await db.select().from(chartOfAccountsTable);
+    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+
+    let entries = await db
+      .select()
+      .from(generalJournalTable)
+      .orderBy(desc(generalJournalTable.id))
+      .limit(limitN)
+      .offset(offsetN);
+
+    if (sourceType) entries = entries.filter((e) => e.sourceType === sourceType);
+
+    return res.json(
+      entries.map((e) => ({
+        ...e,
+        amount: parseFloat(e.amount),
+        date: e.date instanceof Date ? e.date.toISOString() : e.date,
+        createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
+        debitAccount: acctMap.get(e.debitAccountId) ?? null,
+        creditAccount: acctMap.get(e.creditAccountId) ?? null,
+      }))
+    );
+  } catch (err) {
+    req.log.error({ err }, "List journal entries error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

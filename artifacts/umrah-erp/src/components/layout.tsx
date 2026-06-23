@@ -24,6 +24,7 @@ import {
   Package,
   UserCheck,
   Bot,
+  Landmark,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,7 @@ const navGroups = [
       { title: "Invoices", href: "/accounting/invoices", icon: Receipt },
       { title: "Expenses", href: "/accounting/expenses", icon: CreditCard },
       { title: "Hotel Invoices DN", href: "/hotel-invoices", icon: Hotel },
+      { title: "General Journal", href: "/general-journal", icon: Landmark },
       { title: "Currency", href: "/currency-settings", icon: ArrowRightLeft },
     ],
   },

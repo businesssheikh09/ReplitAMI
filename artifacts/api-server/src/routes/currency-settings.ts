@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { currencySettingsTable, currencyDailyRatesTable, currencyTransactionsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
+import { postCurrencyTransaction } from "../services/journal-poster.js";
 
 const router = Router();
 
@@ -190,6 +191,14 @@ router.post("/currency/transactions", async (req, res) => {
       date: new Date(date),
       notes: notes ? `[${rateTier ?? "client"}] ${notes}` : `[${rateTier ?? "client"}]`,
     }).returning();
+    // Post journal entry (fire-and-forget)
+    postCurrencyTransaction({
+      txId: row.id,
+      vendorCost,
+      clientRevenue,
+      profit,
+      currency,
+    }).catch(() => {});
     return res.status(201).json(serializeTx(row));
   } catch (err) {
     req.log.error({ err }, "Create currency transaction error");
