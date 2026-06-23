@@ -119,6 +119,7 @@ function GroupTicketsTab() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDest, setFilterDest] = useState("");
+  const [hidePastTickets, setHidePastTickets] = useState(true);
 
   // WhatsApp groups panel state
   const [liveGroups, setLiveGroups] = useState<LiveGroup[]>([]);
@@ -144,6 +145,7 @@ function GroupTicketsTab() {
       const params = new URLSearchParams();
       if (filterOrigin) params.set("origin", filterOrigin.toUpperCase());
       if (filterDest) params.set("destination", filterDest.toUpperCase());
+      if (hidePastTickets) params.set("fromDate", new Date().toISOString().slice(0, 10));
       const res = await fetch(`/api/group-tickets?${params}`, { headers: authHeaders });
       if (res.ok) {
         setTickets(await res.json());
@@ -157,7 +159,7 @@ function GroupTicketsTab() {
     } finally {
       setLoading(false);
     }
-  }, [token, filterOrigin, filterDest]);
+  }, [token, filterOrigin, filterDest, hidePastTickets]);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -410,7 +412,7 @@ function GroupTicketsTab() {
             </div>
           </div>
           {/* Filters */}
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2 mt-3 flex-wrap items-center">
             <Input
               placeholder="Origin (e.g. PEW)"
               value={filterOrigin}
@@ -433,6 +435,16 @@ function GroupTicketsTab() {
                 Clear
               </Button>
             )}
+            <div className="flex items-center gap-2 ml-1">
+              <Checkbox
+                id="hide-past-tickets"
+                checked={hidePastTickets}
+                onCheckedChange={v => setHidePastTickets(Boolean(v))}
+              />
+              <Label htmlFor="hide-past-tickets" className="text-sm cursor-pointer select-none">
+                Hide past flights
+              </Label>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">

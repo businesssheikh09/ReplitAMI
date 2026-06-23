@@ -49,11 +49,12 @@ router.get("/public/group-tickets/:id", async (req, res) => {
 
 router.get("/group-tickets", requireAuth, async (req, res) => {
   try {
-    const { origin, destination, date } = req.query as Record<string, string>;
+    const { origin, destination, date, fromDate } = req.query as Record<string, string>;
     const conditions: SQL[] = [];
     if (origin) conditions.push(ilike(groupTicketsTable.origin, origin));
     if (destination) conditions.push(ilike(groupTicketsTable.destination, destination));
     if (date) conditions.push(eq(groupTicketsTable.flightDate, date));
+    if (fromDate) conditions.push(gte(groupTicketsTable.flightDate, fromDate));
 
     const rows = await db
       .select()
