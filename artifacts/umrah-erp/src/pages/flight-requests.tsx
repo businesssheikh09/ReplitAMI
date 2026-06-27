@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Search, RefreshCw, Plane, ChevronRight, Users, CheckCircle2, XCircle, MessageSquare,
-  Clock, User, Phone, Mail, Ticket,
+  Clock, User, Phone, Mail, Ticket, AlertTriangle, CreditCard, ShieldCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -32,6 +32,8 @@ interface FlightRequest {
   actualFare: number | null;
   bookingFare: number | null;
   status: string;
+  holdExpiresAt: string | null;
+  paymentDeadlineAt: string | null;
   assignedTo: number | null;
   assignedToName: string | null;
   createdAt: string;
@@ -50,6 +52,7 @@ interface FlightRequestDetail extends FlightRequest {
   returnDate: string | null;
   adminNotes: string | null;
   flightDataJson: any;
+  hasPaymentProof: boolean;
   events: FlightRequestEvent[];
 }
 
@@ -61,26 +64,54 @@ interface AssignableUser {
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-200",
+  reviewing: "bg-purple-100 text-purple-800 border-purple-200",
+  on_hold: "bg-orange-100 text-orange-800 border-orange-200",
+  payment_pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  payment_received: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  ready_to_issue: "bg-blue-100 text-blue-800 border-blue-200",
   approved: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  issued: "bg-sky-100 text-sky-800 border-sky-200",
+  expired: "bg-gray-100 text-gray-500 border-gray-200",
+  cancelled: "bg-gray-100 text-gray-600 border-gray-200",
   rejected: "bg-red-100 text-red-800 border-red-200",
-  issued: "bg-blue-100 text-blue-800 border-blue-200",
-  cancelled: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending", approved: "Approved", rejected: "Rejected",
-  issued: "Issued", cancelled: "Cancelled",
+  pending: "Pending",
+  reviewing: "Reviewing",
+  on_hold: "On Hold",
+  payment_pending: "Payment Pending",
+  payment_received: "Payment Received",
+  ready_to_issue: "Ready to Issue",
+  approved: "Approved",
+  issued: "Issued",
+  expired: "Expired",
+  cancelled: "Cancelled",
+  rejected: "Rejected",
 };
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
   created: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
+  on_hold: <Clock className="h-3 w-3 text-orange-500" />,
   approved: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
+  payment_pending: <CreditCard className="h-3 w-3 text-yellow-600" />,
+  payment_received: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
+  payment_proof_submitted: <CreditCard className="h-3 w-3 text-blue-500" />,
+  ready_to_issue: <ShieldCheck className="h-3 w-3 text-blue-500" />,
   rejected: <XCircle className="h-3 w-3 text-red-500" />,
   noted: <MessageSquare className="h-3 w-3 text-blue-500" />,
   assigned: <User className="h-3 w-3 text-purple-500" />,
   cancelled: <XCircle className="h-3 w-3 text-gray-500" />,
-  issued: <Ticket className="h-3 w-3 text-blue-500" />,
+  expired: <AlertTriangle className="h-3 w-3 text-gray-400" />,
+  issued: <Ticket className="h-3 w-3 text-sky-500" />,
 };
+
+const ALL_STATUSES = [
+  "pending", "on_hold", "payment_pending", "payment_received",
+  "ready_to_issue", "issued", "expired", "cancelled", "reviewing", "approved", "rejected",
+];
+
+const STAT_STATUSES = ["on_hold", "payment_pending", "payment_received", "pending", "issued"];
 
 function formatDate(d: string) {
   try { return format(new Date(d), "dd MMM yyyy, HH:mm"); } catch { return d; }
@@ -89,6 +120,16 @@ function formatDate(d: string) {
 function fmtPKR(n: number | null | undefined) {
   if (n == null) return "—";
   return `PKR ${Number(n).toLocaleString()}`;
+}
+
+function holdCountdown(expiresAt: string | null): string | null {
+  if (!expiresAt) return null;
+  const rem = new Date(expiresAt).getTime() - Date.now();
+  if (rem <= 0) return "Expired";
+  const h = Math.floor(rem / 3_600_000);
+  const m = Math.floor((rem % 3_600_000) / 60_000);
+  if (h > 0) return `${h}h ${m}m remaining`;
+  return `${m}m remaining`;
 }
 
 export default function FlightRequestsPage() {
@@ -108,9 +149,11 @@ export default function FlightRequestsPage() {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [assigneeId, setAssigneeId] = useState<string>("");
 
-  // Fare inputs
   const [actualFareInput, setActualFareInput] = useState<string>("");
   const [bookingFareInput, setBookingFareInput] = useState<string>("");
+
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pinValue, setPinValue] = useState("");
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -144,13 +187,18 @@ export default function FlightRequestsPage() {
     enabled: !!token,
   });
 
-  // Sync fare inputs when detail loads
   useEffect(() => {
     if (detail) {
       setActualFareInput(detail.actualFare != null ? String(detail.actualFare) : "");
       setBookingFareInput(detail.bookingFare != null ? String(detail.bookingFare) : "");
     }
   }, [detail?.id]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["flight-requests"] });
+    qc.invalidateQueries({ queryKey: ["flight-request", selectedId, token] });
+    qc.invalidateQueries({ queryKey: ["flight-requests-count"] });
+  };
 
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
@@ -160,14 +208,35 @@ export default function FlightRequestsPage() {
         body: JSON.stringify(body),
       }).then((r) => r.json()),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["flight-requests"] });
-      qc.invalidateQueries({ queryKey: ["flight-request", selectedId, token] });
-      qc.invalidateQueries({ queryKey: ["flight-requests-count"] });
+      invalidate();
       toast({ title: "Updated" });
       setShowRejectInput(false);
       setRejectReason("");
     },
     onError: () => toast({ title: "Error", description: "Failed to update", variant: "destructive" }),
+  });
+
+  const issueTicketMutation = useMutation({
+    mutationFn: (body: { pin: string }) =>
+      fetch(`/api/flight-requests/${selectedId}/issue-ticket`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error((d as any).error ?? "Failed to issue ticket");
+        }
+        return r.json();
+      }),
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Ticket Issued!" });
+      setShowPinDialog(false);
+      setPinValue("");
+    },
+    onError: (err: any) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const eventMutation = useMutation({
@@ -187,13 +256,26 @@ export default function FlightRequestsPage() {
 
   const selected = detail;
 
+  function handleCancel() { patchMutation.mutate({ status: "cancelled" }); }
+  function handleMarkExpired() { patchMutation.mutate({ status: "expired" }); }
   function handleApprove() { patchMutation.mutate({ status: "approved" }); }
   function handleMarkIssued() { patchMutation.mutate({ status: "issued" }); }
-  function handleCancel() { patchMutation.mutate({ status: "cancelled" }); }
 
   function handleReject() {
     if (!rejectReason.trim()) return;
     patchMutation.mutate({ status: "rejected", adminNotes: rejectReason });
+  }
+
+  function handleConfirmHold() {
+    patchMutation.mutate({ status: "payment_pending" });
+  }
+
+  function handleMarkPaymentReceived() {
+    patchMutation.mutate({ status: "payment_received" });
+  }
+
+  function handleMarkReadyToIssue() {
+    patchMutation.mutate({ status: "ready_to_issue" });
   }
 
   function handleAssign() {
@@ -213,6 +295,11 @@ export default function FlightRequestsPage() {
     });
   }
 
+  function handleIssueWithPin() {
+    if (!pinValue.trim()) return;
+    issueTicketMutation.mutate({ pin: pinValue });
+  }
+
   const markup = (actualFareInput && bookingFareInput)
     ? Number(bookingFareInput) - Number(actualFareInput)
     : null;
@@ -223,7 +310,7 @@ export default function FlightRequestsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Flight Requests</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Public flight booking requests awaiting review
+            Public flight booking requests — manual review and issuance
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -237,7 +324,7 @@ export default function FlightRequestsPage() {
         <div className="relative col-span-2 md:col-span-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Name / phone / ref..."
+            placeholder="Name / phone / ref…"
             className="pl-8"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -248,9 +335,12 @@ export default function FlightRequestsPage() {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="on_hold">On Hold</SelectItem>
+            <SelectItem value="payment_pending">Payment Pending</SelectItem>
+            <SelectItem value="payment_received">Payment Received</SelectItem>
+            <SelectItem value="ready_to_issue">Ready to Issue</SelectItem>
             <SelectItem value="issued">Issued</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
@@ -268,13 +358,16 @@ export default function FlightRequestsPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-        {["pending", "approved", "rejected", "issued", "cancelled"].map((s) => {
+        {STAT_STATUSES.map((s) => {
           const count = requests.filter((r) => r.status === s).length;
           return (
-            <div key={s} className="rounded-xl border bg-card p-3 text-center cursor-pointer hover:bg-accent/30 transition-colors"
-              onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}>
+            <div
+              key={s}
+              className="rounded-xl border bg-card p-3 text-center cursor-pointer hover:bg-accent/30 transition-colors"
+              onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}
+            >
               <div className="text-2xl font-bold">{count}</div>
-              <div className="text-xs text-muted-foreground capitalize">{s}</div>
+              <div className="text-xs text-muted-foreground">{STATUS_LABELS[s] ?? s}</div>
             </div>
           );
         })}
@@ -298,16 +391,19 @@ export default function FlightRequestsPage() {
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Route</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Travel Date</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Pax</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Airline / Fares</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fares</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Assigned</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Hold</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y">
               {requests.map((r) => (
-                <tr key={r.id} className="hover:bg-accent/20 transition-colors cursor-pointer"
-                  onClick={() => setSelectedId(r.id)}>
+                <tr
+                  key={r.id}
+                  className="hover:bg-accent/20 transition-colors cursor-pointer"
+                  onClick={() => setSelectedId(r.id)}
+                >
                   <td className="px-4 py-3 font-mono text-xs text-primary">{r.requestNumber}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{r.clientName}</div>
@@ -325,18 +421,15 @@ export default function FlightRequestsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs">
-                    <div>{r.airline ?? "—"}</div>
                     {r.bookingFare != null ? (
                       <div>
                         <span className="font-medium text-primary">{fmtPKR(r.bookingFare)}</span>
                         {r.actualFare != null && (
-                          <span className="text-muted-foreground ml-1 text-[10px]">
-                            (cost {fmtPKR(r.actualFare)})
-                          </span>
+                          <span className="text-muted-foreground ml-1 text-[10px]">(cost {fmtPKR(r.actualFare)})</span>
                         )}
                       </div>
                     ) : r.fare ? (
-                      <div className="text-muted-foreground">PKR {r.fare}</div>
+                      <div className="text-muted-foreground">{r.fare}</div>
                     ) : (
                       <div className="text-muted-foreground">—</div>
                     )}
@@ -346,7 +439,11 @@ export default function FlightRequestsPage() {
                       {STATUS_LABELS[r.status] ?? r.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{r.assignedToName ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {r.status === "on_hold" && r.holdExpiresAt
+                      ? holdCountdown(r.holdExpiresAt)
+                      : "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </td>
@@ -363,6 +460,8 @@ export default function FlightRequestsPage() {
           setSelectedId(null);
           setShowRejectInput(false);
           setShowNoteInput(false);
+          setShowPinDialog(false);
+          setPinValue("");
         }
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -375,14 +474,26 @@ export default function FlightRequestsPage() {
 
           {selected && (
             <div className="space-y-5 mt-2">
-              {/* Status badge */}
-              <div className="flex items-center gap-2">
+              {/* Status + hold info */}
+              <div className="flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium ${STATUS_COLORS[selected.status] ?? "bg-gray-100 text-gray-700"}`}>
                   {STATUS_LABELS[selected.status] ?? selected.status}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Received {formatDate(selected.createdAt)}
                 </span>
+                {selected.status === "on_hold" && selected.holdExpiresAt && (
+                  <span className="text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {holdCountdown(selected.holdExpiresAt)}
+                  </span>
+                )}
+                {selected.hasPaymentProof && (
+                  <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1">
+                    <CreditCard className="h-3 w-3" />
+                    Receipt uploaded
+                  </span>
+                )}
               </div>
 
               {/* Client info */}
@@ -437,9 +548,21 @@ export default function FlightRequestsPage() {
                     <p className="capitalize">{selected.requestType}</p>
                   </div>
                 </div>
+                {selected.holdExpiresAt && (
+                  <div className="flex items-center gap-2 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mt-1">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    Hold expires: {formatDate(selected.holdExpiresAt)}
+                  </div>
+                )}
+                {selected.paymentDeadlineAt && (
+                  <div className="flex items-center gap-2 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                    <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                    Payment deadline: {formatDate(selected.paymentDeadlineAt)}
+                  </div>
+                )}
                 {selected.flightDataJson && (
                   <details className="mt-2">
-                    <summary className="text-xs text-muted-foreground cursor-pointer">Flight data snapshot</summary>
+                    <summary className="text-xs text-muted-foreground cursor-pointer">GDS flight data snapshot</summary>
                     <pre className="text-xs bg-muted rounded p-2 mt-1 overflow-auto max-h-32">
                       {JSON.stringify(selected.flightDataJson, null, 2)}
                     </pre>
@@ -515,7 +638,9 @@ export default function FlightRequestsPage() {
                 )}
               </div>
 
-              {/* Actions — Pending */}
+              {/* ── STATUS-SPECIFIC ACTIONS ── */}
+
+              {/* Pending (manual enquiry) */}
               {selected.status === "pending" && (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
@@ -558,7 +683,161 @@ export default function FlightRequestsPage() {
                 </div>
               )}
 
-              {/* Actions — Approved */}
+              {/* On Hold — confirm hold, move to payment pending */}
+              {selected.status === "on_hold" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Customer is waiting for payment instructions. Confirming hold sets a payment deadline automatically.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
+                      onClick={handleConfirmHold}
+                      disabled={patchMutation.isPending}
+                    >
+                      <CreditCard className="h-4 w-4 mr-1.5" />
+                      Confirm Hold → Send Payment Instructions
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleMarkExpired}
+                      disabled={patchMutation.isPending}
+                      size="sm"
+                    >
+                      Expire Hold
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full text-destructive hover:text-destructive"
+                    onClick={handleCancel}
+                    disabled={patchMutation.isPending}
+                  >
+                    <XCircle className="h-4 w-4 mr-1.5" />
+                    Cancel Booking
+                  </Button>
+                </div>
+              )}
+
+              {/* Payment Pending — waiting for customer to pay */}
+              {selected.status === "payment_pending" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {selected.hasPaymentProof
+                      ? "Customer has uploaded a payment receipt. Verify and mark as received."
+                      : "Waiting for customer to complete payment."}
+                  </p>
+                  {selected.hasPaymentProof && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 flex items-center gap-2">
+                      <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                      Payment receipt has been uploaded by customer.
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={handleMarkPaymentReceived}
+                      disabled={patchMutation.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                      Mark Payment Received
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={handleCancel}
+                      disabled={patchMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Received — ready to confirm for issuance */}
+              {selected.status === "payment_received" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Payment has been confirmed. Mark as ready to issue when all details are verified.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={handleMarkReadyToIssue}
+                      disabled={patchMutation.isPending}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-1.5" />
+                      Mark Ready to Issue
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={handleCancel}
+                      disabled={patchMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Ready to Issue — PIN-protected issuance */}
+              {selected.status === "ready_to_issue" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    This booking is ready for ticket issuance. Issuance requires your ticketing PIN.
+                  </p>
+                  {!showPinDialog ? (
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1 bg-sky-600 hover:bg-sky-700 text-white"
+                        onClick={() => setShowPinDialog(true)}
+                      >
+                        <Ticket className="h-4 w-4 mr-1.5" />
+                        Issue Ticket (PIN Required)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        onClick={handleCancel}
+                        disabled={patchMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50 p-4">
+                      <p className="text-sm font-medium text-sky-800">Enter your ticketing PIN to issue this ticket</p>
+                      <Input
+                        type="password"
+                        placeholder="Enter PIN…"
+                        value={pinValue}
+                        onChange={(e) => setPinValue(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleIssueWithPin()}
+                        className="w-full"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          className="bg-sky-600 hover:bg-sky-700 text-white"
+                          onClick={handleIssueWithPin}
+                          disabled={!pinValue.trim() || issueTicketMutation.isPending}
+                        >
+                          {issueTicketMutation.isPending ? "Issuing…" : "Confirm Issue"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => { setShowPinDialog(false); setPinValue(""); }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Approved (legacy manual flow) */}
               {selected.status === "approved" && (
                 <div className="flex gap-2">
                   <Button
@@ -613,12 +892,18 @@ export default function FlightRequestsPage() {
                   <div className="space-y-2">
                     {[...selected.events].reverse().map((e) => (
                       <div key={e.id} className="flex items-start gap-2 text-xs">
-                        <span className="mt-0.5">{ACTION_ICONS[e.action] ?? <Clock className="h-3 w-3 text-muted-foreground" />}</span>
+                        <span className="mt-0.5">
+                          {ACTION_ICONS[e.action] ?? <Clock className="h-3 w-3 text-muted-foreground" />}
+                        </span>
                         <div>
-                          <span className="font-medium capitalize">{e.action}</span>
+                          <span className="font-medium capitalize">{(e.action ?? "").replace(/_/g, " ")}</span>
                           {e.userName && <span className="text-muted-foreground"> by {e.userName}</span>}
-                          {e.metadata?.note && <p className="text-muted-foreground italic mt-0.5">"{e.metadata.note}"</p>}
-                          {e.metadata?.reason && <p className="text-muted-foreground italic mt-0.5">Reason: {e.metadata.reason}</p>}
+                          {e.metadata?.note && (
+                            <p className="text-muted-foreground italic mt-0.5">"{e.metadata.note}"</p>
+                          )}
+                          {e.metadata?.reason && (
+                            <p className="text-muted-foreground italic mt-0.5">Reason: {e.metadata.reason}</p>
+                          )}
                           <p className="text-muted-foreground/60">{formatDate(e.createdAt)}</p>
                         </div>
                       </div>

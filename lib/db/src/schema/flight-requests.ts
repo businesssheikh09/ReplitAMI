@@ -29,6 +29,11 @@ export const flightRequestsTable = pgTable("flight_requests", {
   bookingFare: numeric("booking_fare", { precision: 12, scale: 2 }),
   flightDataJson: jsonb("flight_data_json"),
 
+  holdExpiresAt: timestamp("hold_expires_at"),
+  holdMinutes: integer("hold_minutes").notNull().default(120),
+  paymentDeadlineAt: timestamp("payment_deadline_at"),
+  paymentProofKey: text("payment_proof_key"),
+
   status: text("status").notNull().default("pending"),
   assignedTo: integer("assigned_to"),
   adminNotes: text("admin_notes"),

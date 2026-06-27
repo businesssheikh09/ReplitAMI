@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Navbar } from "@/components/navbar";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -122,6 +123,7 @@ function publicFare(amount: number, currency: string): number {
 
 export default function FlightsPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const [activeTab, setActiveTab] = useState<"search" | "group">("group");
   const [routeFilter, setRouteFilter] = useState<string | null>(null);
@@ -383,6 +385,19 @@ export default function FlightsPage() {
         {/* Custom Search tab */}
         {activeTab === "search" && (
           <div className="pb-16 space-y-6">
+            <button
+              onClick={() => navigate("/book-gds")}
+              className="w-full flex items-center justify-between rounded-2xl border border-teal-200 bg-teal-50 px-5 py-4 text-left hover:bg-teal-100 transition-colors group"
+            >
+              <div>
+                <p className="font-semibold text-teal-800 text-sm">Want live availability with a seat hold?</p>
+                <p className="text-xs text-teal-700 mt-0.5">Search GDS fares, pick your flight, and hold your seat for 2 hours — no payment now.</p>
+              </div>
+              <span className="text-teal-600 text-sm font-medium group-hover:translate-x-0.5 transition-transform">
+                Live Search →
+              </span>
+            </button>
+
             <div className="rounded-2xl border bg-card shadow-sm p-6 space-y-5">
               {/* Trip type */}
               <div className="flex gap-2">

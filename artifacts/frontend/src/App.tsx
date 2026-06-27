@@ -6,6 +6,7 @@ import Landing from "@/pages/landing";
 import AdminRedirect from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import BookFlightPage from "@/pages/book-flight";
+import BookGdsPage from "@/pages/book-gds";
 import PackageDetailPage from "@/pages/package-detail";
 import PortalLoginPage from "@/pages/portal-login";
 import PortalRegisterPage from "@/pages/portal-register";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/admin" component={AdminRedirect} />
       <Route path="/book-flight/:id" component={BookFlightPage} />
+      <Route path="/book-gds" component={BookGdsPage} />
       <Route path="/packages/:id" component={PackageDetailPage} />
       <Route path="/portal-login" component={PortalLoginPage} />
       <Route path="/portal-register" component={PortalRegisterPage} />

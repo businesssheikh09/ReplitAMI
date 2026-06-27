@@ -5,6 +5,7 @@ import { initWhatsApp } from "./services/whatsapp";
 import { startScheduler } from "./services/scheduler";
 import { startBotScheduler } from "./services/bot-scheduler";
 import { startInventorySweep } from "./services/inventory-sweep";
+import { startHoldExpiry } from "./services/hold-expiry";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -41,4 +42,5 @@ app.listen(port, async (err) => {
   startScheduler();
   startBotScheduler();
   startInventorySweep();
+  startHoldExpiry();
 });
