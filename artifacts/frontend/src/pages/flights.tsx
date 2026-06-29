@@ -9,12 +9,14 @@ import {
   Search,
   ArrowRight,
   Users,
-  ChevronDown,
+  ChevronRight,
   CheckCircle2,
   X,
   Calendar,
   Loader2,
-  Info,
+  Zap,
+  Lock,
+  BadgeCheck,
 } from "lucide-react";
 
 const CABIN_CLASSES = ["economy", "business", "first"];
@@ -94,15 +96,12 @@ function isTicketFuture(dateStr: string): boolean {
   const todayMMDD = todayM * 100 + today.getDate();
 
   if (todayM >= 10) {
-    // Late year (Oct–Dec): Jan–Mar are upcoming (year wrap); same-period check normally
     if (ticketM <= 3) return true;
     return ticketMMDD >= todayMMDD;
   } else if (todayM <= 3) {
-    // Early year (Jan–Mar): Oct–Dec tickets are from the previous year — exclude them
     if (ticketM >= 10) return false;
     return ticketMMDD >= todayMMDD;
   } else {
-    // Mid year (Apr–Sep): straightforward comparison, no wrap
     return ticketMMDD >= todayMMDD;
   }
 }
@@ -121,11 +120,13 @@ function publicFare(amount: number, currency: string): number {
   return currency === "PKR" ? amount + PUBLIC_MARKUP_PKR : amount;
 }
 
+type ActiveSection = "group" | "custom";
+
 export default function FlightsPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  const [activeTab, setActiveTab] = useState<"search" | "group">("group");
+  const [activeSection, setActiveSection] = useState<ActiveSection>("group");
   const [routeFilter, setRouteFilter] = useState<string | null>(null);
 
   const [tripType, setTripType] = useState("one_way");
@@ -153,7 +154,6 @@ export default function FlightsPage() {
       return isTicketFuture(t.flightDate);
     })
     .sort((a, b) => {
-      // Sort ascending by MMDD; Jan-Mar tickets sort after Oct-Dec when in late year
       const today = new Date();
       const todayM = today.getMonth() + 1;
       const aMMDD = getTicketMMDD(a.flightDate);
@@ -247,44 +247,110 @@ export default function FlightsPage() {
       <Toaster />
 
       {/* Hero */}
-      <div className="pt-28 pb-12 bg-gradient-to-b from-primary/5 to-background">
+      <div className="pt-28 pb-10 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-medium mb-4">
             <Plane className="h-4 w-4" />
-            Flight Booking
+            Book Your Flight
           </div>
           <h1 className="text-3xl md:text-4xl font-serif font-semibold mb-3">
-            Find Your Flight
+            How would you like to book?
           </h1>
           <p className="text-muted-foreground max-w-xl mx-auto text-sm md:text-base">
-            Browse our curated group departures or submit a custom flight request — our team reviews every booking personally.
+            Choose from group departures, search live fares, or send us a custom flight request.
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* 3 Entry Cards */}
       <div className="container mx-auto px-4 max-w-4xl">
-        <div className="flex border-b border-border mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          {/* Card 1 — Group Tickets */}
+          <button
+            onClick={() => setActiveSection("group")}
+            className={`rounded-2xl border p-5 text-left flex flex-col gap-2 transition-all hover:shadow-md group ${
+              activeSection === "group"
+                ? "border-primary bg-primary/5 shadow-sm"
+                : "border-border bg-card hover:border-primary/40"
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-1 transition-colors ${
+              activeSection === "group" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+            }`}>
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm text-foreground">Group Tickets</p>
+              <ChevronRight className={`h-4 w-4 transition-colors ${activeSection === "group" ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`} />
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Book for groups with special fares
+            </p>
+          </button>
+
+          {/* Card 2 — Live Flight Search (highlighted) */}
+          <button
+            onClick={() => navigate("/book-gds")}
+            className="rounded-2xl border-2 border-teal-500 bg-teal-50 p-5 text-left flex flex-col gap-2 transition-all hover:shadow-md hover:bg-teal-100 group relative"
+          >
+            <div className="absolute top-3 right-3">
+              <span className="text-xs font-semibold bg-teal-600 text-white px-2 py-0.5 rounded-full">Popular</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center mb-1">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div className="flex items-center justify-between pr-16">
+              <p className="font-semibold text-sm text-teal-900">Live Ticket Search</p>
+              <ChevronRight className="h-4 w-4 text-teal-600 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <p className="text-xs text-teal-700 leading-relaxed">
+              Individual bookings with live fares
+            </p>
+          </button>
+
+          {/* Card 3 — Custom Request */}
+          <button
+            onClick={() => setActiveSection("custom")}
+            className={`rounded-2xl border p-5 text-left flex flex-col gap-2 transition-all hover:shadow-md group ${
+              activeSection === "custom"
+                ? "border-primary bg-primary/5 shadow-sm"
+                : "border-border bg-card hover:border-primary/40"
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-1 transition-colors ${
+              activeSection === "custom" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+            }`}>
+              <Search className="h-5 w-5" />
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm text-foreground">Custom Request</p>
+              <ChevronRight className={`h-4 w-4 transition-colors ${activeSection === "custom" ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`} />
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Can't find your flight? Request now
+            </p>
+          </button>
+        </div>
+
+        {/* Feature strip */}
+        <div className="grid grid-cols-3 border border-border rounded-2xl divide-x divide-border mb-8 overflow-hidden">
           {[
-            { key: "group", label: "Group Tickets" },
-            { key: "search", label: "Custom Request" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key as any)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === t.key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
+            { icon: <Zap className="h-4 w-4 text-teal-600" />, label: "Live Fares", sub: "Real-time pricing from multiple airlines" },
+            { icon: <Lock className="h-4 w-4 text-teal-600" />, label: "Seat Hold", sub: "Reserve your seats for 2 hours" },
+            { icon: <BadgeCheck className="h-4 w-4 text-teal-600" />, label: "Secure Booking", sub: "Safe and secure transaction" },
+          ].map((f) => (
+            <div key={f.label} className="flex items-center gap-3 px-4 py-3 bg-muted/30">
+              <div className="shrink-0 hidden sm:block">{f.icon}</div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate">{f.label}</p>
+                <p className="text-xs text-muted-foreground hidden md:block truncate">{f.sub}</p>
+              </div>
+            </div>
           ))}
         </div>
 
-        {/* Group Tickets tab */}
-        {activeTab === "group" && (
+        {/* Group Tickets section */}
+        {activeSection === "group" && (
           <div className="pb-16">
             {/* Route filter chips */}
             <div className="flex flex-wrap gap-2 mb-6">
@@ -314,7 +380,7 @@ export default function FlightsPage() {
               <div className="text-center py-20 text-muted-foreground">
                 <Plane className="h-10 w-10 mx-auto opacity-20 mb-3" />
                 <p>No group flights available{routeFilter ? ` for "${routeFilter}"` : ""} right now.</p>
-                <p className="text-sm mt-1">Try another filter or the Custom Request tab to enquire about any route.</p>
+                <p className="text-sm mt-1">Try the Live Ticket Search for individual bookings.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -359,7 +425,7 @@ export default function FlightsPage() {
                                 <div className="text-2xl font-bold text-primary">
                                   {t.fareCurrency} {shownFare.toLocaleString()}
                                 </div>
-                                <div className="text-xs text-muted-foreground">per person</div>
+                                <div className="text-xs text-muted-foreground">per person · all inclusive</div>
                               </>
                             ) : (
                               <div className="text-sm text-muted-foreground">Ask for price</div>
@@ -367,7 +433,7 @@ export default function FlightsPage() {
                           </div>
                           <button
                             onClick={() => openBookingForGroupTicket(t)}
-                            className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+                            className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors"
                           >
                             Request Booking
                             <ArrowRight className="h-4 w-4" />
@@ -382,23 +448,17 @@ export default function FlightsPage() {
           </div>
         )}
 
-        {/* Custom Search tab */}
-        {activeTab === "search" && (
+        {/* Custom Request section */}
+        {activeSection === "custom" && (
           <div className="pb-16 space-y-6">
-            <button
-              onClick={() => navigate("/book-gds")}
-              className="w-full flex items-center justify-between rounded-2xl border border-teal-200 bg-teal-50 px-5 py-4 text-left hover:bg-teal-100 transition-colors group"
-            >
-              <div>
-                <p className="font-semibold text-teal-800 text-sm">Want live availability with a seat hold?</p>
-                <p className="text-xs text-teal-700 mt-0.5">Search GDS fares, pick your flight, and hold your seat for 2 hours — no payment now.</p>
-              </div>
-              <span className="text-teal-600 text-sm font-medium group-hover:translate-x-0.5 transition-transform">
-                Live Search →
-              </span>
-            </button>
-
             <div className="rounded-2xl border bg-card shadow-sm p-6 space-y-5">
+              <div>
+                <h2 className="font-semibold text-foreground mb-1">Custom Flight Request</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tell us your route and we'll find the best options and contact you with pricing.
+                </p>
+              </div>
+
               {/* Trip type */}
               <div className="flex gap-2">
                 {TRIP_TYPES.map((tt) => (
@@ -424,7 +484,7 @@ export default function FlightsPage() {
                     placeholder="Origin city or IATA (e.g. KHI)"
                     value={origin}
                     onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
                 <div>
@@ -434,7 +494,7 @@ export default function FlightsPage() {
                     placeholder="Destination city or IATA (e.g. JED)"
                     value={destination}
                     onChange={(e) => setDestination(e.target.value.toUpperCase())}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
                 <div>
@@ -444,7 +504,7 @@ export default function FlightsPage() {
                     value={departureDate}
                     min={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setDepartureDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
                 {tripType === "round_trip" && (
@@ -455,13 +515,13 @@ export default function FlightsPage() {
                       value={returnDate}
                       min={departureDate || new Date().toISOString().slice(0, 10)}
                       onChange={(e) => setReturnDate(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                 )}
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Passengers</label>
-                  <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
                     <button
                       onClick={() => setPax(Math.max(1, pax - 1))}
                       className="w-7 h-7 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center font-bold"
@@ -478,7 +538,7 @@ export default function FlightsPage() {
                   <select
                     value={cabinClass}
                     onChange={(e) => setCabinClass(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     {CABIN_CLASSES.map((c) => (
                       <option key={c} value={c} className="capitalize">
@@ -491,7 +551,7 @@ export default function FlightsPage() {
 
               <button
                 onClick={openBookingForSearch}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg py-3 text-sm font-semibold hover:bg-primary/90 transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold hover:bg-primary/90 transition-colors"
               >
                 <Search className="h-4 w-4" />
                 Submit Flight Request
@@ -517,7 +577,7 @@ export default function FlightsPage() {
             </div>
 
             {/* Flight summary */}
-            <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+            <div className="rounded-xl bg-muted/50 p-3 text-sm space-y-1">
               <div className="font-medium">
                 {selectedFlight.origin} → {selectedFlight.destination}
               </div>
@@ -531,17 +591,6 @@ export default function FlightsPage() {
               </div>
             </div>
 
-            {/* Service fee note for custom requests */}
-            {selectedFlight.requestType === "direct" && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2 text-xs text-amber-800">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  A <strong>service fee of PKR 2,000</strong> applies on the confirmed fare.
-                  Final price will be shared when our team contacts you.
-                </span>
-              </div>
-            )}
-
             {/* Contact form */}
             <div className="space-y-3">
               <div>
@@ -551,7 +600,7 @@ export default function FlightsPage() {
                   placeholder="Your full name"
                   value={form.clientName}
                   onChange={(e) => setForm({ ...form, clientName: e.target.value })}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -561,7 +610,7 @@ export default function FlightsPage() {
                   placeholder="+92 300 0000000"
                   value={form.clientPhone}
                   onChange={(e) => setForm({ ...form, clientPhone: e.target.value })}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -571,7 +620,7 @@ export default function FlightsPage() {
                   placeholder="+92 300 0000000"
                   value={form.clientWhatsapp}
                   onChange={(e) => setForm({ ...form, clientWhatsapp: e.target.value })}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -581,7 +630,7 @@ export default function FlightsPage() {
                   placeholder="you@example.com"
                   value={form.clientEmail}
                   onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -589,7 +638,7 @@ export default function FlightsPage() {
             <button
               onClick={submitRequest}
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg py-3 text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plane className="h-4 w-4" />}
               {submitting ? "Submitting…" : "Submit Booking Request"}
@@ -613,14 +662,14 @@ export default function FlightsPage() {
             <p className="text-muted-foreground text-sm">
               Your booking request has been submitted. Our team will contact you shortly.
             </p>
-            <div className="bg-muted rounded-lg px-4 py-3">
+            <div className="bg-muted rounded-xl px-4 py-3">
               <p className="text-xs text-muted-foreground mb-1">Reference Number</p>
               <p className="font-mono font-bold text-primary text-lg">{successRef}</p>
             </div>
             <p className="text-xs text-muted-foreground">Please save this reference number for follow-up.</p>
             <button
               onClick={() => { setSelectedFlight(null); setSuccessRef(null); }}
-              className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="w-full bg-primary text-primary-foreground rounded-xl py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               Done
             </button>

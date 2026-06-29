@@ -20,6 +20,8 @@ const STATUS_STEPS = [
   { key: "issued", label: "Ticket Issued" },
 ];
 
+const MARKUP_PKR = 2000;
+
 interface FlightResult {
   id: string;
   airline: string;
@@ -62,6 +64,22 @@ function fmtDate(iso: string): string {
   } catch { return iso; }
 }
 
+function toPkrDisplay(price: number, currency: string, rates: Record<string, number>): number {
+  const pkrPerUsd = rates["PKR"] ?? 285;
+  if (currency === "PKR") return Math.round(price) + MARKUP_PKR;
+  const unitPerUsd = rates[currency] ?? (currency === "USD" ? 1 : 1);
+  const priceUsd = price / unitPerUsd;
+  return Math.round(priceUsd * pkrPerUsd) + MARKUP_PKR;
+}
+
+function toPkrNet(price: number, currency: string, rates: Record<string, number>): number {
+  const pkrPerUsd = rates["PKR"] ?? 285;
+  if (currency === "PKR") return Math.round(price);
+  const unitPerUsd = rates[currency] ?? (currency === "USD" ? 1 : 1);
+  const priceUsd = price / unitPerUsd;
+  return Math.round(priceUsd * pkrPerUsd);
+}
+
 export default function BookGdsPage() {
   const [, navigate] = useLocation();
 
@@ -90,6 +108,13 @@ export default function BookGdsPage() {
   const [proofUploading, setProofUploading] = useState(false);
   const [proofSubmitted, setProofSubmitted] = useState(false);
   const [proofError, setProofError] = useState("");
+
+  const { data: ratesData } = useQuery({
+    queryKey: ["currency-rates"],
+    queryFn: () => fetch("/api/currency/rates").then((r) => r.json()),
+    staleTime: 3_600_000,
+  });
+  const rates: Record<string, number> = ratesData?.rates ?? (typeof ratesData === "object" && ratesData !== null ? ratesData : {});
 
   const searchMutation = useMutation({
     mutationFn: async () => {
@@ -121,6 +146,7 @@ export default function BookGdsPage() {
   const bookMutation = useMutation({
     mutationFn: async () => {
       const f = selectedFlight!;
+      const pkrNet = toPkrNet(f.price, f.currency, rates);
       const res = await fetch("/api/public/flight-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,7 +163,7 @@ export default function BookGdsPage() {
           passengerCount: pax,
           cabinClass: f.cabinClass,
           airline: `${f.airlineName} ${f.flightNumber}`,
-          fare: String(f.price),
+          fare: String(pkrNet),
           requestType: "direct",
           source: "website_gds",
           holdMinutes: 120,
@@ -307,13 +333,7 @@ export default function BookGdsPage() {
                       {isPast ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
                     </div>
                     <span className={`text-sm ${
-                      isPast
-                        ? "text-muted-foreground"
-                        : isActive
-                        ? "font-semibold text-foreground"
-                        : isFuture
-                        ? "text-muted-foreground"
-                        : "text-muted-foreground"
+                      isPast ? "text-muted-foreground" : isActive ? "font-semibold text-foreground" : isFuture ? "text-muted-foreground" : "text-muted-foreground"
                     }`}>
                       {step.label}
                     </span>
@@ -336,7 +356,7 @@ export default function BookGdsPage() {
                 <p className="font-medium">Payment Instructions</p>
                 <p>
                   Our team will contact you via <strong>WhatsApp or phone</strong> shortly with
-                  bank account details and the exact PKR amount to pay (plus the PKR 2,000 service fee).
+                  bank account details and the confirmed amount to pay.
                 </p>
                 <p className="text-xs">
                   Once you have made the payment, upload your receipt below — this helps our team
@@ -545,8 +565,8 @@ export default function BookGdsPage() {
                   ? "No flights found"
                   : `${results.length} flight${results.length !== 1 ? "s" : ""} found`}
               </h2>
-              <span className="text-xs bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1 rounded-full">
-                PKR 2,000 service fee applies · Final fare confirmed by our team
+              <span className="text-xs text-muted-foreground">
+                All prices include taxes and our service fee
               </span>
             </div>
 
@@ -558,164 +578,169 @@ export default function BookGdsPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {results.slice(0, 15).map((flight) => (
-                  <div
-                    key={flight.id}
-                    className={`bg-white rounded-2xl border transition-all ${
-                      selectedFlight?.id === flight.id
-                        ? "border-teal-500 ring-2 ring-teal-200"
-                        : "border-border hover:border-teal-300"
-                    }`}
-                  >
-                    <div className="p-5">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            <span className="font-semibold text-foreground">{flight.airlineName}</span>
-                            <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{flight.flightNumber}</span>
-                            {flight.stops === 0 && (
-                              <span className="text-xs text-teal-600 font-medium bg-teal-50 px-1.5 py-0.5 rounded">Non-stop</span>
-                            )}
-                            {flight.stops > 0 && (
-                              <span className="text-xs text-muted-foreground">{flight.stops} stop{flight.stops > 1 ? "s" : ""}</span>
-                            )}
-                            {flight.refundable && (
-                              <span className="text-xs text-emerald-600 font-medium">Refundable</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-sm">
-                            <div className="text-center">
-                              <div className="text-2xl font-bold leading-none">{fmtTime(flight.departureTime)}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5">{flight.origin}</div>
+                {results.slice(0, 15).map((flight) => {
+                  const pkrDisplay = toPkrDisplay(flight.price, flight.currency, rates);
+                  return (
+                    <div
+                      key={flight.id}
+                      className={`bg-white rounded-2xl border transition-all ${
+                        selectedFlight?.id === flight.id
+                          ? "border-teal-500 ring-2 ring-teal-200"
+                          : "border-border hover:border-teal-300"
+                      }`}
+                    >
+                      <div className="p-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                              <span className="font-semibold text-foreground">{flight.airlineName}</span>
+                              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{flight.flightNumber}</span>
+                              {flight.stops === 0 && (
+                                <span className="text-xs text-teal-600 font-medium bg-teal-50 px-1.5 py-0.5 rounded">Non-stop</span>
+                              )}
+                              {flight.stops > 0 && (
+                                <span className="text-xs text-muted-foreground">{flight.stops} stop{flight.stops > 1 ? "s" : ""}</span>
+                              )}
+                              {flight.refundable && (
+                                <span className="text-xs text-emerald-600 font-medium">Refundable</span>
+                              )}
                             </div>
-                            <div className="flex-1 flex flex-col items-center gap-0.5">
-                              <div className="text-xs text-muted-foreground">{flight.duration}</div>
-                              <div className="w-full flex items-center gap-1">
-                                <div className="flex-1 h-px bg-border" />
-                                <Plane className="h-3 w-3 text-teal-400" />
-                                <div className="flex-1 h-px bg-border" />
+                            <div className="flex items-center gap-3 text-sm">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold leading-none">{fmtTime(flight.departureTime)}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{flight.origin}</div>
+                              </div>
+                              <div className="flex-1 flex flex-col items-center gap-0.5">
+                                <div className="text-xs text-muted-foreground">{flight.duration}</div>
+                                <div className="w-full flex items-center gap-1">
+                                  <div className="flex-1 h-px bg-border" />
+                                  <Plane className="h-3 w-3 text-teal-400" />
+                                  <div className="flex-1 h-px bg-border" />
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold leading-none">{fmtTime(flight.arrivalTime)}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{flight.destination}</div>
                               </div>
                             </div>
-                            <div className="text-center">
-                              <div className="text-2xl font-bold leading-none">{fmtTime(flight.arrivalTime)}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5">{flight.destination}</div>
+                            {flight.seatsAvailable != null && flight.seatsAvailable <= 5 && (
+                              <p className="text-xs text-amber-600 font-medium mt-2">
+                                Only {flight.seatsAvailable} seat{flight.seatsAvailable !== 1 ? "s" : ""} left
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex sm:flex-col items-center sm:items-end gap-3 shrink-0">
+                            <div className="text-right">
+                              <p className="text-xl font-bold text-teal-700">
+                                PKR {pkrDisplay.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-muted-foreground">Total for {pax} pax</p>
+                              <p className="text-xs text-teal-600 font-medium">✓ All inclusive</p>
+                            </div>
+                            <button
+                              onClick={() => setSelectedFlight(
+                                selectedFlight?.id === flight.id ? null : flight
+                              )}
+                              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                                selectedFlight?.id === flight.id
+                                  ? "bg-teal-600 text-white"
+                                  : "border-2 border-teal-600 text-teal-600 hover:bg-teal-50"
+                              }`}
+                            >
+                              {selectedFlight?.id === flight.id ? "Selected ✓" : "Select"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inline contact + booking form */}
+                      {selectedFlight?.id === flight.id && (
+                        <div className="border-t border-border bg-stone-50 rounded-b-2xl p-5 space-y-4">
+                          <h3 className="font-semibold text-sm text-foreground">Your Contact Details</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">Full Name *</label>
+                              <input
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
+                                placeholder="Your full name"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">Phone Number *</label>
+                              <input
+                                type="tel"
+                                value={clientPhone}
+                                onChange={(e) => setClientPhone(e.target.value)}
+                                placeholder="+92 300 0000000"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">WhatsApp (optional)</label>
+                              <input
+                                type="tel"
+                                value={clientWhatsapp}
+                                onChange={(e) => setClientWhatsapp(e.target.value)}
+                                placeholder="+92 300 0000000"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">Email (optional)</label>
+                              <input
+                                type="email"
+                                value={clientEmail}
+                                onChange={(e) => setClientEmail(e.target.value)}
+                                placeholder="you@example.com"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
+                              />
                             </div>
                           </div>
-                          {flight.seatsAvailable != null && flight.seatsAvailable <= 5 && (
-                            <p className="text-xs text-amber-600 font-medium mt-2">
-                              Only {flight.seatsAvailable} seat{flight.seatsAvailable !== 1 ? "s" : ""} left
+
+                          <div className="flex items-start gap-2 bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-900">
+                            <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            <span>
+                              Clicking <strong>Reserve</strong> will hold this seat for{" "}
+                              <strong>2 hours</strong>.
+                              No payment is taken now — our team will send payment details via WhatsApp.
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => { if (canBook) bookMutation.mutate(); }}
+                            disabled={!canBook || bookMutation.isPending}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-600 text-white font-semibold hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                          >
+                            {bookMutation.isPending
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <Plane className="h-4 w-4" />}
+                            {bookMutation.isPending ? "Reserving…" : "Reserve Seat (2h Hold)"}
+                          </button>
+
+                          {bookMutation.isError && (
+                            <p className="text-xs text-destructive text-center">
+                              {(bookMutation.error as Error)?.message ?? "Reservation failed. Please try again."}
                             </p>
                           )}
                         </div>
-
-                        <div className="flex sm:flex-col items-center sm:items-end gap-3 shrink-0">
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-teal-700">
-                              {flight.currency} {flight.price.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">per person</p>
-                          </div>
-                          <button
-                            onClick={() => setSelectedFlight(
-                              selectedFlight?.id === flight.id ? null : flight
-                            )}
-                            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                              selectedFlight?.id === flight.id
-                                ? "bg-teal-600 text-white"
-                                : "border-2 border-teal-600 text-teal-600 hover:bg-teal-50"
-                            }`}
-                          >
-                            {selectedFlight?.id === flight.id ? "Selected ✓" : "Select"}
-                          </button>
-                        </div>
-                      </div>
+                      )}
                     </div>
-
-                    {/* Inline contact + booking form */}
-                    {selectedFlight?.id === flight.id && (
-                      <div className="border-t border-border bg-stone-50 rounded-b-2xl p-5 space-y-4">
-                        <h3 className="font-semibold text-sm text-foreground">Your Contact Details</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">Full Name *</label>
-                            <input
-                              value={clientName}
-                              onChange={(e) => setClientName(e.target.value)}
-                              placeholder="Your full name"
-                              className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">Phone Number *</label>
-                            <input
-                              type="tel"
-                              value={clientPhone}
-                              onChange={(e) => setClientPhone(e.target.value)}
-                              placeholder="+92 300 0000000"
-                              className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">WhatsApp (optional)</label>
-                            <input
-                              type="tel"
-                              value={clientWhatsapp}
-                              onChange={(e) => setClientWhatsapp(e.target.value)}
-                              placeholder="+92 300 0000000"
-                              className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">Email (optional)</label>
-                            <input
-                              type="email"
-                              value={clientEmail}
-                              onChange={(e) => setClientEmail(e.target.value)}
-                              placeholder="you@example.com"
-                              className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
-                          <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>
-                            Clicking <strong>Reserve</strong> will hold this seat for{" "}
-                            <strong>2 hours</strong>. A PKR 2,000 service fee applies.
-                            No payment is taken now — our team will send payment details via WhatsApp.
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => { if (canBook) bookMutation.mutate(); }}
-                          disabled={!canBook || bookMutation.isPending}
-                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-600 text-white font-semibold hover:bg-teal-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                        >
-                          {bookMutation.isPending
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Plane className="h-4 w-4" />}
-                          {bookMutation.isPending ? "Reserving…" : "Reserve Seat (2h Hold)"}
-                        </button>
-
-                        {bookMutation.isError && (
-                          <p className="text-sm text-destructive text-center">
-                            {(bookMutation.error as Error)?.message ?? "Failed to reserve. Please try again."}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
 
+        {/* Empty search state */}
         {!hasSearched && (
-          <div className="bg-white rounded-2xl border border-border py-20 text-center text-muted-foreground">
-            <Plane className="h-12 w-12 mx-auto opacity-20 mb-4" />
-            <p className="text-sm font-medium">Enter your route above and search for flights.</p>
-            <p className="text-xs mt-1">Our team holds your seat and confirms the final PKR price personally.</p>
+          <div className="bg-white rounded-2xl border border-border py-16 text-center text-muted-foreground">
+            <Plane className="h-12 w-12 mx-auto opacity-15 mb-4" />
+            <p className="text-sm font-medium">Enter your route and date above to search</p>
+            <p className="text-xs mt-1">We'll show live availability and pricing</p>
           </div>
         )}
       </div>

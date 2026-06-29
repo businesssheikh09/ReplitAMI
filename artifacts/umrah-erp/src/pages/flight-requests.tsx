@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Search, RefreshCw, Plane, ChevronRight, Users, CheckCircle2, XCircle, MessageSquare,
-  Clock, User, Phone, Mail, Ticket, AlertTriangle, CreditCard, ShieldCheck,
+  Clock, User, Phone, Mail, Ticket, AlertTriangle, CreditCard, ShieldCheck, ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -53,6 +53,7 @@ interface FlightRequestDetail extends FlightRequest {
   adminNotes: string | null;
   flightDataJson: any;
   hasPaymentProof: boolean;
+  paymentProofKey: string | null;
   events: FlightRequestEvent[];
 }
 
@@ -154,6 +155,20 @@ export default function FlightRequestsPage() {
 
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinValue, setPinValue] = useState("");
+
+  async function openReceipt(proofKey: string) {
+    try {
+      const res = await fetch(`/api/storage/uploads/${encodeURIComponent(proofKey)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Could not load receipt");
+      const data = await res.json();
+      const url: string = data.url ?? data.signedUrl ?? data.readUrl ?? "";
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast({ title: "Could not open receipt", description: "Please try again.", variant: "destructive" });
+    }
+  }
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -489,10 +504,15 @@ export default function FlightRequestsPage() {
                   </span>
                 )}
                 {selected.hasPaymentProof && (
-                  <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1">
+                  <button
+                    onClick={() => selected.paymentProofKey && openReceipt(selected.paymentProofKey)}
+                    className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1 hover:bg-blue-100 transition-colors cursor-pointer"
+                    title="Click to view receipt"
+                  >
                     <CreditCard className="h-3 w-3" />
                     Receipt uploaded
-                  </span>
+                    <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                  </button>
                 )}
               </div>
 
@@ -728,10 +748,15 @@ export default function FlightRequestsPage() {
                       : "Waiting for customer to complete payment."}
                   </p>
                   {selected.hasPaymentProof && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 flex items-center gap-2">
+                    <button
+                      onClick={() => selected.paymentProofKey && openReceipt(selected.paymentProofKey)}
+                      className="w-full bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 flex items-center gap-2 hover:bg-blue-100 transition-colors text-left"
+                      title="Click to view receipt"
+                    >
                       <CreditCard className="h-3.5 w-3.5 shrink-0" />
-                      Payment receipt has been uploaded by customer.
-                    </div>
+                      <span className="flex-1">Payment receipt uploaded by customer — click to view</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+                    </button>
                   )}
                   <div className="flex gap-2">
                     <Button

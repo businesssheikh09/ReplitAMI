@@ -327,6 +327,7 @@ router.get("/flight-requests/:id", requireAuth, async (req, res) => {
       holdExpiresAt: row.holdExpiresAt?.toISOString() ?? null,
       paymentDeadlineAt: row.paymentDeadlineAt?.toISOString() ?? null,
       hasPaymentProof: !!row.paymentProofKey,
+      paymentProofKey: row.paymentProofKey ?? null,
       assignedToName,
       events,
     });
