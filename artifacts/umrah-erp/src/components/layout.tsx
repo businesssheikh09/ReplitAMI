@@ -26,6 +26,7 @@ import {
   Bot,
   Landmark,
   PlaneTakeoff,
+  Library,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,7 @@ const navGroups = [
     items: [
       { title: "WhatsApp Inbox", href: "/whatsapp-inbox", icon: MessageSquare },
       { title: "Message Campaign", href: "/bot-campaign", icon: Send },
+      { title: "Media Library", href: "/media-library", icon: Library },
     ],
   },
   {

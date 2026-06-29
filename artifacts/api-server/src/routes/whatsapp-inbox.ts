@@ -208,20 +208,33 @@ router.delete("/whatsapp-inbox/links/:id", requireAuth, canManage, async (req, r
 
 /**
  * POST /api/whatsapp-inbox/send
- * Body: { jid, text, quote?: { waId, text, senderJid, senderName } }
- * Sends a WhatsApp message from the ERP and saves it to the inbox DB.
+ * Body: { jid, text?, quote?, mediaLibraryId?, caption? }
+ * Sends a text or media message from the ERP and saves it to the inbox DB.
+ * Either text or mediaLibraryId must be provided.
  */
 router.post("/whatsapp-inbox/send", requireAuth, canManage, async (req, res) => {
-  const { jid, text, quote } = req.body as {
+  const { jid, text, quote, mediaLibraryId, caption } = req.body as {
     jid?: string;
     text?: string;
     quote?: { waId: string; text: string; senderJid: string; senderName?: string | null } | null;
+    mediaLibraryId?: number;
+    caption?: string | null;
   };
-  if (!jid || !text?.trim()) {
-    return res.status(400).json({ error: "jid and text are required" });
+
+  if (!jid) {
+    return res.status(400).json({ error: "jid is required" });
   }
+  if (!text?.trim() && !mediaLibraryId) {
+    return res.status(400).json({ error: "Either text or mediaLibraryId is required" });
+  }
+
   try {
-    const result = await sendWhatsAppMessage(jid, text.trim(), quote ?? null);
+    const result = await sendWhatsAppMessage(
+      jid,
+      text?.trim() ?? "",
+      quote ?? null,
+      mediaLibraryId ? { mediaLibraryId, caption: caption ?? null } : null,
+    );
     return res.json({ ok: true, waMessageId: result.waMessageId });
   } catch (err) {
     req.log.error({ err }, "Failed to send WhatsApp message");

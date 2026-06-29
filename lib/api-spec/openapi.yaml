@@ -24,8 +24,116 @@ tags:
   - name: dashboard
   - name: documents
   - name: websiteConfig
+  - name: mediaLibrary
 
 paths:
+  # ── MEDIA LIBRARY ─────────────────────────────────────────────────
+  /media-library:
+    get:
+      operationId: listMediaLibrary
+      tags: [mediaLibrary]
+      summary: List media library items
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [image, video, audio, document]
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaLibraryItem"
+    post:
+      operationId: registerMediaLibraryItem
+      tags: [mediaLibrary]
+      summary: Register a newly uploaded media file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaLibraryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaLibraryItem"
+
+  /media-library/{id}:
+    delete:
+      operationId: deleteMediaLibraryItem
+      tags: [mediaLibrary]
+      summary: Delete a media library item and its storage object
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+    put:
+      operationId: replaceMediaLibraryItem
+      tags: [mediaLibrary]
+      summary: Replace a media library item with a new uploaded file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaLibraryInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaLibraryItem"
+
+  /media-library/{id}/download-url:
+    get:
+      operationId: getMediaLibraryDownloadUrl
+      tags: [mediaLibrary]
+      summary: Get a signed download URL for a media library item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaLibraryDownloadUrl"
+
   # ── GROUP TICKETS ─────────────────────────────────────────────────
   /group-tickets:
     get:
@@ -3578,3 +3686,53 @@ components:
           type: string
         announcementEnabled:
           type: boolean
+
+    MediaLibraryItem:
+      type: object
+      required: [id, storageKey, originalFilename, mediaType, mimeType, sizeBytes, uploadedAt]
+      properties:
+        id:
+          type: integer
+        storageKey:
+          type: string
+        originalFilename:
+          type: string
+        mediaType:
+          type: string
+          enum: [image, video, audio, document]
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+        uploadedBy:
+          type: integer
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+
+    MediaLibraryInput:
+      type: object
+      required: [storageKey, originalFilename, mimeType, sizeBytes]
+      properties:
+        storageKey:
+          type: string
+        originalFilename:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+
+    MediaLibraryDownloadUrl:
+      type: object
+      required: [url, item]
+      properties:
+        url:
+          type: string
+        item:
+          $ref: "#/components/schemas/MediaLibraryItem"

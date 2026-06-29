@@ -30,12 +30,22 @@ async function tick(): Promise<void> {
 
   const contact = contacts[campaign.currentIndex];
 
+  const hasMedia = !!campaign.mediaLibraryId;
+  const media = hasMedia
+    ? { mediaLibraryId: campaign.mediaLibraryId!, caption: campaign.mediaCaption ?? null }
+    : null;
+
   let waMessageId: string | null = null;
   try {
-    const result = await sendWhatsAppMessage(contact.jid, campaign.message);
+    const result = await sendWhatsAppMessage(
+      contact.jid,
+      campaign.message,
+      null,
+      media,
+    );
     waMessageId = result.waMessageId;
     logger.info(
-      { campaignId: campaign.id, jid: contact.jid, index: campaign.currentIndex },
+      { campaignId: campaign.id, jid: contact.jid, index: campaign.currentIndex, hasMedia },
       "Bot sent message",
     );
   } catch (err) {
@@ -64,7 +74,6 @@ async function tick(): Promise<void> {
       "Bot campaign finished — all contacts done",
     );
   } else {
-    // Use the stored dynamic delay — consistent throughout the run
     const delayMs = (campaign.delaySeconds ?? 20) * 1000;
     await db
       .update(botCampaignsTable)

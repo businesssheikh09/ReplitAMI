@@ -36,10 +36,13 @@
  */
 
 import { logger } from "../lib/logger.js";
-import { db, whatsappMessagesTable, whatsappGroupNamesTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, whatsappMessagesTable, whatsappGroupNamesTable, mediaLibraryTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { ObjectStorageService } from "../lib/objectStorage.js";
+
+const objectStorageService = new ObjectStorageService();
 
 export interface StoredMessage {
   remoteJid: string;
@@ -53,6 +56,11 @@ export interface LiveGroup {
   participantCount: number;
   /** Unix seconds of the most recent stored message in this group; null if none buffered. */
   lastActivityTimestamp: number | null;
+}
+
+export interface MediaPayload {
+  mediaLibraryId: number;
+  caption?: string | null;
 }
 
 let sessionDir: string | null = null;
@@ -643,49 +651,126 @@ export async function disconnectWhatsApp(): Promise<void> {
 }
 
 /**
- * Send a text message to a WhatsApp group from the ERP.
- * Optionally quote a previous message for threaded replies.
+ * Download a media library item to a Buffer for sending via Baileys.
+ */
+async function downloadMediaToBuffer(storageKey: string): Promise<Buffer> {
+  const objectFile = await objectStorageService.getObjectEntityFile(storageKey);
+  const [buffer] = await objectFile.download();
+  return buffer;
+}
+
+/**
+ * Send a message to a WhatsApp group from the ERP.
+ * Supports text-only and media+caption modes.
  * Saves the sent message to the DB so it appears in the inbox immediately.
  */
 export async function sendWhatsAppMessage(
   jid: string,
   text: string,
   quote?: { waId: string; text: string; senderJid: string; senderName?: string | null } | null,
+  media?: MediaPayload | null,
 ): Promise<{ waMessageId: string | null }> {
   if (!currentSock) throw new Error("WhatsApp not connected");
 
-  const content: Record<string, unknown> = { text };
-
-  if (quote?.waId) {
-    content.contextInfo = {
-      stanzaId: quote.waId,
-      participant: quote.senderJid,
-      quotedMessage: { conversation: quote.text },
-      remoteJid: jid,
-    };
-  }
-
-  const result = await (currentSock as any).sendMessage(jid, content);
-  const waMessageId: string | null = result?.key?.id ?? null;
   const ts = Math.floor(Date.now() / 1000);
+  let waMessageId: string | null = null;
+  let dbText = text;
 
-  // Save to DB immediately so it shows in the inbox
-  try {
-    await db.insert(whatsappMessagesTable).values({
-      groupJid: jid,
-      senderJid: "me",
-      senderName: "You",
-      text,
-      waMessageId,
-      timestamp: ts,
-      isRead: true,
-      isSent: true,
-      quotedWaId: quote?.waId ?? null,
-      quotedText: quote?.text ?? null,
-      quotedSenderName: quote?.senderName ?? quote?.senderJid ?? null,
-    });
-  } catch (err) {
-    logger.warn({ err }, "Failed to save sent WhatsApp message to DB");
+  if (media?.mediaLibraryId) {
+    // ── Media send path ────────────────────────────────────────────────────
+    const [item] = await db
+      .select()
+      .from(mediaLibraryTable)
+      .where(eq(mediaLibraryTable.id, media.mediaLibraryId));
+
+    if (!item) throw new Error("Media library item not found");
+
+    const buffer = await downloadMediaToBuffer(item.storageKey);
+    const caption = media.caption ?? undefined;
+    dbText = caption ?? item.originalFilename;
+
+    let content: Record<string, unknown>;
+    switch (item.mediaType) {
+      case "image":
+        content = { image: buffer, caption, mimetype: item.mimeType };
+        break;
+      case "video":
+        content = { video: buffer, caption, mimetype: item.mimeType };
+        break;
+      case "audio":
+        content = { audio: buffer, mimetype: item.mimeType === "audio/ogg" ? "audio/ogg; codecs=opus" : item.mimeType };
+        break;
+      case "document":
+        content = { document: buffer, mimetype: item.mimeType, fileName: item.originalFilename, caption };
+        break;
+      default:
+        throw new Error(`Unsupported media type: ${item.mediaType}`);
+    }
+
+    if (quote?.waId) {
+      content.contextInfo = {
+        stanzaId: quote.waId,
+        participant: quote.senderJid,
+        quotedMessage: { conversation: quote.text },
+        remoteJid: jid,
+      };
+    }
+
+    const result = await (currentSock as any).sendMessage(jid, content);
+    waMessageId = result?.key?.id ?? null;
+
+    try {
+      await db.insert(whatsappMessagesTable).values({
+        groupJid: jid,
+        senderJid: "me",
+        senderName: "You",
+        text: dbText,
+        waMessageId,
+        timestamp: ts,
+        isRead: true,
+        isSent: true,
+        quotedWaId: quote?.waId ?? null,
+        quotedText: quote?.text ?? null,
+        quotedSenderName: quote?.senderName ?? quote?.senderJid ?? null,
+        mediaLibraryId: item.id,
+        mediaCaption: caption ?? null,
+      });
+    } catch (err) {
+      logger.warn({ err }, "Failed to save sent media WhatsApp message to DB");
+    }
+  } else {
+    // ── Text-only send path (unchanged) ────────────────────────────────────
+    const content: Record<string, unknown> = { text };
+
+    if (quote?.waId) {
+      content.contextInfo = {
+        stanzaId: quote.waId,
+        participant: quote.senderJid,
+        quotedMessage: { conversation: quote.text },
+        remoteJid: jid,
+      };
+    }
+
+    const result = await (currentSock as any).sendMessage(jid, content);
+    waMessageId = result?.key?.id ?? null;
+
+    try {
+      await db.insert(whatsappMessagesTable).values({
+        groupJid: jid,
+        senderJid: "me",
+        senderName: "You",
+        text,
+        waMessageId,
+        timestamp: ts,
+        isRead: true,
+        isSent: true,
+        quotedWaId: quote?.waId ?? null,
+        quotedText: quote?.text ?? null,
+        quotedSenderName: quote?.senderName ?? quote?.senderJid ?? null,
+      });
+    } catch (err) {
+      logger.warn({ err }, "Failed to save sent WhatsApp message to DB");
+    }
   }
 
   return { waMessageId };

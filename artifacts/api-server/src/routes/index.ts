@@ -26,6 +26,7 @@ import packageInquiriesRouter from "./package-inquiries.js";
 import portalRouter from "./portal.js";
 import aiSettingsRouter from "./ai-settings.js";
 import flightRequestsRouter from "./flight-requests.js";
+import mediaLibraryRouter from "./media-library.js";
 
 const router: IRouter = Router();
 
@@ -56,5 +57,6 @@ router.use(whatsappRouter);
 router.use(whatsappGroupsRouter);
 router.use(whatsappInboxRouter);
 router.use(botRouter);
+router.use(mediaLibraryRouter);
 
 export default router;

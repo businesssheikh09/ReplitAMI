@@ -11,6 +11,9 @@ export const botCampaignsTable = pgTable("bot_campaigns", {
   nextSendAt: timestamp("next_send_at"),
   delaySeconds: integer("delay_seconds").notNull().default(20),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  /** Optional media attachment for media+caption campaign mode */
+  mediaLibraryId: integer("media_library_id"),
+  mediaCaption: text("media_caption"),
 });
 
 export const botCampaignSendsTable = pgTable("bot_campaign_sends", {

@@ -19,3 +19,4 @@ export * from "./package-inquiries";
 export * from "./portal-users";
 export * from "./flight-requests";
 export * from "./flight-request-events";
+export * from "./media-library";

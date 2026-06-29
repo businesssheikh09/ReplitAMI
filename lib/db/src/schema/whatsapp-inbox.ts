@@ -6,7 +6,7 @@ export const whatsappMessagesTable = pgTable("whatsapp_messages", {
   groupJid: text("group_jid").notNull(),
   senderJid: text("sender_jid").notNull(),
   senderName: text("sender_name"),
-  text: text("text").notNull(),
+  text: text("text").notNull().default(""),
   waMessageId: text("wa_message_id"),
   timestamp: bigint("timestamp", { mode: "number" }).notNull(),
   isRead: boolean("is_read").notNull().default(false),
@@ -17,6 +17,9 @@ export const whatsappMessagesTable = pgTable("whatsapp_messages", {
   quotedWaId: text("quoted_wa_id"),
   quotedText: text("quoted_text"),
   quotedSenderName: text("quoted_sender_name"),
+  /** Media attachment from Media Library */
+  mediaLibraryId: integer("media_library_id"),
+  mediaCaption: text("media_caption"),
 });
 
 export type WhatsappMessage = typeof whatsappMessagesTable.$inferSelect;

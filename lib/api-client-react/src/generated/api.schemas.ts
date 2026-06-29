@@ -1263,6 +1263,59 @@ export interface WebsiteConfigInput {
   announcementEnabled?: boolean;
 }
 
+export type MediaLibraryItemMediaType = typeof MediaLibraryItemMediaType[keyof typeof MediaLibraryItemMediaType];
+
+
+export const MediaLibraryItemMediaType = {
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  document: 'document',
+} as const;
+
+export interface MediaLibraryItem {
+  id: number;
+  storageKey: string;
+  originalFilename: string;
+  mediaType: MediaLibraryItemMediaType;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy?: number | null;
+  uploadedAt: string;
+  tags?: string[];
+}
+
+export interface MediaLibraryInput {
+  storageKey: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface MediaLibraryDownloadUrl {
+  url: string;
+  item: MediaLibraryItem;
+}
+
+export type ListMediaLibraryParams = {
+type?: ListMediaLibraryType;
+search?: string;
+};
+
+export type ListMediaLibraryType = typeof ListMediaLibraryType[keyof typeof ListMediaLibraryType];
+
+
+export const ListMediaLibraryType = {
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  document: 'document',
+} as const;
+
+export type DeleteMediaLibraryItem200 = {
+  ok?: boolean;
+};
+
 export type ListGroupTicketsParams = {
 origin?: string;
 destination?: string;

@@ -72,6 +72,8 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
         ? { jid: lastSend.jid, name: lastSend.name, sentAt: lastSend.sentAt }
         : null,
       createdAt: campaign.createdAt,
+      mediaLibraryId: campaign.mediaLibraryId ?? null,
+      mediaCaption: campaign.mediaCaption ?? null,
     });
   } catch (err) {
     req.log.error({ err }, "bot/campaign/active: query failed");
@@ -82,11 +84,18 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
 /**
  * POST /api/bot/campaign
  * Creates a new campaign (status: idle). Stops any existing active campaign first.
+ * Body: { message, mediaLibraryId?, caption? }
  */
 router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
-  const { message } = req.body as { message: string };
+  const { message, mediaLibraryId, caption } = req.body as {
+    message: string;
+    mediaLibraryId?: number | null;
+    caption?: string | null;
+  };
 
-  if (!message?.trim()) return res.status(400).json({ error: "message is required" });
+  if (!message?.trim() && !mediaLibraryId) {
+    return res.status(400).json({ error: "message or mediaLibraryId is required" });
+  }
 
   let contacts: Array<{ jid: string; name: string | null }>;
   try {
@@ -111,10 +120,17 @@ router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
 
     const [campaign] = await db
       .insert(botCampaignsTable)
-      .values({ message: message.trim(), contacts, status: "idle", currentIndex: 0 })
+      .values({
+        message: message?.trim() ?? "",
+        contacts,
+        status: "idle",
+        currentIndex: 0,
+        mediaLibraryId: mediaLibraryId ?? null,
+        mediaCaption: caption ?? null,
+      })
       .returning();
 
-    req.log.info({ campaignId: campaign.id, total: contacts.length }, "Bot campaign created");
+    req.log.info({ campaignId: campaign.id, total: contacts.length, hasMedia: !!mediaLibraryId }, "Bot campaign created");
     return res.json(campaign);
   } catch (err) {
     req.log.error({ err }, "bot/campaign POST: failed");

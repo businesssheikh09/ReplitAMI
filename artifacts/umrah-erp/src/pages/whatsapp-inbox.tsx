@@ -4,11 +4,13 @@ import { format, fromUnixTime } from "date-fns";
 import {
   MessageSquare, CheckCheck, Link2, Trash2, RefreshCw, ChevronRight,
   Wifi, WifiOff, ScanLine, Loader2, AlertCircle, LogOut,
-  Send, CornerUpLeft, X, Search,
+  Send, CornerUpLeft, X, Search, Paperclip, Image, Film, Music,
+  FileText, Library, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { MediaLibraryDrawer, type MediaLibraryItem } from "@/components/media-library-drawer";
 import QRCode from "qrcode";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -45,6 +48,8 @@ interface Message {
   quotedWaId: string | null;
   quotedText: string | null;
   quotedSenderName: string | null;
+  mediaLibraryId: number | null;
+  mediaCaption: string | null;
 }
 
 interface GroupLink {
@@ -63,6 +68,11 @@ interface QuoteState {
   senderName: string | null;
 }
 
+interface PendingAttachment {
+  item: MediaLibraryItem;
+  caption: string;
+}
+
 /* ── Constants ───────────────────────────────────────────────────────────── */
 
 const ENTITY_TYPES = [
@@ -73,6 +83,27 @@ const ENTITY_TYPES = [
   { value: "invoice", label: "Invoice" },
   { value: "visa_application", label: "Visa Application" },
 ];
+
+const ALLOWED_MIME_TYPES: Record<string, string> = {
+  "image/jpeg": "image",
+  "image/png": "image",
+  "image/webp": "image",
+  "video/mp4": "video",
+  "audio/mpeg": "audio",
+  "audio/ogg": "audio",
+  "application/pdf": "document",
+  "application/msword": "document",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document",
+  "application/vnd.ms-excel": "document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document",
+};
+
+const MAX_SIZES: Record<string, number> = {
+  image: 5 * 1024 * 1024,
+  video: 16 * 1024 * 1024,
+  audio: 16 * 1024 * 1024,
+  document: 16 * 1024 * 1024,
+};
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -87,11 +118,26 @@ function formatTs(ts: number) {
   return format(d, "dd MMM");
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function apiFetch(path: string, init?: RequestInit) {
   return fetch(path, { credentials: "include", ...init }).then((r) => {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r;
   });
+}
+
+function MediaTypeIcon({ type, className }: { type: string; className?: string }) {
+  const cls = cn("h-4 w-4", className);
+  switch (type) {
+    case "image": return <Image className={cls} />;
+    case "video": return <Film className={cls} />;
+    case "audio": return <Music className={cls} />;
+    default: return <FileText className={cls} />;
+  }
 }
 
 /* ── Quoted bubble strip ─────────────────────────────────────────────────── */
@@ -144,11 +190,16 @@ export default function WhatsAppInboxPage() {
   const [hoveredMsgId, setHoveredMsgId] = useState<number | null>(null);
   const [groupSearch, setGroupSearch] = useState("");
 
+  /* attachment state */
+  const [mediaDrawerOpen, setMediaDrawerOpen] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /* Keep a mutable ref to the latest token — avoids stale-closure 401s in
-     React Query polling callbacks that capture an older version of the closure. */
   const tokenRef = useRef(token);
   useEffect(() => { tokenRef.current = token; }, [token]);
 
@@ -251,10 +302,14 @@ export default function WhatsAppInboxPage() {
       jid,
       text,
       quote,
+      mediaLibraryId,
+      caption,
     }: {
       jid: string;
       text: string;
       quote?: QuoteState | null;
+      mediaLibraryId?: number | null;
+      caption?: string | null;
     }) =>
       apiFetchAuth("/api/whatsapp-inbox/send", {
         method: "POST",
@@ -265,11 +320,14 @@ export default function WhatsAppInboxPage() {
           quote: quote
             ? { waId: quote.waId, text: quote.text, senderJid: quote.senderJid, senderName: quote.senderName }
             : null,
+          mediaLibraryId: mediaLibraryId ?? null,
+          caption: caption ?? null,
         }),
       }).then((r) => r.json()),
     onSuccess: () => {
       setCompose("");
       setReplyTo(null);
+      setPendingAttachment(null);
       void qc.invalidateQueries({ queryKey: ["whatsapp-inbox-messages", selectedJid] });
       void qc.invalidateQueries({ queryKey: ["whatsapp-inbox-groups"] });
     },
@@ -306,12 +364,64 @@ export default function WhatsAppInboxPage() {
     setDisconnecting(true);
     try {
       await apiFetchAuth("/api/whatsapp/disconnect", { method: "POST" });
-      setWaStatus("disconnected");
       toast({ description: "WhatsApp disconnected." });
     } catch {
       toast({ variant: "destructive", description: "Failed to disconnect." });
     } finally {
       setDisconnecting(false);
+    }
+  }, [token]);
+
+  /* ── Direct file upload for attachment ── */
+  const handleDirectFileUpload = useCallback(async (file: File) => {
+    const mediaType = ALLOWED_MIME_TYPES[file.type];
+    if (!mediaType) {
+      toast({ variant: "destructive", description: `Unsupported file type: ${file.type}` });
+      return;
+    }
+    const maxSize = MAX_SIZES[mediaType];
+    if (file.size > maxSize) {
+      toast({
+        variant: "destructive",
+        description: `File too large. Max for ${mediaType}: ${Math.round(maxSize / 1024 / 1024)} MB.`,
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const urlRes = await apiFetchAuth("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+
+      const uploadRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!uploadRes.ok) throw new Error("Storage upload failed");
+
+      const regRes = await apiFetchAuth("/api/media-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storageKey: objectPath,
+          originalFilename: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        }),
+      });
+      const item: MediaLibraryItem = await regRes.json();
+      void qc.invalidateQueries({ queryKey: ["media-library"] });
+      setPendingAttachment({ item, caption: "" });
+      toast({ description: `"${file.name}" ready to send.` });
+    } catch (err) {
+      toast({ variant: "destructive", description: err instanceof Error ? err.message : "Upload failed" });
+    } finally {
+      setUploadingFile(false);
     }
   }, [token]);
 
@@ -349,6 +459,7 @@ export default function WhatsAppInboxPage() {
     setSelectedJid(jid);
     setReplyTo(null);
     setCompose("");
+    setPendingAttachment(null);
     setGroupSearch("");
   }
 
@@ -366,8 +477,18 @@ export default function WhatsAppInboxPage() {
   }
 
   function handleSend() {
-    if (!selectedJid || !compose.trim() || sendMutation.isPending) return;
-    sendMutation.mutate({ jid: selectedJid, text: compose.trim(), quote: replyTo });
+    if (!selectedJid || sendMutation.isPending) return;
+    const hasText = !!compose.trim();
+    const hasAttachment = !!pendingAttachment;
+    if (!hasText && !hasAttachment) return;
+
+    sendMutation.mutate({
+      jid: selectedJid,
+      text: compose.trim(),
+      quote: replyTo,
+      mediaLibraryId: pendingAttachment?.item.id ?? null,
+      caption: pendingAttachment?.caption.trim() || null,
+    });
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -387,12 +508,38 @@ export default function WhatsAppInboxPage() {
     textareaRef.current?.focus();
   }
 
+  const canSend = waStatus === "connected" && !sendMutation.isPending && (!!compose.trim() || !!pendingAttachment);
+
   /* ══════════════════════════════════════════════════════════════════════════
      RENDER
   ══════════════════════════════════════════════════════════════════════════ */
 
   return (
     <>
+      {/* ── Media Library Drawer ───────────────────────────────────────── */}
+      <MediaLibraryDrawer
+        open={mediaDrawerOpen}
+        onClose={() => setMediaDrawerOpen(false)}
+        onSelect={(item) => {
+          setPendingAttachment({ item, caption: "" });
+          setMediaDrawerOpen(false);
+        }}
+      />
+
+      {/* ── Hidden file input for direct upload ── */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.mp4,.mp3,.ogg,.pdf,.doc,.docx,.xls,.xlsx"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void handleDirectFileUpload(file);
+          setAttachMenuOpen(false);
+        }}
+      />
+
       {/* ── QR Code Dialog ────────────────────────────────────────────── */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent className="sm:max-w-sm">
@@ -672,8 +819,23 @@ export default function WhatsAppInboxPage() {
                             />
                           )}
 
+                          {/* Media badge if message has attachment */}
+                          {msg.mediaLibraryId && (
+                            <div className={cn(
+                              "mb-1 flex items-center gap-1.5 rounded px-2 py-1 text-xs",
+                              isSent ? "bg-green-700/20" : "bg-black/5",
+                            )}>
+                              <Paperclip className="h-3 w-3 shrink-0" />
+                              <span className="font-medium truncate">
+                                {msg.mediaCaption ? msg.mediaCaption : "Attachment"}
+                              </span>
+                            </div>
+                          )}
+
                           {/* Message text */}
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                          {msg.text && (
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                          )}
 
                           {/* Timestamp + read dot */}
                           <div className={cn("flex items-center gap-1 mt-0.5", isSent ? "justify-end" : "justify-start")}>
@@ -758,7 +920,101 @@ export default function WhatsAppInboxPage() {
                   </div>
                 )}
 
+                {/* Attachment preview strip */}
+                {pendingAttachment && (
+                  <div className="flex items-start gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <MediaTypeIcon
+                        type={pendingAttachment.item.mediaType}
+                        className={cn(
+                          "shrink-0",
+                          pendingAttachment.item.mediaType === "image" && "text-blue-500",
+                          pendingAttachment.item.mediaType === "video" && "text-purple-500",
+                          pendingAttachment.item.mediaType === "audio" && "text-orange-500",
+                        )}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate text-blue-900">
+                          {pendingAttachment.item.originalFilename}
+                        </p>
+                        <p className="text-[10px] text-blue-600">
+                          {pendingAttachment.item.mediaType} · {formatBytes(pendingAttachment.item.sizeBytes)}
+                        </p>
+                        <input
+                          type="text"
+                          value={pendingAttachment.caption}
+                          onChange={(e) => setPendingAttachment((p) => p ? { ...p, caption: e.target.value } : p)}
+                          placeholder="Add caption (optional)…"
+                          className="mt-1 w-full text-xs rounded border border-blue-200 bg-white/70 px-2 py-0.5 outline-none focus:border-blue-400 placeholder:text-blue-300"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setPendingAttachment(null)}
+                      className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-end gap-2 px-4 py-2">
+                  {/* Attachment "+" button */}
+                  <Popover open={attachMenuOpen} onOpenChange={setAttachMenuOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "h-10 w-10 flex-shrink-0 rounded-full transition-colors",
+                          waStatus !== "connected" && "opacity-40 cursor-not-allowed",
+                          uploadingFile && "opacity-60",
+                        )}
+                        disabled={waStatus !== "connected" || uploadingFile}
+                        title="Attach file"
+                      >
+                        {uploadingFile
+                          ? <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                          : <Paperclip className="h-5 w-5 text-gray-500" />}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start" className="w-52 p-1.5">
+                      <div className="space-y-0.5">
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm hover:bg-muted transition-colors"
+                          onClick={() => { setAttachMenuOpen(false); fileInputRef.current?.click(); }}
+                        >
+                          <Image className="h-4 w-4 text-blue-500" /> Image
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm hover:bg-muted transition-colors"
+                          onClick={() => { setAttachMenuOpen(false); fileInputRef.current?.click(); }}
+                        >
+                          <Film className="h-4 w-4 text-purple-500" /> Video
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm hover:bg-muted transition-colors"
+                          onClick={() => { setAttachMenuOpen(false); fileInputRef.current?.click(); }}
+                        >
+                          <Music className="h-4 w-4 text-orange-500" /> Audio
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm hover:bg-muted transition-colors"
+                          onClick={() => { setAttachMenuOpen(false); fileInputRef.current?.click(); }}
+                        >
+                          <FileText className="h-4 w-4 text-gray-500" /> Document
+                        </button>
+                        <Separator className="my-1" />
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm hover:bg-muted transition-colors font-medium text-blue-700"
+                          onClick={() => { setAttachMenuOpen(false); setMediaDrawerOpen(true); }}
+                        >
+                          <Library className="h-4 w-4 text-blue-600" /> Media Library
+                        </button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
                   <textarea
                     ref={textareaRef}
                     value={compose}
@@ -767,7 +1023,9 @@ export default function WhatsAppInboxPage() {
                     placeholder={
                       waStatus !== "connected"
                         ? "Connect WhatsApp to send messages…"
-                        : "Type a message (Enter to send, Shift+Enter for newline)"
+                        : pendingAttachment
+                          ? "Add a message (optional)…"
+                          : "Type a message (Enter to send, Shift+Enter for newline)"
                     }
                     disabled={waStatus !== "connected" || sendMutation.isPending}
                     rows={1}
@@ -779,7 +1037,7 @@ export default function WhatsAppInboxPage() {
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={!compose.trim() || waStatus !== "connected" || sendMutation.isPending}
+                    disabled={!canSend}
                     size="icon"
                     className="h-10 w-10 flex-shrink-0 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-sm disabled:opacity-40"
                   >

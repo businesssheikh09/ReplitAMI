@@ -9,6 +9,101 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List media library items
+ */
+export const ListMediaLibraryQueryParams = zod.object({
+  "type": zod.enum(['image', 'video', 'audio', 'document']).optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListMediaLibraryResponseItem = zod.object({
+  "id": zod.number(),
+  "storageKey": zod.string(),
+  "originalFilename": zod.string(),
+  "mediaType": zod.enum(['image', 'video', 'audio', 'document']),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "uploadedBy": zod.number().nullish(),
+  "uploadedAt": zod.coerce.date(),
+  "tags": zod.array(zod.string()).optional()
+})
+export const ListMediaLibraryResponse = zod.array(ListMediaLibraryResponseItem)
+
+
+/**
+ * @summary Register a newly uploaded media file
+ */
+export const RegisterMediaLibraryItemBody = zod.object({
+  "storageKey": zod.string(),
+  "originalFilename": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number()
+})
+
+
+/**
+ * @summary Delete a media library item and its storage object
+ */
+export const DeleteMediaLibraryItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteMediaLibraryItemResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Replace a media library item with a new uploaded file
+ */
+export const ReplaceMediaLibraryItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReplaceMediaLibraryItemBody = zod.object({
+  "storageKey": zod.string(),
+  "originalFilename": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number()
+})
+
+export const ReplaceMediaLibraryItemResponse = zod.object({
+  "id": zod.number(),
+  "storageKey": zod.string(),
+  "originalFilename": zod.string(),
+  "mediaType": zod.enum(['image', 'video', 'audio', 'document']),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "uploadedBy": zod.number().nullish(),
+  "uploadedAt": zod.coerce.date(),
+  "tags": zod.array(zod.string()).optional()
+})
+
+
+/**
+ * @summary Get a signed download URL for a media library item
+ */
+export const GetMediaLibraryDownloadUrlParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetMediaLibraryDownloadUrlResponse = zod.object({
+  "url": zod.string(),
+  "item": zod.object({
+  "id": zod.number(),
+  "storageKey": zod.string(),
+  "originalFilename": zod.string(),
+  "mediaType": zod.enum(['image', 'video', 'audio', 'document']),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "uploadedBy": zod.number().nullish(),
+  "uploadedAt": zod.coerce.date(),
+  "tags": zod.array(zod.string()).optional()
+})
+})
+
+
+/**
  * @summary List group ticket inventory
  */
 export const ListGroupTicketsQueryParams = zod.object({

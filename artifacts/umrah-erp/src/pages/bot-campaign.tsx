@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Send, Loader2, AlertCircle, Users, CheckCheck,
   RefreshCw, Play, Pause, Square, Clock, Timer,
+  Paperclip, Image, Film, Music, FileText, X, Library,
+  ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { MediaLibraryDrawer, type MediaLibraryItem } from "@/components/media-library-drawer";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 
@@ -31,6 +34,8 @@ type ActiveCampaign = {
   estimatedFinishAt: string | null;
   lastSent: { jid: string; name: string | null; sentAt: string } | null;
   createdAt: string;
+  mediaLibraryId: number | null;
+  mediaCaption: string | null;
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
@@ -68,6 +73,21 @@ function computeDynamicDelay(contactCount: number): number {
   return Math.max(20, Math.floor(172800 / Math.max(contactCount, 1)));
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function MediaTypeIcon({ type, className }: { type: string; className?: string }) {
+  const cls = cn("h-5 w-5", className);
+  switch (type) {
+    case "image": return <Image className={cls} />;
+    case "video": return <Film className={cls} />;
+    case "audio": return <Music className={cls} />;
+    default: return <FileText className={cls} />;
+  }
+}
+
 /* ── Page component ───────────────────────────────────────────────── */
 
 export default function BotCampaignPage() {
@@ -94,6 +114,10 @@ export default function BotCampaignPage() {
   /* ── Local state ── */
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const [mediaMode, setMediaMode] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaLibraryItem | null>(null);
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [mediaDrawerOpen, setMediaDrawerOpen] = useState(false);
 
   /* ── Queries ── */
   const activeCampaignQuery = useQuery<ActiveCampaign | null>({
@@ -116,7 +140,7 @@ export default function BotCampaignPage() {
 
   /* ── Mutations ── */
   const createAndStartMutation = useMutation({
-    mutationFn: async (payload: { message: string }) => {
+    mutationFn: async (payload: { message: string; mediaLibraryId?: number | null; caption?: string | null }) => {
       const camp = await apiFetchAuth("/api/bot/campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -206,14 +230,22 @@ export default function BotCampaignPage() {
     resumeMutation.isPending ||
     stopMutation.isPending;
 
-  const canStart = message.trim().length > 0 && contacts.length > 0 && !isBusy;
+  const hasContent = mediaMode
+    ? !!selectedMedia
+    : message.trim().length > 0;
+
+  const canStart = hasContent && contacts.length > 0 && !isBusy;
 
   const previewDelay = computeDynamicDelay(contacts.length);
 
   /* ── Handlers ── */
   function handleStart() {
     if (!canStart) return;
-    createAndStartMutation.mutate({ message: message.trim() });
+    createAndStartMutation.mutate({
+      message: message.trim(),
+      mediaLibraryId: mediaMode && selectedMedia ? selectedMedia.id : null,
+      caption: mediaMode && mediaCaption.trim() ? mediaCaption.trim() : null,
+    });
   }
 
   /* ════════════════════════════════════════════════════════════════════
@@ -221,6 +253,16 @@ export default function BotCampaignPage() {
   ════════════════════════════════════════════════════════════════════ */
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-10">
+
+      {/* ── Media Library Drawer ── */}
+      <MediaLibraryDrawer
+        open={mediaDrawerOpen}
+        onClose={() => setMediaDrawerOpen(false)}
+        onSelect={(item) => {
+          setSelectedMedia(item);
+          setMediaDrawerOpen(false);
+        }}
+      />
 
       {/* ── Page header ── */}
       <div>
@@ -262,9 +304,20 @@ export default function BotCampaignPage() {
                 </Badge>
               )}
             </div>
-            <CardDescription className="text-xs mt-1 line-clamp-2">
-              "{campaign!.message}"
-            </CardDescription>
+            {campaign!.mediaLibraryId && (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">
+                <Paperclip className="h-3 w-3 shrink-0" />
+                <span>Media attachment included</span>
+                {campaign!.mediaCaption && (
+                  <span className="text-blue-500">· "{campaign!.mediaCaption}"</span>
+                )}
+              </div>
+            )}
+            {campaign!.message && (
+              <CardDescription className="text-xs mt-1 line-clamp-2">
+                "{campaign!.message}"
+              </CardDescription>
+            )}
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -468,23 +521,156 @@ export default function BotCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Message composer */}
-          <div className="space-y-2">
-            <Label htmlFor="bot-message">Message to send</Label>
-            <Textarea
-              id="bot-message"
-              placeholder="Type your message here. Every contact will receive this exact text."
-              rows={5}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="resize-none"
-            />
-            {contacts.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Sends to {contacts.length.toLocaleString()} contacts with a {fmtDuration(previewDelay)} gap — total campaign duration ~{fmtDuration(contacts.length * previewDelay)}.
-              </p>
-            )}
+          {/* ── Message mode toggle ── */}
+          <div className="flex items-center gap-3">
+            <Label className="text-sm font-medium">Message mode:</Label>
+            <button
+              onClick={() => { setMediaMode(false); setSelectedMedia(null); setMediaCaption(""); }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border transition-colors",
+                !mediaMode ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border hover:bg-muted",
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Text only
+            </button>
+            <button
+              onClick={() => setMediaMode(true)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border transition-colors",
+                mediaMode ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border hover:bg-muted",
+              )}
+            >
+              <Paperclip className="h-3.5 w-3.5" />
+              Media + Caption
+            </button>
           </div>
+
+          {/* ── Text mode ── */}
+          {!mediaMode && (
+            <div className="space-y-2">
+              <Label htmlFor="bot-message">Message to send</Label>
+              <Textarea
+                id="bot-message"
+                placeholder="Type your message here. Every contact will receive this exact text."
+                rows={5}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="resize-none"
+              />
+              {contacts.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Sends to {contacts.length.toLocaleString()} contacts with a {fmtDuration(previewDelay)} gap — total campaign duration ~{fmtDuration(contacts.length * previewDelay)}.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Media + Caption mode ── */}
+          {mediaMode && (
+            <div className="space-y-3">
+              <Label>Attachment</Label>
+
+              {!selectedMedia ? (
+                <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 py-8">
+                  <Library className="h-10 w-10 text-blue-300" />
+                  <p className="text-sm text-blue-700 font-medium">No file selected</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-100"
+                    onClick={() => setMediaDrawerOpen(true)}
+                  >
+                    <Library className="h-3.5 w-3.5" />
+                    Browse Media Library
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-card p-4 space-y-3">
+                  {/* WhatsApp-style preview */}
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
+                      selectedMedia.mediaType === "image" && "bg-blue-100",
+                      selectedMedia.mediaType === "video" && "bg-purple-100",
+                      selectedMedia.mediaType === "audio" && "bg-orange-100",
+                      selectedMedia.mediaType === "document" && "bg-gray-100",
+                    )}>
+                      <MediaTypeIcon
+                        type={selectedMedia.mediaType}
+                        className={cn(
+                          selectedMedia.mediaType === "image" && "text-blue-600",
+                          selectedMedia.mediaType === "video" && "text-purple-600",
+                          selectedMedia.mediaType === "audio" && "text-orange-600",
+                          selectedMedia.mediaType === "document" && "text-gray-600",
+                        )}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{selectedMedia.originalFilename}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedMedia.mediaType} · {formatBytes(selectedMedia.sizeBytes)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedMedia(null); setMediaCaption(""); }}
+                      className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="media-caption" className="text-xs">Caption (optional)</Label>
+                    <Textarea
+                      id="media-caption"
+                      placeholder="Add a caption to send with the file…"
+                      rows={3}
+                      value={mediaCaption}
+                      onChange={(e) => setMediaCaption(e.target.value)}
+                      className="resize-none text-sm"
+                    />
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                    onClick={() => setMediaDrawerOpen(true)}
+                  >
+                    <Library className="h-3.5 w-3.5" />
+                    Change file
+                  </Button>
+                </div>
+              )}
+
+              {/* WhatsApp-style send preview */}
+              {selectedMedia && (
+                <div className="rounded-lg bg-[#e8f5e9] border border-green-200 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700 mb-2">Preview (each contact receives)</p>
+                  <div className="bg-[#dcf8c6] rounded-lg rounded-tr-none p-3 max-w-[260px] shadow-sm space-y-1.5">
+                    <div className={cn(
+                      "flex items-center gap-2 rounded px-2 py-1.5 text-xs",
+                      "bg-green-700/10",
+                    )}>
+                      <MediaTypeIcon type={selectedMedia.mediaType} className="h-4 w-4 text-green-700 shrink-0" />
+                      <span className="truncate font-medium text-green-800">{selectedMedia.originalFilename}</span>
+                    </div>
+                    {mediaCaption && (
+                      <p className="text-sm whitespace-pre-wrap break-words text-gray-800">{mediaCaption}</p>
+                    )}
+                    <p className="text-[10px] text-right text-muted-foreground/70">12:00</p>
+                  </div>
+                </div>
+              )}
+
+              {contacts.length > 0 && selectedMedia && (
+                <p className="text-xs text-muted-foreground">
+                  Sends to {contacts.length.toLocaleString()} contacts with a {fmtDuration(previewDelay)} gap — total ~{fmtDuration(contacts.length * previewDelay)}.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Safety notice */}
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
@@ -519,6 +705,11 @@ export default function BotCampaignPage() {
           {contacts.length === 0 && !contactsQuery.isLoading && (
             <p className="text-xs text-center text-muted-foreground">
               The button will enable once contacts are loaded from your inbox history.
+            </p>
+          )}
+          {mediaMode && !selectedMedia && (
+            <p className="text-xs text-center text-muted-foreground">
+              Select a file from the Media Library to enable the campaign.
             </p>
           )}
         </div>

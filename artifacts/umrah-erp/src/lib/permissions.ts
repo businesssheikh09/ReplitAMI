@@ -35,6 +35,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
+  "/media-library": ADMIN_MGMT,
   "/flight-requests": NOT_ACCOUNTS,
 };
 
@@ -80,6 +81,7 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
+  "/media-library": ADMIN_MGMT,
   "/flight-requests": NOT_ACCOUNTS,
 };
 

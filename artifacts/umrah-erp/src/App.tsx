@@ -25,6 +25,7 @@ import DocumentsPage from "@/pages/documents";
 import GdsSettingsPage from "@/pages/gds-settings";
 import WhatsAppInboxPage from "@/pages/whatsapp-inbox";
 import BotCampaignPage from "@/pages/bot-campaign";
+import MediaLibraryPage from "@/pages/media-library";
 import CurrencySettingsPage from "@/pages/currency-settings";
 import WebsiteSettingsPage from "@/pages/website-settings";
 import BookingInquiriesPage from "@/pages/booking-inquiries";
@@ -123,6 +124,7 @@ function Router() {
         {/* Messaging */}
         <ProtectedRoute path="/whatsapp-inbox" component={WhatsAppInboxPage} />
         <ProtectedRoute path="/bot-campaign" component={BotCampaignPage} />
+        <ProtectedRoute path="/media-library" component={MediaLibraryPage} />
 
         {/* Admin */}
         <ProtectedRoute path="/users" component={UsersPage} />
