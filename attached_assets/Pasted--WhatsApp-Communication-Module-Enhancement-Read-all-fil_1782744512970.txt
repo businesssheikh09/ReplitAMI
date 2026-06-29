@@ -1,0 +1,331 @@
+# WhatsApp Communication Module Enhancement
+
+Read all files inside `/docs` before making any changes.
+
+This is an independent module.
+
+Do NOT modify:
+
+* Flights
+* Hotels
+* Accounting
+* Portal
+* Booking workflows
+* Customer Portal
+* Flight Frontend
+* Existing ERP business logic
+
+Only work on the WhatsApp Communication Module.
+
+---
+
+# OBJECTIVE
+
+Build a complete WhatsApp Communication Module that supports rich media across:
+
+* WhatsApp Inbox
+* WhatsApp Groups
+* WhatsApp Campaign Composer
+* Future reusable Media Library
+
+This architecture should be reusable across the ERP.
+
+---
+
+# IMPORTANT ARCHITECTURE RULE
+
+Before creating any database table, storage structure or upload system:
+
+Inspect the existing upload/storage architecture.
+
+If the current upload system can be reused:
+
+REUSE IT.
+
+Do NOT duplicate storage.
+
+Do NOT create separate upload systems.
+
+Only create a new database table if absolutely necessary.
+
+If a new table is required, explain WHY before creating it.
+
+---
+
+# MEDIA LIBRARY
+
+Create one shared Media Library for the ERP.
+
+This Media Library must be reusable by:
+
+* WhatsApp Campaigns
+* WhatsApp Inbox
+* WhatsApp Groups
+* Email Campaigns
+* CRM
+* Customer Documents
+* Supplier Documents
+* Visa Documents
+* Hotel Documents
+* Flight Documents
+* Future ERP modules
+
+Build it once.
+
+Reuse it everywhere.
+
+---
+
+# WHATSAPP GROUPS INBOX
+
+Enhance the existing reply box.
+
+Add a "+" button beside the message input.
+
+When clicked show:
+
+* Image
+* Video
+* Audio
+* PDF
+* Document
+* Excel
+* Media Library
+
+The experience should feel similar to modern chat applications.
+
+---
+
+# SUPPORTED FILE TYPES
+
+Support:
+
+Images
+
+* JPG
+* PNG
+* WEBP
+
+Documents
+
+* PDF
+* DOC
+* DOCX
+* XLS
+* XLSX
+
+Video
+
+* MP4
+
+Audio
+
+* MP3
+* OGG
+
+Use the existing storage system.
+
+---
+
+# REPLY EXPERIENCE
+
+Allow staff to:
+
+Type message
+
+Attach media
+
+Preview media
+
+Add caption
+
+Send to selected WhatsApp group
+
+Preview rules:
+
+Images
+→ Thumbnail preview
+
+PDF
+→ Document icon + filename + size
+
+Office documents
+→ Filename + icon
+
+Video
+→ Preview if available
+
+Audio
+→ Audio filename/player if possible
+
+---
+
+# CAMPAIGN COMPOSER
+
+Extend the campaign composer.
+
+Allow:
+
+Text only
+
+Image + Caption
+
+PDF + Caption
+
+Video + Caption
+
+Audio + Caption
+
+Document + Caption
+
+Allow selecting media from:
+
+Upload
+
+OR
+
+Media Library
+
+Show a preview before sending.
+
+Existing text campaigns must continue working.
+
+---
+
+# MEDIA LIBRARY FEATURES
+
+Allow:
+
+Upload
+
+Preview
+
+Reuse
+
+Replace
+
+Delete
+
+Search by filename
+
+Filter by media type
+
+The Media Library should be accessible from:
+
+Campaign Composer
+
+Inbox Reply
+
+Groups Reply
+
+Future modules
+
+---
+
+# MESSAGE PREVIEW
+
+Before sending:
+
+Show the exact WhatsApp message preview.
+
+Include:
+
+Text
+
+Caption
+
+Image
+
+Document filename
+
+Video
+
+Audio
+
+Attachment list
+
+---
+
+# BACKEND
+
+Inspect the existing Baileys implementation.
+
+Reuse existing sending functions.
+
+Do NOT introduce another WhatsApp provider.
+
+Do NOT break existing text sending.
+
+---
+
+# VALIDATION
+
+Validate:
+
+Allowed file types
+
+Maximum file size
+
+Upload progress
+
+Upload failure
+
+Unsupported file
+
+WhatsApp disconnected
+
+Send failure
+
+Display user-friendly errors.
+
+---
+
+# TECHNICAL RULES
+
+Do NOT duplicate code.
+
+Reuse existing upload services.
+
+Reuse existing storage.
+
+Reuse existing WhatsApp sender.
+
+Reuse existing UI components wherever possible.
+
+Keep the architecture modular.
+
+---
+
+# BEFORE CODING
+
+Provide:
+
+1. Files to inspect
+
+2. Files to modify
+
+3. Existing upload/storage system being reused
+
+4. Existing WhatsApp sender being reused
+
+5. Whether any backend changes are required
+
+6. Whether any database changes are required
+
+Wait for my approval before coding.
+
+---
+
+# AFTER COMPLETION
+
+Provide:
+
+* Files changed
+* Architecture summary
+* Supported formats
+* Maximum upload sizes
+* Screenshots
+* Testing steps
+* Remaining future improvements
+
+Stop after completing the WhatsApp Communication Module only.

@@ -1,0 +1,208 @@
+This is an independent WhatsApp module enhancement.
+
+Do not modify:
+- Flights
+- Accounting
+- Hotel module
+- Portal module
+- Booking workflows
+- Flight frontend work currently in progress
+
+Work ONLY on:
+
+1. WhatsApp Campaign / Bot module
+2. WhatsApp Groups Inbox chat reply section
+
+GOAL
+
+Add rich media upload and sending features to both:
+
+A. WhatsApp Campaign Composer  
+B. WhatsApp Groups Inbox Reply Box
+
+The UI should work like a modern chatbox.
+
+The "+" button in the message box should open attachment options.
+
+--------------------------------------------------
+1. PLUS BUTTON ATTACHMENT MENU
+--------------------------------------------------
+
+In the WhatsApp Groups Inbox chat reply section:
+
+Add a "+" button beside the message input.
+
+When clicked, show attachment options:
+
+- Image
+- Video
+- Audio
+- PDF
+- Document
+- Excel
+- Contact / vCard if possible
+- Saved media from media library
+
+The design should feel like a chat app attachment menu.
+
+Do not clutter the message box.
+
+--------------------------------------------------
+2. SUPPORTED FILE TYPES
+--------------------------------------------------
+
+Support sending:
+
+- JPG
+- PNG
+- WEBP
+- PDF
+- DOC
+- DOCX
+- XLS
+- XLSX
+- MP4
+- MP3
+- OGG
+
+Use the existing upload/storage system.
+
+Do not create a new storage system.
+
+--------------------------------------------------
+3. WHATSAPP CAMPAIGN COMPOSER
+--------------------------------------------------
+
+Enhance campaign composer so a campaign can send:
+
+- Text only
+- Image + caption
+- PDF + caption
+- Video + caption
+- Audio + caption
+- Document + caption
+- Multiple attachments if supported by the existing WhatsApp sending layer
+
+Existing text campaigns must continue working.
+
+--------------------------------------------------
+4. WHATSAPP GROUPS INBOX REPLY BOX
+--------------------------------------------------
+
+Enhance the group chat reply section.
+
+Users should be able to:
+
+- Type message
+- Click "+"
+- Choose file type
+- Upload file
+- Preview selected file
+- Add caption/message
+- Send to the selected WhatsApp group
+
+For images:
+Show thumbnail preview.
+
+For PDFs/documents:
+Show filename, file size, and document icon.
+
+For audio/video:
+Show filename and preview if possible.
+
+--------------------------------------------------
+5. MEDIA LIBRARY
+--------------------------------------------------
+
+Add or reuse a media library for WhatsApp marketing media.
+
+Allow:
+
+- Upload
+- Preview
+- Reuse
+- Replace
+- Delete
+- Search by filename
+- Select from previously uploaded media
+
+This media library should be usable from:
+
+- Campaign Composer
+- Groups Inbox Reply Box
+
+--------------------------------------------------
+6. MESSAGE PREVIEW
+--------------------------------------------------
+
+Before sending campaign media, show preview of what customer will receive.
+
+Preview should show:
+
+- Text
+- Caption
+- Image preview
+- Document filename
+- Video/audio file name
+- Attachment list
+
+For group inbox reply, show preview inside the reply box before sending.
+
+--------------------------------------------------
+7. BACKEND / SENDING LOGIC
+--------------------------------------------------
+
+Inspect the existing WhatsApp sending implementation first.
+
+If the current WhatsApp sender supports media:
+- Reuse it.
+
+If it does not support media:
+- Tell me what is missing before changing backend.
+
+Do not invent a new WhatsApp provider.
+
+Do not break existing text sending.
+
+--------------------------------------------------
+8. VALIDATION
+--------------------------------------------------
+
+Validate:
+
+- File type
+- File size
+- Upload errors
+- Missing file
+- WhatsApp not connected
+- Send failure
+
+Show user-friendly errors.
+
+--------------------------------------------------
+9. TECHNICAL RULES
+--------------------------------------------------
+
+Before coding, provide:
+
+- Files you will inspect
+- Files you will modify
+- Existing upload system to reuse
+- Existing WhatsApp send function to reuse
+- Whether backend change is required
+
+Wait for my approval before coding.
+
+--------------------------------------------------
+10. AFTER COMPLETION
+--------------------------------------------------
+
+Provide:
+
+- Files changed
+- Supported formats
+- How to test campaign media sending
+- How to test group inbox media reply
+- Any unsupported formats or limitations
+
+Stop after this WhatsApp media enhancement only.
