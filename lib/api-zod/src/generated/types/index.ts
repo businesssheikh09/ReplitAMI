@@ -6,8 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './activeCampaign';
+export * from './activeCampaignLastSent';
+export * from './activeCampaignMedia';
+export * from './activeCampaignRecipientMode';
+export * from './activeCampaignStatus';
 export * from './activityItem';
 export * from './authResponse';
+export * from './botCampaignInput';
+export * from './botCampaignInputRecipientMode';
+export * from './botContact';
+export * from './campaignHistoryItem';
+export * from './campaignHistoryItemRecipientMode';
 export * from './client';
 export * from './clientDetail';
 export * from './clientInput';

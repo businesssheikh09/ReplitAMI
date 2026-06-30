@@ -1,6 +1,6 @@
 import { pgTable, serial, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
 
-export type BotContact = { jid: string; name: string | null };
+export type BotContact = { jid: string; name: string | null; phone: string | null };
 
 export const botCampaignsTable = pgTable("bot_campaigns", {
   id: serial("id").primaryKey(),
@@ -14,6 +14,8 @@ export const botCampaignsTable = pgTable("bot_campaigns", {
   /** Optional media attachment for media+caption campaign mode */
   mediaLibraryId: integer("media_library_id"),
   mediaCaption: text("media_caption"),
+  /** 'all' = blast all contacts; 'selected' = staff-chosen subset */
+  recipientMode: text("recipient_mode").notNull().default("all"),
 });
 
 export const botCampaignSendsTable = pgTable("bot_campaign_sends", {

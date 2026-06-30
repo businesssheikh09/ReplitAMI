@@ -255,7 +255,17 @@ let _fetchLiveGroups: (() => Promise<LiveGroup[]>) | null = null;
  * Populated on connect, cleared on disconnect/logout.
  * null = not yet fetched or socket is disconnected.
  */
-let _cachedContacts: Array<{ jid: string; name: string | null }> | null = null;
+let _cachedContacts: Array<{ jid: string; name: string | null; phone: string | null }> | null = null;
+
+/** Extract a human-readable phone number from a WhatsApp JID.
+ *  @s.whatsapp.net  → the numeric part (e.g. "923001234567")
+ *  @lid             → null (multi-device privacy ID, no real phone)
+ *  anything else    → null
+ */
+function jidToPhone(jid: string): string | null {
+  if (jid.endsWith("@s.whatsapp.net")) return jid.split("@")[0] ?? null;
+  return null;
+}
 
 /** Active Baileys socket — kept so disconnectWhatsApp() can call logout(). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -500,7 +510,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
             { participants?: Array<{ id: string }> }
           >;
           const seen = new Set<string>();
-          const contacts: Array<{ jid: string; name: string | null }> = [];
+          const contacts: Array<{ jid: string; name: string | null; phone: string | null }> = [];
           for (const meta of Object.values(groups)) {
             if (!Array.isArray(meta.participants)) continue;
             for (const p of meta.participants) {
@@ -509,7 +519,7 @@ export async function initWhatsApp(dir: string): Promise<void> {
               // Exclude group JIDs (@g.us) and empty/malformed values.
               if (!jid.includes("@") || jid.endsWith("@g.us") || seen.has(jid)) continue;
               seen.add(jid);
-              contacts.push({ jid, name: null });
+              contacts.push({ jid, name: null, phone: jidToPhone(jid) });
             }
           }
           contacts.sort((a, b) => a.jid.localeCompare(b.jid));
@@ -600,7 +610,7 @@ export async function getLiveGroups(): Promise<LiveGroup[]> {
  * linked phone, whether it's the same number or a newly scanned QR.
  * Throws "WhatsApp not connected" if the socket is not open.
  */
-export async function getLiveContacts(): Promise<Array<{ jid: string; name: string | null }>> {
+export async function getLiveContacts(): Promise<Array<{ jid: string; name: string | null; phone: string | null }>> {
   if (!currentSock) throw new Error("WhatsApp not connected");
 
   // Serve from cache when warm (populated on connect)
@@ -609,14 +619,14 @@ export async function getLiveContacts(): Promise<Array<{ jid: string; name: stri
   // Cache miss — fetch on-demand (e.g. pre-populate failed or first request raced connect)
   const groups = await (currentSock as { groupFetchAllParticipating: () => Promise<Record<string, { participants?: Array<{ id: string }> }>> }).groupFetchAllParticipating();
   const seen = new Set<string>();
-  const contacts: Array<{ jid: string; name: string | null }> = [];
+  const contacts: Array<{ jid: string; name: string | null; phone: string | null }> = [];
   for (const meta of Object.values(groups)) {
     if (!Array.isArray(meta.participants)) continue;
     for (const p of meta.participants) {
       const jid = p?.id ?? "";
       if (!jid.includes("@") || jid.endsWith("@g.us") || seen.has(jid)) continue;
       seen.add(jid);
-      contacts.push({ jid, name: null });
+      contacts.push({ jid, name: null, phone: jidToPhone(jid) });
     }
   }
   contacts.sort((a, b) => a.jid.localeCompare(b.jid));

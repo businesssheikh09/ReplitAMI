@@ -20,8 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ActiveCampaign,
   ActivityItem,
   AuthResponse,
+  BotCampaignInput,
+  BotContact,
+  CampaignHistoryItem,
   Client,
   ClientDetail,
   ClientInput,
@@ -7188,6 +7192,588 @@ export const useGenerateDocument = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGenerateDocumentMutationOptions(options));
+    }
+
+export const getListBotContactsUrl = () => {
+
+
+
+
+  return `/api/bot/contacts`
+}
+
+/**
+ * @summary List all individual WhatsApp contacts
+ */
+export const listBotContacts = async ( options?: RequestInit): Promise<BotContact[]> => {
+
+  return customFetch<BotContact[]>(getListBotContactsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBotContactsQueryKey = () => {
+    return [
+    `/api/bot/contacts`
+    ] as const;
+    }
+
+
+export const getListBotContactsQueryOptions = <TData = Awaited<ReturnType<typeof listBotContacts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBotContacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBotContactsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBotContacts>>> = ({ signal }) => listBotContacts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBotContacts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBotContactsQueryResult = NonNullable<Awaited<ReturnType<typeof listBotContacts>>>
+export type ListBotContactsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all individual WhatsApp contacts
+ */
+
+export function useListBotContacts<TData = Awaited<ReturnType<typeof listBotContacts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBotContacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBotContactsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListCampaignsUrl = () => {
+
+
+
+
+  return `/api/bot/campaigns`
+}
+
+/**
+ * @summary List last 20 campaigns (history)
+ */
+export const listCampaigns = async ( options?: RequestInit): Promise<CampaignHistoryItem[]> => {
+
+  return customFetch<CampaignHistoryItem[]>(getListCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCampaignsQueryKey = () => {
+    return [
+    `/api/bot/campaigns`
+    ] as const;
+    }
+
+
+export const getListCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof listCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCampaigns>>> = ({ signal }) => listCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof listCampaigns>>>
+export type ListCampaignsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List last 20 campaigns (history)
+ */
+
+export function useListCampaigns<TData = Awaited<ReturnType<typeof listCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCampaignUrl = () => {
+
+
+
+
+  return `/api/bot/campaign`
+}
+
+/**
+ * @summary Create a new campaign (stops any active one first)
+ */
+export const createCampaign = async (botCampaignInput: BotCampaignInput, options?: RequestInit): Promise<CampaignHistoryItem> => {
+
+  return customFetch<CampaignHistoryItem>(getCreateCampaignUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      botCampaignInput,)
+  }
+);}
+
+
+
+
+export const getCreateCampaignMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCampaign>>, TError,{data: BodyType<BotCampaignInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCampaign>>, TError,{data: BodyType<BotCampaignInput>}, TContext> => {
+
+const mutationKey = ['createCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCampaign>>, {data: BodyType<BotCampaignInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCampaign(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof createCampaign>>>
+    export type CreateCampaignMutationBody = BodyType<BotCampaignInput>
+    export type CreateCampaignMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a new campaign (stops any active one first)
+ */
+export const useCreateCampaign = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCampaign>>, TError,{data: BodyType<BotCampaignInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCampaign>>,
+        TError,
+        {data: BodyType<BotCampaignInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCampaignMutationOptions(options));
+    }
+
+export const getGetActiveCampaignUrl = () => {
+
+
+
+
+  return `/api/bot/campaign/active`
+}
+
+/**
+ * @summary Get the current active/paused campaign with live progress
+ */
+export const getActiveCampaign = async ( options?: RequestInit): Promise<ActiveCampaign | null> => {
+
+  return customFetch<ActiveCampaign | null>(getGetActiveCampaignUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetActiveCampaignQueryKey = () => {
+    return [
+    `/api/bot/campaign/active`
+    ] as const;
+    }
+
+
+export const getGetActiveCampaignQueryOptions = <TData = Awaited<ReturnType<typeof getActiveCampaign>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getActiveCampaign>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetActiveCampaignQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getActiveCampaign>>> = ({ signal }) => getActiveCampaign({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getActiveCampaign>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetActiveCampaignQueryResult = NonNullable<Awaited<ReturnType<typeof getActiveCampaign>>>
+export type GetActiveCampaignQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current active/paused campaign with live progress
+ */
+
+export function useGetActiveCampaign<TData = Awaited<ReturnType<typeof getActiveCampaign>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getActiveCampaign>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetActiveCampaignQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getStartCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/bot/campaign/${id}/start`
+}
+
+/**
+ * @summary Start a campaign (computes dynamic delay)
+ */
+export const startCampaign = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getStartCampaignUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStartCampaignMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['startCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  startCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof startCampaign>>>
+
+    export type StartCampaignMutationError = ErrorType<void>
+
+    /**
+ * @summary Start a campaign (computes dynamic delay)
+ */
+export const useStartCampaign = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getStartCampaignMutationOptions(options));
+    }
+
+export const getPauseCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/bot/campaign/${id}/pause`
+}
+
+/**
+ * @summary Pause a running campaign
+ */
+export const pauseCampaign = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getPauseCampaignUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPauseCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pauseCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['pauseCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pauseCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  pauseCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PauseCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof pauseCampaign>>>
+
+    export type PauseCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Pause a running campaign
+ */
+export const usePauseCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pauseCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getPauseCampaignMutationOptions(options));
+    }
+
+export const getResumeCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/bot/campaign/${id}/resume`
+}
+
+/**
+ * @summary Resume a paused campaign
+ */
+export const resumeCampaign = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getResumeCampaignUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getResumeCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['resumeCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  resumeCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof resumeCampaign>>>
+
+    export type ResumeCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Resume a paused campaign
+ */
+export const useResumeCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resumeCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getResumeCampaignMutationOptions(options));
+    }
+
+export const getStopCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/bot/campaign/${id}/stop`
+}
+
+/**
+ * @summary Stop a campaign
+ */
+export const stopCampaign = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getStopCampaignUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStopCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['stopCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  stopCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof stopCampaign>>>
+
+    export type StopCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Stop a campaign
+ */
+export const useStopCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof stopCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getStopCampaignMutationOptions(options));
     }
 
 export const getGetWebsiteConfigUrl = () => {

@@ -2082,6 +2082,129 @@ export const GenerateDocumentBody = zod.object({
 
 
 /**
+ * @summary List all individual WhatsApp contacts
+ */
+export const ListBotContactsResponseItem = zod.object({
+  "jid": zod.string(),
+  "name": zod.string().nullable(),
+  "phone": zod.string().nullable()
+})
+export const ListBotContactsResponse = zod.array(ListBotContactsResponseItem)
+
+
+/**
+ * @summary List last 20 campaigns (history)
+ */
+export const ListCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "message": zod.string(),
+  "total": zod.number(),
+  "sent": zod.number().optional(),
+  "recipientMode": zod.enum(['all', 'selected']),
+  "createdAt": zod.coerce.date(),
+  "mediaName": zod.string().nullish(),
+  "mediaMimeType": zod.string().nullish(),
+  "mediaSizeBytes": zod.number().nullish(),
+  "mediaCaption": zod.string().nullish()
+})
+export const ListCampaignsResponse = zod.array(ListCampaignsResponseItem)
+
+
+/**
+ * @summary Create a new campaign (stops any active one first)
+ */
+export const CreateCampaignBody = zod.object({
+  "message": zod.string().optional(),
+  "mediaLibraryId": zod.number().nullish(),
+  "caption": zod.string().nullish(),
+  "recipientMode": zod.enum(['all', 'selected']).optional(),
+  "contacts": zod.array(zod.object({
+  "jid": zod.string(),
+  "name": zod.string().nullable(),
+  "phone": zod.string().nullable()
+})).optional().describe('Pre-selected contacts (used when recipientMode=selected)')
+})
+
+export const CreateCampaignResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "message": zod.string(),
+  "total": zod.number(),
+  "sent": zod.number().optional(),
+  "recipientMode": zod.enum(['all', 'selected']),
+  "createdAt": zod.coerce.date(),
+  "mediaName": zod.string().nullish(),
+  "mediaMimeType": zod.string().nullish(),
+  "mediaSizeBytes": zod.number().nullish(),
+  "mediaCaption": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get the current active/paused campaign with live progress
+ */
+export const GetActiveCampaignResponse = zod.union([zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "status": zod.enum(['idle', 'running', 'paused']),
+  "total": zod.number(),
+  "sent": zod.number(),
+  "nextSendAt": zod.coerce.date().nullish(),
+  "delaySeconds": zod.number(),
+  "estimatedFinishAt": zod.coerce.date().nullish(),
+  "lastSent": zod.union([zod.object({
+  "name": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "sentAt": zod.coerce.date()
+}),zod.null()]).nullish(),
+  "mediaLibraryId": zod.number().nullish(),
+  "mediaCaption": zod.string().nullish(),
+  "media": zod.union([zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "previewUrl": zod.string().nullish()
+}),zod.null()]).nullish(),
+  "recipientMode": zod.enum(['all', 'selected']),
+  "createdAt": zod.coerce.date()
+}),zod.null()]).nullable()
+
+
+/**
+ * @summary Start a campaign (computes dynamic delay)
+ */
+export const StartCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Pause a running campaign
+ */
+export const PauseCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Resume a paused campaign
+ */
+export const ResumeCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Stop a campaign
+ */
+export const StopCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * @summary Get all website configuration values
  */
 export const GetWebsiteConfigResponse = zod.object({

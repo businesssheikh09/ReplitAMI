@@ -1,11 +1,17 @@
 import { Router } from "express";
-import { db, botCampaignsTable, botCampaignSendsTable } from "@workspace/db";
+import { db, botCampaignsTable, botCampaignSendsTable, mediaLibraryTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { getLiveContacts } from "../services/whatsapp.js";
 
 const router = Router();
 const canManage = requireRole("admin", "management");
+
+/** Extract a phone number from a WhatsApp JID. Returns null for @lid or unknown formats. */
+function jidToPhone(jid: string): string | null {
+  if (jid.endsWith("@s.whatsapp.net")) return jid.split("@")[0] ?? null;
+  return null;
+}
 
 /**
  * GET /api/bot/contacts
@@ -26,22 +32,78 @@ router.get("/bot/contacts", requireAuth, canManage, async (req, res) => {
 });
 
 /**
+ * GET /api/bot/campaigns
+ * Returns the last 20 campaigns for history display.
+ */
+router.get("/bot/campaigns", requireAuth, canManage, async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id: botCampaignsTable.id,
+        message: botCampaignsTable.message,
+        status: botCampaignsTable.status,
+        currentIndex: botCampaignsTable.currentIndex,
+        contacts: botCampaignsTable.contacts,
+        createdAt: botCampaignsTable.createdAt,
+        mediaLibraryId: botCampaignsTable.mediaLibraryId,
+        mediaCaption: botCampaignsTable.mediaCaption,
+        recipientMode: botCampaignsTable.recipientMode,
+        mediaName: mediaLibraryTable.originalFilename,
+        mediaMimeType: mediaLibraryTable.mimeType,
+        mediaSizeBytes: mediaLibraryTable.sizeBytes,
+      })
+      .from(botCampaignsTable)
+      .leftJoin(mediaLibraryTable, eq(botCampaignsTable.mediaLibraryId, mediaLibraryTable.id))
+      .orderBy(desc(botCampaignsTable.createdAt))
+      .limit(20);
+
+    const history = rows.map((row) => ({
+      id: row.id,
+      status: row.status,
+      message: row.message,
+      total: (row.contacts as Array<unknown>).length,
+      sent: row.currentIndex,
+      recipientMode: row.recipientMode ?? "all",
+      createdAt: row.createdAt,
+      mediaLibraryId: row.mediaLibraryId ?? null,
+      mediaCaption: row.mediaCaption ?? null,
+      mediaName: row.mediaName ?? null,
+      mediaMimeType: row.mediaMimeType ?? null,
+      mediaSizeBytes: row.mediaSizeBytes ?? null,
+    }));
+
+    return res.json(history);
+  } catch (err) {
+    req.log.error({ err }, "bot/campaigns GET: failed");
+    return res.status(500).json({ error: "Failed to fetch campaign history" });
+  }
+});
+
+/**
  * GET /api/bot/campaign/active
  * Returns the single most-recent campaign that is idle/running/paused,
- * plus live progress counts, delaySeconds, and estimatedFinishAt.
+ * plus live progress counts, delaySeconds, estimatedFinishAt, media metadata,
+ * and a phone-safe lastSent (never exposes raw JID).
  */
 router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
   try {
-    const [campaign] = await db
-      .select()
+    const rows = await db
+      .select({
+        campaign: botCampaignsTable,
+        mediaName: mediaLibraryTable.originalFilename,
+        mediaMimeType: mediaLibraryTable.mimeType,
+        mediaSizeBytes: mediaLibraryTable.sizeBytes,
+      })
       .from(botCampaignsTable)
-      .where(sql`status IN ('idle', 'running', 'paused')`)
+      .leftJoin(mediaLibraryTable, eq(botCampaignsTable.mediaLibraryId, mediaLibraryTable.id))
+      .where(sql`${botCampaignsTable.status} IN ('idle', 'running', 'paused')`)
       .orderBy(desc(botCampaignsTable.createdAt))
       .limit(1);
 
-    if (!campaign) return res.json(null);
+    if (rows.length === 0) return res.json(null);
 
-    const contacts = campaign.contacts as Array<{ jid: string; name: string | null }>;
+    const { campaign, mediaName, mediaMimeType, mediaSizeBytes } = rows[0];
+    const contacts = campaign.contacts as Array<{ jid: string; name: string | null; phone?: string | null }>;
     const delaySeconds = campaign.delaySeconds ?? 20;
 
     const remaining = contacts.length - campaign.currentIndex;
@@ -68,12 +130,25 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
       nextSendAt: campaign.nextSendAt,
       delaySeconds,
       estimatedFinishAt,
+      recipientMode: campaign.recipientMode ?? "all",
       lastSent: lastSend
-        ? { jid: lastSend.jid, name: lastSend.name, sentAt: lastSend.sentAt }
+        ? {
+            name: lastSend.name ?? null,
+            phone: jidToPhone(lastSend.jid),
+            sentAt: lastSend.sentAt,
+          }
         : null,
       createdAt: campaign.createdAt,
       mediaLibraryId: campaign.mediaLibraryId ?? null,
       mediaCaption: campaign.mediaCaption ?? null,
+      media: campaign.mediaLibraryId && mediaName
+        ? {
+            id: campaign.mediaLibraryId,
+            name: mediaName,
+            mimeType: mediaMimeType ?? "",
+            sizeBytes: mediaSizeBytes ?? 0,
+          }
+        : null,
     });
   } catch (err) {
     req.log.error({ err }, "bot/campaign/active: query failed");
@@ -84,39 +159,54 @@ router.get("/bot/campaign/active", requireAuth, canManage, async (req, res) => {
 /**
  * POST /api/bot/campaign
  * Creates a new campaign (status: idle). Stops any existing active campaign first.
- * Body: { message, mediaLibraryId?, caption? }
+ * Body: { message?, mediaLibraryId?, caption?, recipientMode?, contacts? }
+ * When recipientMode='selected' and contacts[] is provided, uses that list directly.
+ * Otherwise fetches all live contacts from WhatsApp.
  */
 router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
-  const { message, mediaLibraryId, caption } = req.body as {
-    message: string;
+  const { message, mediaLibraryId, caption, recipientMode, contacts: bodyContacts } = req.body as {
+    message?: string;
     mediaLibraryId?: number | null;
     caption?: string | null;
+    recipientMode?: "all" | "selected";
+    contacts?: Array<{ jid: string; name: string | null; phone: string | null }>;
   };
 
   if (!message?.trim() && !mediaLibraryId) {
     return res.status(400).json({ error: "message or mediaLibraryId is required" });
   }
 
-  let contacts: Array<{ jid: string; name: string | null }>;
-  try {
-    contacts = await getLiveContacts();
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("not connected")) {
-      return res.status(503).json({ error: "WhatsApp is not connected" });
-    }
-    req.log.error({ err }, "bot/campaign POST: failed to fetch contacts");
-    return res.status(500).json({ error: "Failed to fetch contacts" });
-  }
+  const mode = recipientMode ?? "all";
 
-  if (contacts.length === 0)
-    return res.status(400).json({ error: "No contacts available — WhatsApp groups may be empty" });
+  let contacts: Array<{ jid: string; name: string | null; phone: string | null }>;
+
+  if (mode === "selected") {
+    if (!bodyContacts || bodyContacts.length === 0) {
+      return res.status(400).json({ error: "contacts[] is required when recipientMode=selected" });
+    }
+    contacts = bodyContacts;
+  } else {
+    try {
+      contacts = await getLiveContacts();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("not connected")) {
+        return res.status(503).json({ error: "WhatsApp is not connected" });
+      }
+      req.log.error({ err }, "bot/campaign POST: failed to fetch contacts");
+      return res.status(500).json({ error: "Failed to fetch contacts" });
+    }
+
+    if (contacts.length === 0) {
+      return res.status(400).json({ error: "No contacts available — WhatsApp groups may be empty" });
+    }
+  }
 
   try {
     await db
       .update(botCampaignsTable)
       .set({ status: "stopped", nextSendAt: null })
-      .where(sql`status IN ('idle', 'running', 'paused')`);
+      .where(sql`${botCampaignsTable.status} IN ('idle', 'running', 'paused')`);
 
     const [campaign] = await db
       .insert(botCampaignsTable)
@@ -127,10 +217,14 @@ router.post("/bot/campaign", requireAuth, canManage, async (req, res) => {
         currentIndex: 0,
         mediaLibraryId: mediaLibraryId ?? null,
         mediaCaption: caption ?? null,
+        recipientMode: mode,
       })
       .returning();
 
-    req.log.info({ campaignId: campaign.id, total: contacts.length, hasMedia: !!mediaLibraryId }, "Bot campaign created");
+    req.log.info(
+      { campaignId: campaign.id, total: contacts.length, mode, hasMedia: !!mediaLibraryId },
+      "Bot campaign created",
+    );
     return res.json(campaign);
   } catch (err) {
     req.log.error({ err }, "bot/campaign POST: failed");

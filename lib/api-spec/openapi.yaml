@@ -25,6 +25,7 @@ tags:
   - name: documents
   - name: websiteConfig
   - name: mediaLibrary
+  - name: bot
 
 paths:
   # ── MEDIA LIBRARY ─────────────────────────────────────────────────
@@ -1956,6 +1957,138 @@ paths:
               schema:
                 $ref: "#/components/schemas/Document"
 
+  # ── BOT / CAMPAIGNS ────────────────────────────────────────────────
+  /bot/contacts:
+    get:
+      operationId: listBotContacts
+      tags: [bot]
+      summary: List all individual WhatsApp contacts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotContact"
+
+  /bot/campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [bot]
+      summary: List last 20 campaigns (history)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampaignHistoryItem"
+
+  /bot/campaign:
+    post:
+      operationId: createCampaign
+      tags: [bot]
+      summary: Create a new campaign (stops any active one first)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotCampaignInput"
+      responses:
+        "200":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignHistoryItem"
+        "400":
+          description: Validation error
+        "503":
+          description: WhatsApp not connected
+
+  /bot/campaign/active:
+    get:
+      operationId: getActiveCampaign
+      tags: [bot]
+      summary: Get the current active/paused campaign with live progress
+      responses:
+        "200":
+          description: Active campaign or null
+          content:
+            application/json:
+              schema:
+                nullable: true
+                oneOf:
+                  - $ref: "#/components/schemas/ActiveCampaign"
+                  - type: "null"
+
+  /bot/campaign/{id}/start:
+    post:
+      operationId: startCampaign
+      tags: [bot]
+      summary: Start a campaign (computes dynamic delay)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not found
+
+  /bot/campaign/{id}/pause:
+    post:
+      operationId: pauseCampaign
+      tags: [bot]
+      summary: Pause a running campaign
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+
+  /bot/campaign/{id}/resume:
+    post:
+      operationId: resumeCampaign
+      tags: [bot]
+      summary: Resume a paused campaign
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+
+  /bot/campaign/{id}/stop:
+    post:
+      operationId: stopCampaign
+      tags: [bot]
+      summary: Stop a campaign
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+
   # ── WEBSITE CONFIG ─────────────────────────────────────────────────
   /website-config:
     get:
@@ -3727,6 +3860,150 @@ components:
           type: string
         sizeBytes:
           type: integer
+
+    BotContact:
+      type: object
+      required: [jid, name, phone]
+      properties:
+        jid:
+          type: string
+        name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+
+    ActiveCampaignLastSent:
+      type: object
+      required: [name, phone, sentAt]
+      properties:
+        name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+
+    ActiveCampaignMedia:
+      type: object
+      required: [id, name, mimeType, sizeBytes]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+        previewUrl:
+          type: string
+          nullable: true
+
+    ActiveCampaign:
+      type: object
+      required: [id, message, status, total, sent, delaySeconds, recipientMode, createdAt]
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        status:
+          type: string
+          enum: [idle, running, paused]
+        total:
+          type: integer
+        sent:
+          type: integer
+        nextSendAt:
+          type: string
+          nullable: true
+          format: date-time
+        delaySeconds:
+          type: integer
+        estimatedFinishAt:
+          type: string
+          nullable: true
+          format: date-time
+        lastSent:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/ActiveCampaignLastSent"
+            - type: "null"
+        mediaLibraryId:
+          type: integer
+          nullable: true
+        mediaCaption:
+          type: string
+          nullable: true
+        media:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/ActiveCampaignMedia"
+            - type: "null"
+        recipientMode:
+          type: string
+          enum: [all, selected]
+        createdAt:
+          type: string
+          format: date-time
+
+    CampaignHistoryItem:
+      type: object
+      required: [id, status, message, total, recipientMode, createdAt]
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+        total:
+          type: integer
+        sent:
+          type: integer
+        recipientMode:
+          type: string
+          enum: [all, selected]
+        createdAt:
+          type: string
+          format: date-time
+        mediaName:
+          type: string
+          nullable: true
+        mediaMimeType:
+          type: string
+          nullable: true
+        mediaSizeBytes:
+          type: integer
+          nullable: true
+        mediaCaption:
+          type: string
+          nullable: true
+
+    BotCampaignInput:
+      type: object
+      properties:
+        message:
+          type: string
+        mediaLibraryId:
+          type: integer
+          nullable: true
+        caption:
+          type: string
+          nullable: true
+        recipientMode:
+          type: string
+          enum: [all, selected]
+        contacts:
+          type: array
+          description: Pre-selected contacts (used when recipientMode=selected)
+          items:
+            $ref: "#/components/schemas/BotContact"
 
     MediaLibraryDownloadUrl:
       type: object

@@ -1292,6 +1292,99 @@ export interface MediaLibraryInput {
   sizeBytes: number;
 }
 
+export interface BotContact {
+  jid: string;
+  name: string | null;
+  phone: string | null;
+}
+
+export interface ActiveCampaignLastSent {
+  name: string | null;
+  phone: string | null;
+  sentAt: string;
+}
+
+export interface ActiveCampaignMedia {
+  id: number;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  previewUrl?: string | null;
+}
+
+export type ActiveCampaignStatus = typeof ActiveCampaignStatus[keyof typeof ActiveCampaignStatus];
+
+
+export const ActiveCampaignStatus = {
+  idle: 'idle',
+  running: 'running',
+  paused: 'paused',
+} as const;
+
+export type ActiveCampaignRecipientMode = typeof ActiveCampaignRecipientMode[keyof typeof ActiveCampaignRecipientMode];
+
+
+export const ActiveCampaignRecipientMode = {
+  all: 'all',
+  selected: 'selected',
+} as const;
+
+export interface ActiveCampaign {
+  id: number;
+  message: string;
+  status: ActiveCampaignStatus;
+  total: number;
+  sent: number;
+  nextSendAt?: string | null;
+  delaySeconds: number;
+  estimatedFinishAt?: string | null;
+  lastSent?: ActiveCampaignLastSent | null;
+  mediaLibraryId?: number | null;
+  mediaCaption?: string | null;
+  media?: ActiveCampaignMedia | null;
+  recipientMode: ActiveCampaignRecipientMode;
+  createdAt: string;
+}
+
+export type CampaignHistoryItemRecipientMode = typeof CampaignHistoryItemRecipientMode[keyof typeof CampaignHistoryItemRecipientMode];
+
+
+export const CampaignHistoryItemRecipientMode = {
+  all: 'all',
+  selected: 'selected',
+} as const;
+
+export interface CampaignHistoryItem {
+  id: number;
+  status: string;
+  message: string;
+  total: number;
+  sent?: number;
+  recipientMode: CampaignHistoryItemRecipientMode;
+  createdAt: string;
+  mediaName?: string | null;
+  mediaMimeType?: string | null;
+  mediaSizeBytes?: number | null;
+  mediaCaption?: string | null;
+}
+
+export type BotCampaignInputRecipientMode = typeof BotCampaignInputRecipientMode[keyof typeof BotCampaignInputRecipientMode];
+
+
+export const BotCampaignInputRecipientMode = {
+  all: 'all',
+  selected: 'selected',
+} as const;
+
+export interface BotCampaignInput {
+  message?: string;
+  mediaLibraryId?: number | null;
+  caption?: string | null;
+  recipientMode?: BotCampaignInputRecipientMode;
+  /** Pre-selected contacts (used when recipientMode=selected) */
+  contacts?: BotContact[];
+}
+
 export interface MediaLibraryDownloadUrl {
   url: string;
   item: MediaLibraryItem;

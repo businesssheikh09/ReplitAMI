@@ -1,0 +1,119 @@
+This is a WhatsApp Campaign bug fix + Phase 3 planning task.
+
+Do not modify Flights, Accounting, Hotels, Portal, Booking workflows, or unrelated modules.
+
+First fix the current bugs.
+
+1. Media Preview Bug
+Currently campaign progress only shows:
+"Media attachment included"
+
+Fix it so uploaded media shows a real preview:
+- Image: thumbnail preview + click to open full image
+- PDF: icon + filename + preview/open button
+- Video: filename + preview if possible
+- Audio: filename/player if possible
+- Document: icon + filename + size
+
+2. Contact Display Bug
+Currently campaign progress shows internal WhatsApp JIDs like:
+100382042783824@lid
+
+Do not show JIDs to ERP users.
+
+Display priority:
+1. Contact name if available
+2. Phone number if available
+3. JID only if no other data exists
+
+For "Last sent to", show:
+Name
+Phone number
+
+Do not show raw JID unless unavoidable.
+
+3. Campaign Preview Card
+Before sending campaign, show a WhatsApp-style preview card:
+- Media preview
+- Filename
+- File type
+- File size
+- Caption
+- Message text
+
+4. Campaign History
+Campaign history should show:
+- Media preview if attached
+- Filename
+- Caption
+- Recipient count
+- Delivery status
+- Created date
+
+Do not only show "Media attachment included".
+
+--------------------------------------------------
+PHASE 3 — CONTACT SELECTION FEATURE
+--------------------------------------------------
+
+Add contact selection for WhatsApp campaigns.
+
+Goal:
+Instead of always sending to all contacts, staff should be able to choose who receives the campaign.
+
+Required behavior:
+
+1. Campaign recipient mode:
+- Send to all contacts
+- Send to selected contacts
+- Send to selected groups/lists if existing structure supports it
+
+2. Contact selector:
+- Search contacts by name
+- Search contacts by phone number
+- Filter by source/type if available
+- Select individual contacts
+- Select all visible contacts
+- Clear selection
+
+3. Selected recipients preview:
+Before starting campaign, show:
+- Total selected contacts
+- List of selected names/numbers
+- Warning if no contacts selected
+
+4. Safety:
+- Do not start campaign if selected contact list is empty
+- Confirm before sending to large lists
+- Keep existing "send to all" behavior available
+
+5. Contact display:
+Use human-readable names/numbers, not JIDs.
+
+6. Backend:
+Reuse existing contacts/WhatsApp contact storage if available.
+Do not create duplicate contact tables unless absolutely required.
+If missing backend support is needed, explain before changing schema.
+
+--------------------------------------------------
+STRICT RULES
+--------------------------------------------------
+
+Do not break existing campaigns.
+Do not remove text-only campaign support.
+Do not change WhatsApp provider.
+Do not change sending delay logic.
+Do not touch unrelated modules.
+
+--------------------------------------------------
+BEFORE CODING
+--------------------------------------------------
+
+Tell me:
+1. Files you will modify
+2. Whether backend changes are required
+3. Where contacts are currently stored
+4. How selected contacts will be saved with the campaign
+5. Whether database changes are required
+
+Wait for my approval before coding.
