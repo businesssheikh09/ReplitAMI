@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListVendors, useCreateVendor, useDeleteVendor } from "@workspace/api-client-react";
+import { useListVendors, useCreateVendor, useDeleteVendor, VendorInputType } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Star } from "lucide-react";
 
-const VENDOR_TYPES = ["hotel","transport","airline","visa","other"];
+const VENDOR_TYPES = Object.values(VendorInputType) as VendorInputType[];
 
 export default function VendorsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "hotel", contactName: "", email: "", phone: "", country: "" });
+  const [form, setForm] = useState<{ name: string; type: VendorInputType; contactName: string; email: string; phone: string; country: string }>({ name: "", type: VendorInputType.hotel, contactName: "", email: "", phone: "", country: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -39,7 +39,7 @@ export default function VendorsPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Type</Label>
-                <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v }))}>
+                <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v as VendorInputType }))}>
                   <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
                   <SelectContent>{VENDOR_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</SelectItem>)}</SelectContent>
                 </Select>

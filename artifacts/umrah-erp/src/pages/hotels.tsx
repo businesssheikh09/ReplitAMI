@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListHotels, useCreateHotel, useDeleteHotel } from "@workspace/api-client-react";
+import { useListHotels, useCreateHotel, useDeleteHotel, HotelInputCity } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ export default function HotelsPage() {
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", city: "makkah", stars: "5", distanceFromHaram: "" });
+  const [form, setForm] = useState<{ name: string; city: HotelInputCity; stars: string; distanceFromHaram: string }>({ name: "", city: HotelInputCity.makkah, stars: "5", distanceFromHaram: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -44,9 +44,9 @@ export default function HotelsPage() {
               ))}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">City</Label>
-                <Select value={form.city} onValueChange={v => setForm(p => ({ ...p, city: v }))}>
+                <Select value={form.city} onValueChange={v => setForm(p => ({ ...p, city: v as HotelInputCity }))}>
                   <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="makkah">Makkah</SelectItem><SelectItem value="madinah">Madinah</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value={HotelInputCity.makkah}>Makkah</SelectItem><SelectItem value={HotelInputCity.madinah}>Madinah</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">

@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetQuotation, useUpdateQuotation, useAddQuotationItem, useDeleteQuotationItem, useSendQuotation } from "@workspace/api-client-react";
+import { useGetQuotation, useUpdateQuotation, useAddQuotationItem, useDeleteQuotationItem, useSendQuotation, QuotationItemInputServiceType } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Trash2, Send } from "lucide-react";
 
-const SERVICE_TYPES = ["hotel", "flight", "transport", "visa", "custom"];
+const SERVICE_TYPES = Object.values(QuotationItemInputServiceType) as QuotationItemInputServiceType[];
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [itemForm, setItemForm] = useState({ serviceType: "hotel", description: "", quantity: 1, unitPrice: 0, notes: "" });
+  const [itemForm, setItemForm] = useState<{ serviceType: QuotationItemInputServiceType; description: string; quantity: number; unitPrice: number; notes: string }>({ serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, notes: "" });
 
   const { data: quotation, isLoading } = useGetQuotation(Number(id));
-  const addItem = useAddQuotationItem({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); setItemForm({ serviceType: "hotel", description: "", quantity: 1, unitPrice: 0, notes: "" }); toast({ title: "Item added" }); } } });
+  const addItem = useAddQuotationItem({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); setItemForm({ serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, notes: "" }); toast({ title: "Item added" }); } } });
   const deleteItem = useDeleteQuotationItem({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Item removed" }); } } });
   const sendQuotation = useSendQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Quotation sent" }); } } });
   const updateQuotation = useUpdateQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Status updated" }); } } });
@@ -110,7 +110,7 @@ export default function QuotationDetailPage() {
             <div className="mt-6 p-4 border rounded-lg bg-muted/30">
               <h4 className="font-medium mb-3">Add Line Item</h4>
               <div className="grid grid-cols-5 gap-3">
-                <Select value={itemForm.serviceType} onValueChange={v => setItemForm(p => ({ ...p, serviceType: v }))}>
+                <Select value={itemForm.serviceType} onValueChange={v => setItemForm(p => ({ ...p, serviceType: v as QuotationItemInputServiceType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{SERVICE_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</SelectItem>)}</SelectContent>
                 </Select>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListClients, useCreateClient, useDeleteClient } from "@workspace/api-client-react";
+import { useListClients, useCreateClient, useDeleteClient, ClientInputLeadStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,12 +31,12 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", country: "", city: "", whatsapp: "", leadStatus: "new" });
+  const [form, setForm] = useState<{ name: string; email: string; phone: string; country: string; city: string; whatsapp: string; leadStatus: ClientInputLeadStatus }>({ name: "", email: "", phone: "", country: "", city: "", whatsapp: "", leadStatus: ClientInputLeadStatus.new });
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: clients = [], isLoading } = useListClients({ search: search || undefined, status: statusFilter !== "all" ? statusFilter : undefined });
-  const createClient = useCreateClient({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients"] }); setOpen(false); setForm({ name: "", email: "", phone: "", country: "", city: "", whatsapp: "", leadStatus: "new" }); toast({ title: "Client created" }); } } });
+  const createClient = useCreateClient({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients"] }); setOpen(false); setForm({ name: "", email: "", phone: "", country: "", city: "", whatsapp: "", leadStatus: ClientInputLeadStatus.new }); toast({ title: "Client created" }); } } });
   const deleteClient = useDeleteClient({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients"] }); toast({ title: "Client deleted" }); } } });
 
   const handleCreate = () => {
@@ -69,10 +69,10 @@ export default function ClientsPage() {
               ))}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Status</Label>
-                <Select value={form.leadStatus} onValueChange={v => setForm(p => ({ ...p, leadStatus: v }))}>
+                <Select value={form.leadStatus} onValueChange={v => setForm(p => ({ ...p, leadStatus: v as ClientInputLeadStatus }))}>
                   <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["new","contacted","qualified","proposal","negotiation","won","lost"].map(s => (
+                    {Object.values(ClientInputLeadStatus).map(s => (
                       <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
                     ))}
                   </SelectContent>

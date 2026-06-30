@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListTransportBookings, useCreateTransportBooking, useUpdateTransportBooking, useListClients } from "@workspace/api-client-react";
+import { useListTransportBookings, useCreateTransportBooking, useUpdateTransportBooking, useListClients, TransportBookingInputType, TransportBookingInputVehicleType } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,18 +19,21 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled: "bg-red-100 text-red-700",
 };
 
-const TRIP_TYPES = [
-  { value: "airport_transfer", label: "Airport Transfer" },
-  { value: "makkah_madinah", label: "Makkah ↔ Madinah" },
-  { value: "ziyarat", label: "Ziyarat Tour" },
-  { value: "other", label: "Other" },
+const TRIP_TYPES: { value: TransportBookingInputType; label: string }[] = [
+  { value: TransportBookingInputType.airport_transfer, label: "Airport Transfer" },
+  { value: TransportBookingInputType.makkah_madinah, label: "Makkah → Madinah" },
+  { value: TransportBookingInputType.madinah_makkah, label: "Madinah → Makkah" },
+  { value: TransportBookingInputType.ziyarat, label: "Ziyarat Tour" },
+  { value: TransportBookingInputType.other, label: "Other" },
 ];
+
+const VEHICLE_TYPES = Object.values(TransportBookingInputVehicleType) as TransportBookingInputVehicleType[];
 
 export default function TransportPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ clientId: "", type: "airport_transfer", vehicleType: "sedan", pickupLocation: "", dropoffLocation: "", date: "", passengers: 1, driverName: "", driverPhone: "", amount: "", currency: "USD", notes: "" });
+  const [form, setForm] = useState<{ clientId: string; type: TransportBookingInputType; vehicleType: TransportBookingInputVehicleType; pickupLocation: string; dropoffLocation: string; date: string; passengers: number; driverName: string; driverPhone: string; amount: string; currency: string; notes: string }>({ clientId: "", type: TransportBookingInputType.airport_transfer, vehicleType: TransportBookingInputVehicleType.sedan, pickupLocation: "", dropoffLocation: "", date: "", passengers: 1, driverName: "", driverPhone: "", amount: "", currency: "USD", notes: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -60,16 +63,16 @@ export default function TransportPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Type</Label>
-                <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v }))}>
+                <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v as TransportBookingInputType }))}>
                   <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
                   <SelectContent>{TRIP_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Vehicle</Label>
-                <Select value={form.vehicleType} onValueChange={v => setForm(p => ({ ...p, vehicleType: v }))}>
+                <Select value={form.vehicleType} onValueChange={v => setForm(p => ({ ...p, vehicleType: v as TransportBookingInputVehicleType }))}>
                   <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
-                  <SelectContent>{["sedan","suv","minivan","bus","vip_van"].map(v => <SelectItem key={v} value={v}>{v.replace(/_/g," ").toUpperCase()}</SelectItem>)}</SelectContent>
+                  <SelectContent>{VEHICLE_TYPES.map(v => <SelectItem key={v} value={v}>{v.replace(/_/g," ").toUpperCase()}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {[["pickupLocation","Pickup"],["dropoffLocation","Dropoff"]].map(([k, label]) => (

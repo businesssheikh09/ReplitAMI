@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetClient, useUpdateClient, useCreateClientNote, useCreateFollowUp } from "@workspace/api-client-react";
+import { useGetClient, useUpdateClient, useCreateClientNote, useCreateFollowUp, FollowUpInputType } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -28,12 +28,12 @@ export default function ClientDetailPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [newNote, setNewNote] = useState("");
-  const [followUpForm, setFollowUpForm] = useState({ dueDate: "", type: "call", notes: "" });
+  const [followUpForm, setFollowUpForm] = useState<{ dueDate: string; type: FollowUpInputType; notes: string }>({ dueDate: "", type: FollowUpInputType.call, notes: "" });
 
   const { data: client, isLoading } = useGetClient(Number(id));
   const updateClient = useUpdateClient({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients", Number(id)] }); toast({ title: "Status updated" }); } } });
   const createNote = useCreateClientNote({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients", Number(id)] }); setNewNote(""); toast({ title: "Note added" }); } } });
-  const createFollowUp = useCreateFollowUp({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients", Number(id)] }); setFollowUpForm({ dueDate: "", type: "call", notes: "" }); toast({ title: "Follow-up scheduled" }); } } });
+  const createFollowUp = useCreateFollowUp({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients", Number(id)] }); setFollowUpForm({ dueDate: "", type: FollowUpInputType.call, notes: "" }); toast({ title: "Follow-up scheduled" }); } } });
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading...</div>;
   if (!client) return <div className="p-6 text-muted-foreground">Client not found.</div>;
@@ -95,7 +95,7 @@ export default function ClientDetailPage() {
           <Card>
             <CardContent className="pt-4 space-y-2">
               <Textarea placeholder="Add a note..." value={newNote} onChange={e => setNewNote(e.target.value)} rows={3} />
-              <Button onClick={() => createNote.mutate({ id: Number(id), data: { content: newNote, createdBy: 1 } })} disabled={!newNote || createNote.isPending}>Add Note</Button>
+              <Button onClick={() => createNote.mutate({ id: Number(id), data: { content: newNote } })} disabled={!newNote || createNote.isPending}>Add Note</Button>
             </CardContent>
           </Card>
           {(c.notes || []).length === 0 ? (
@@ -120,10 +120,10 @@ export default function ClientDetailPage() {
               </div>
               <div>
                 <Label className="text-xs">Type</Label>
-                <Select value={followUpForm.type} onValueChange={v => setFollowUpForm(p => ({ ...p, type: v }))}>
+                <Select value={followUpForm.type} onValueChange={v => setFollowUpForm(p => ({ ...p, type: v as FollowUpInputType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["call","email","whatsapp","meeting"].map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</SelectItem>)}
+                    {Object.values(FollowUpInputType).map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

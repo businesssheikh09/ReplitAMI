@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListVisaApplications, useCreateVisaApplication, useUpdateVisaApplication, useListClients } from "@workspace/api-client-react";
+import { useListVisaApplications, useCreateVisaApplication, useUpdateVisaApplication, useListClients, VisaApplicationUpdateStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,12 +145,12 @@ export default function VisaPage() {
                       </TableCell>
                       <TableCell>
                         {next && (
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateVisa.mutate({ id: a.id, data: { status: next } })}>
+                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateVisa.mutate({ id: a.id, data: { status: next as VisaApplicationUpdateStatus } })}>
                             → {STATUS_LABELS[next]}
                           </Button>
                         )}
                         {a.status !== "rejected" && a.status !== "issued" && (
-                          <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500 ml-1" onClick={() => updateVisa.mutate({ id: a.id, data: { status: "rejected" } })}>Reject</Button>
+                          <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500 ml-1" onClick={() => updateVisa.mutate({ id: a.id, data: { status: VisaApplicationUpdateStatus.rejected } })}>Reject</Button>
                         )}
                       </TableCell>
                     </TableRow>

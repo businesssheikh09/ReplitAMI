@@ -57,7 +57,7 @@ export default function QuotationsPage() {
 
   const handleCreate = () => {
     if (!form.clientId || !form.validUntil) { toast({ title: "Select a client and valid-until date", variant: "destructive" }); return; }
-    createQuotation.mutate({ data: { ...form, clientId: Number(form.clientId), createdBy: 1 } });
+    createQuotation.mutate({ data: { ...form, clientId: Number(form.clientId) } });
   };
 
   const qs = quotations as any[];

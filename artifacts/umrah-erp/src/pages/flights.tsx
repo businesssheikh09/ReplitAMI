@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useListFlightQuotations, useCreateFlightQuotation, useUpdateFlightQuotation, useDeleteFlightQuotation, useListClients } from "@workspace/api-client-react";
+import { useListFlightQuotations, useCreateFlightQuotation, useUpdateFlightQuotation, useDeleteFlightQuotation, useListClients, FlightQuotationInputCabinClass } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import QRCode from "qrcode";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const CABIN_CLASSES = ["economy", "premium_economy", "business", "first"];
+const FORM_CABIN_CLASSES = Object.values(FlightQuotationInputCabinClass) as FlightQuotationInputCabinClass[];
 const CURRENCIES = ["USD", "GBP", "EUR", "AED", "SAR", "PKR", "TRY", "OMR", "KWD", "BHD", "QAR", "JOD", "EGP"];
 
 const STATUS_BADGE: Record<string, string> = {
@@ -693,7 +694,7 @@ export default function FlightsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [hidePast, setHidePast] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ clientId: "", origin: "", destination: "", departureDate: "", returnDate: "", passengers: 1, cabinClass: "economy", airline: "", amount: "", currency: "USD", tripType: "one_way" });
+  const [form, setForm] = useState<{ clientId: string; origin: string; destination: string; departureDate: string; returnDate: string; passengers: number; cabinClass: FlightQuotationInputCabinClass; airline: string; amount: string; currency: string; tripType: string }>({ clientId: "", origin: "", destination: "", departureDate: "", returnDate: "", passengers: 1, cabinClass: FlightQuotationInputCabinClass.economy, airline: "", amount: "", currency: "USD", tripType: "one_way" });
 
   // Ticket issuance
   const [issueOpen, setIssueOpen] = useState(false);
@@ -756,7 +757,7 @@ export default function FlightsPage() {
   };
 
   const handleSelect = (r: FlightResult) => {
-    setForm(p => ({ ...p, origin: r.origin, destination: r.destination, departureDate: r.departureTime.slice(0, 10), airline: r.airlineName, amount: String(Math.round(r.price)), currency: r.currency, cabinClass: r.cabinClass, tripType }));
+    setForm(p => ({ ...p, origin: r.origin, destination: r.destination, departureDate: r.departureTime.slice(0, 10), airline: r.airlineName, amount: String(Math.round(r.price)), currency: r.currency, cabinClass: (Object.values(FlightQuotationInputCabinClass) as string[]).includes(r.cabinClass) ? r.cabinClass as FlightQuotationInputCabinClass : FlightQuotationInputCabinClass.economy, tripType }));
     setActiveTab("quotations"); setOpen(true);
     toast({ title: "Flight loaded — select a client to save quotation" });
   };
@@ -778,7 +779,7 @@ export default function FlightsPage() {
       if (!res.ok) { toast({ title: data.error || "Issue failed", variant: "destructive" }); return; }
       qc.invalidateQueries({ queryKey: ["/api/flight-quotations"] });
       toast({ title: `Ticket issued: ${data.ticketNumber}`, description: `Issued by ${data.issuedBy}` });
-      setIssueOpen(false); setIssueEmail(""); setIssuePin(""); setIssueBookingId(null);
+      setIssueOpen(false); setIssuePin(""); setIssueBookingId(null);
     } catch { toast({ title: "Issue failed", variant: "destructive" }); }
     finally { setIssuing(false); }
   };
@@ -1065,9 +1066,9 @@ export default function FlightsPage() {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Cabin</Label>
-                    <Select value={form.cabinClass} onValueChange={v => setForm(p => ({ ...p, cabinClass: v }))}>
+                    <Select value={form.cabinClass} onValueChange={v => setForm(p => ({ ...p, cabinClass: v as FlightQuotationInputCabinClass }))}>
                       <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
-                      <SelectContent>{CABIN_CLASSES.map(c => <SelectItem key={c} value={c}>{c.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}</SelectContent>
+                      <SelectContent>{FORM_CABIN_CLASSES.map(c => <SelectItem key={c} value={c}>{c.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -1088,7 +1089,7 @@ export default function FlightsPage() {
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                   <Button
-                    onClick={() => createFlight.mutate({ data: { ...form, clientId: Number(form.clientId), amount: Number(form.amount), passengers: Number(form.passengers) } })}
+                    onClick={() => createFlight.mutate({ data: { clientId: Number(form.clientId), origin: form.origin, destination: form.destination, departureDate: form.departureDate, returnDate: form.returnDate || undefined, passengers: Number(form.passengers), cabinClass: form.cabinClass, airline: form.airline || undefined, amount: Number(form.amount), currency: form.currency } })}
                     disabled={!form.clientId || !form.origin || !form.departureDate || !form.amount || createFlight.isPending}
                   >Create</Button>
                 </div>
@@ -1164,7 +1165,7 @@ export default function FlightsPage() {
       )}
 
       {/* ── ISSUE TICKET DIALOG ── */}
-      <Dialog open={issueOpen} onOpenChange={v => { setIssueOpen(v); if (!v) { setIssueEmail(""); setIssuePin(""); } }}>
+      <Dialog open={issueOpen} onOpenChange={v => { setIssueOpen(v); if (!v) { setIssuePin(""); } }}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
