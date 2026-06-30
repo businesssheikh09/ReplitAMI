@@ -1,0 +1,89 @@
+This is a documentation-only task.
+
+Do NOT modify application code.
+Do NOT modify database.
+Do NOT modify APIs.
+Do NOT modify frontend logic.
+Do NOT modify backend logic.
+Do NOT touch GitHub.
+
+Create owner-readable project files for a non-developer business owner.
+
+Create or update these files inside /docs:
+
+1. /docs/PROJECT_ROADMAP.md
+2. /docs/MODULE_STATUS.md
+3. /docs/FEATURE_REQUESTS.md
+4. /docs/BUSINESS_RULES.md
+5. /docs/OWNER_DAILY_OPERATIONS.md
+
+Purpose:
+These files should explain the ERP in simple business language so the owner can understand what is completed, what is pending, what is broken, and what to do next.
+
+PROJECT_ROADMAP.md should include:
+
+* Overall ERP stage
+* Completed modules
+* Modules in progress
+* Pending modules
+* Deployment readiness
+* Next 7-day priorities
+
+MODULE_STATUS.md should include every module:
+
+* Flights
+* Hotels
+* Accounting
+* WhatsApp
+* Campaigns
+* Portal
+* CRM
+* Visa
+* Transport
+* Reports
+* Dashboard
+* Media Library
+
+For each module include:
+
+* Completion %
+* Frontend status
+* Backend status
+* Database status
+* Testing status
+* Known issues
+* Priority
+
+FEATURE_REQUESTS.md should include:
+
+* Feature name
+* Business purpose
+* Priority
+* Status
+* Notes
+
+BUSINESS_RULES.md should include only existing business rules already present in the ERP, such as:
+
+* Manual ticket issuance
+* Payment verification
+* Hidden service fee
+* Flight hold timer
+* Receipt upload
+* WhatsApp campaign rules
+* Role permissions
+* Accounting rules
+
+OWNER_DAILY_OPERATIONS.md should explain in simple steps:
+
+* How staff should use the ERP daily
+* How to handle flight bookings
+* How to verify payments
+* How to use WhatsApp campaigns
+* How to check pending work
+* What should not be done manually
+
+Use simple English.
+Avoid developer language.
+Do not invent features.
+Do not mark unfinished modules as complete.
+After finishing, provide a short summary of what files were created or updated.
