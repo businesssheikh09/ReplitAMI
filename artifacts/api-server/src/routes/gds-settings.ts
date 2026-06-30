@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { gdsSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -35,9 +36,9 @@ router.get("/gds-settings/:provider", async (req, res) => {
   }
 });
 
-router.put("/gds-settings/:provider", async (req, res) => {
+router.put("/gds-settings/:provider", requireAuth, async (req, res) => {
   try {
-    const provider = req.params.provider;
+    const provider = req.params.provider as string;
     const [existing] = await db.select().from(gdsSettingsTable)
       .where(eq(gdsSettingsTable.provider, provider));
 
@@ -75,14 +76,15 @@ router.put("/gds-settings/:provider", async (req, res) => {
   }
 });
 
-router.post("/gds-settings/:provider/test", async (req, res) => {
+router.post("/gds-settings/:provider/test", requireAuth, async (req, res) => {
   try {
+    const provider = req.params.provider as string;
     const [setting] = await db.select().from(gdsSettingsTable)
-      .where(eq(gdsSettingsTable.provider, req.params.provider));
+      .where(eq(gdsSettingsTable.provider, provider));
     if (!setting || !setting.isActive) {
       return res.json({ success: false, message: "Provider not configured or inactive" });
     }
-    return res.json({ success: true, message: `${req.params.provider} connection test successful (sandbox mode)` });
+    return res.json({ success: true, message: `${provider} connection test successful (sandbox mode)` });
   } catch (err) {
     req.log.error({ err }, "Test GDS connection error");
     return res.status(500).json({ error: "Internal server error" });

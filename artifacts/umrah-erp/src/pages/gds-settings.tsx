@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,7 @@ const DEFAULT_FORM: ProviderForm = {
 };
 
 export default function GdsSettingsPage() {
+  const { token } = useAuth();
   const { toast } = useToast();
   const [forms, setForms] = useState<Record<string, ProviderForm>>(
     Object.fromEntries(PROVIDERS.map(p => [p.id, { ...DEFAULT_FORM, pcc: p.pcc }]))
@@ -104,7 +106,10 @@ export default function GdsSettingsPage() {
     try {
       const r = await fetch(`/api/gds-settings/${providerId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(forms[providerId]),
       });
       if (!r.ok) throw new Error("Save failed");
@@ -120,7 +125,10 @@ export default function GdsSettingsPage() {
     setTesting(prev => ({ ...prev, [providerId]: true }));
     setTestResults(prev => ({ ...prev, [providerId]: null }));
     try {
-      const r = await fetch(`/api/gds-settings/${providerId}/test`, { method: "POST" });
+      const r = await fetch(`/api/gds-settings/${providerId}/test`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await r.json();
       setTestResults(prev => ({ ...prev, [providerId]: data }));
     } catch {
