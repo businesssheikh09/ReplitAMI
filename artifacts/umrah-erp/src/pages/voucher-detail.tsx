@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +54,8 @@ function fmt(n: number) {
   return n.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function VoucherDetailPage({ params }: { params: { id: string } }) {
+export default function VoucherDetailPage() {
+  const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -63,41 +64,41 @@ export default function VoucherDetailPage({ params }: { params: { id: string } }
   const headers = { Authorization: `Bearer ${token}` };
 
   const { data: voucher, isLoading } = useQuery<Voucher>({
-    queryKey: ["voucher", params.id],
-    queryFn: () => fetch(`/api/accounting/vouchers/${params.id}`, { headers }).then((r) => r.json()),
-    enabled: !!token && !!params.id,
+    queryKey: ["voucher", id],
+    queryFn: () => fetch(`/api/accounting/vouchers/${id}`, { headers }).then((r) => r.json()),
+    enabled: !!token && !!id,
   });
 
   const approveMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/accounting/vouchers/${params.id}/approve`, { method: "POST", headers }).then(async (r) => {
+      fetch(`/api/accounting/vouchers/${id}/approve`, { method: "POST", headers }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Failed"); } return r.json();
       }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["voucher", params.id] }); toast({ title: "Voucher approved" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["voucher", id] }); toast({ title: "Voucher approved" }); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const postMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/accounting/vouchers/${params.id}/post`, { method: "POST", headers }).then(async (r) => {
+      fetch(`/api/accounting/vouchers/${id}/post`, { method: "POST", headers }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Failed"); } return r.json();
       }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["voucher", params.id] }); toast({ title: "Voucher posted to journal" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["voucher", id] }); toast({ title: "Voucher posted to journal" }); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const cancelMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/accounting/vouchers/${params.id}/cancel`, { method: "POST", headers }).then(async (r) => {
+      fetch(`/api/accounting/vouchers/${id}/cancel`, { method: "POST", headers }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Failed"); } return r.json();
       }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["voucher", params.id] }); toast({ title: "Voucher cancelled" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["voucher", id] }); toast({ title: "Voucher cancelled" }); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const reverseMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/accounting/vouchers/${params.id}/reverse`, { method: "POST", headers }).then(async (r) => {
+      fetch(`/api/accounting/vouchers/${id}/reverse`, { method: "POST", headers }).then(async (r) => {
         if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Failed"); } return r.json();
       }),
     onSuccess: (data) => {
