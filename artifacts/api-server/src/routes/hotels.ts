@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { hotelsTable, vendorsTable, hotelRequestsTable, vendorQuotesTable, clientsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../services/whatsapp.js";
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -204,9 +205,9 @@ router.post("/hotel-requests/:id/quotes", async (req, res) => {
   }
 });
 
-router.post("/hotel-requests/:id/send-to-vendor", async (req, res) => {
+router.post("/hotel-requests/:id/send-to-vendor", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const [request] = await db.select().from(hotelRequestsTable).where(eq(hotelRequestsTable.id, id));
     if (!request) return res.status(404).json({ error: "Hotel request not found" });
 
