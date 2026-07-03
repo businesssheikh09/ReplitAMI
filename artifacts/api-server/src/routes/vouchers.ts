@@ -307,32 +307,37 @@ router.post("/accounting/vouchers/:id/post", requireAuth, async (req, res) => {
     const accounts = await db.select().from(chartOfAccountsTable);
     const acctMap = new Map(accounts.map((a) => [a.id, a]));
 
-    // Post each DR/CR pair to general_journal atomically
-    // For multi-line vouchers we create one JE per DR line paired with aggregate CR (simplified)
-    // Standard approach: one JE entry per DR+CR pair using standard double-entry
-    const drLines = lines.filter((l) => parseFloat(l.debitAmount) > 0);
-    const crLines = lines.filter((l) => parseFloat(l.creditAmount) > 0);
+    // Waterfall allocation: pair DR and CR lines sequentially, consuming remainders.
+    // Each line's full amount is posted exactly once — no double-counting.
+    const drLines = lines
+      .filter((l) => parseFloat(l.debitAmount) > 0)
+      .map((l) => ({ ...l, remaining: parseFloat(l.debitAmount) }));
+    const crLines = lines
+      .filter((l) => parseFloat(l.creditAmount) > 0)
+      .map((l) => ({ ...l, remaining: parseFloat(l.creditAmount) }));
 
+    let ci = 0;
     for (const dr of drLines) {
-      for (const cr of crLines) {
-        // Proportional distribution for multi-line vouchers
-        const drAmt = parseFloat(dr.debitAmount);
-        const crAmt = parseFloat(cr.creditAmount);
-        const amount = Math.min(drAmt, crAmt);
-        if (amount <= 0) continue;
-
-        const entryNumber = await nextEntryNumber("JE");
-        await db.insert(generalJournalTable).values({
-          entryNumber,
-          date: new Date(voucher.date),
-          description: `${voucher.voucherNumber} — ${voucher.narration}`,
-          debitAccountId: dr.accountId,
-          creditAccountId: cr.accountId,
-          amount: String(amount),
-          currency: dr.currency,
-          sourceType: `voucher_${voucher.type.toLowerCase()}`,
-          sourceId: voucher.id,
-        });
+      while (dr.remaining > 0.001 && ci < crLines.length) {
+        const cr = crLines[ci];
+        const matched = Math.min(dr.remaining, cr.remaining);
+        if (matched > 0.001) {
+          const entryNumber = await nextEntryNumber("JE");
+          await db.insert(generalJournalTable).values({
+            entryNumber,
+            date: new Date(voucher.date),
+            description: `${voucher.voucherNumber} — ${voucher.narration}`,
+            debitAccountId: dr.accountId,
+            creditAccountId: cr.accountId,
+            amount: String(matched.toFixed(2)),
+            currency: dr.currency,
+            sourceType: `voucher_${voucher.type.toLowerCase()}`,
+            sourceId: voucher.id,
+          });
+          dr.remaining -= matched;
+          cr.remaining -= matched;
+        }
+        if (cr.remaining <= 0.001) ci++;
       }
     }
 
