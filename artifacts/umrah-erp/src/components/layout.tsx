@@ -120,6 +120,7 @@ const navGroups = [
       { title: "Documents", href: "/documents", icon: Files },
       { title: "GDS Settings", href: "/gds-settings", icon: Settings2 },
       { title: "AI Settings", href: "/ai-settings", icon: Bot },
+      { title: "Local Airlines", href: "/local-airline-settings", icon: Plane },
       { title: "Website Settings", href: "/website-settings", icon: Globe },
     ],
   },

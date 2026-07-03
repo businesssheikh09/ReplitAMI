@@ -31,6 +31,8 @@ import vouchersRouter from "./vouchers.js";
 import accountingReportsRouter from "./accounting-reports.js";
 import financialYearRouter from "./financial-year.js";
 import passengerDocumentsRouter from "./passenger-documents.js";
+import localAirlineSettingsRouter from "./local-airline-settings.js";
+import ocrSettingsRouter from "./ocr-settings.js";
 
 const router: IRouter = Router();
 
@@ -66,5 +68,7 @@ router.use(vouchersRouter);
 router.use(accountingReportsRouter);
 router.use(financialYearRouter);
 router.use(passengerDocumentsRouter);
+router.use(localAirlineSettingsRouter);
+router.use(ocrSettingsRouter);
 
 export default router;

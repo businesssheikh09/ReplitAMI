@@ -1,6 +1,8 @@
 import { logger } from "../lib/logger.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { runLocalOcr } from "./local-ocr.js";
+import { db, ocrSettingsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 export type OcrProvider = "ai" | "local" | "manual";
 
@@ -16,10 +18,10 @@ export interface ScanResult {
   fatherName: string | null;
   confidence: number | null;
   provider: OcrProvider;
+  detectedDocumentType: "passport" | "cnic" | "unknown";
+  mrzChecksumValid: boolean;
   lowConfidence: boolean;
 }
-
-const LOW_CONFIDENCE_THRESHOLD = 60;
 
 const STUB_RESULT: ScanResult = {
   rawText: "OCR not configured — add OpenAI API key in AI Settings or enable Local OCR",
@@ -33,8 +35,40 @@ const STUB_RESULT: ScanResult = {
   fatherName: null,
   confidence: null,
   provider: "manual",
+  detectedDocumentType: "unknown",
+  mrzChecksumValid: false,
   lowConfidence: false,
 };
+
+async function getLowConfidenceThreshold(): Promise<number> {
+  try {
+    const [row] = await db.select({ minConfidence: ocrSettingsTable.minConfidence })
+      .from(ocrSettingsTable).where(eq(ocrSettingsTable.id, 1));
+    return row ? parseFloat(row.minConfidence ?? "60") : 60;
+  } catch {
+    return 60;
+  }
+}
+
+async function isOcrEnabled(): Promise<boolean> {
+  try {
+    const [row] = await db.select({ ocrEnabled: ocrSettingsTable.ocrEnabled })
+      .from(ocrSettingsTable).where(eq(ocrSettingsTable.id, 1));
+    return row ? (row.ocrEnabled ?? true) : true;
+  } catch {
+    return true;
+  }
+}
+
+async function getDefaultProvider(): Promise<string> {
+  try {
+    const [row] = await db.select({ defaultProvider: ocrSettingsTable.defaultProvider })
+      .from(ocrSettingsTable).where(eq(ocrSettingsTable.id, 1));
+    return row?.defaultProvider ?? "local";
+  } catch {
+    return "local";
+  }
+}
 
 async function runAiOcr(objectKey: string): Promise<ScanResult> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -56,7 +90,7 @@ async function runAiOcr(objectKey: string): Promise<ScanResult> {
         content: [
           {
             type: "text",
-            text: `Extract the following fields from this travel document image and return ONLY valid JSON with keys: firstName, lastName, fullName, dateOfBirth (YYYY-MM-DD), documentNumber, expiryDate (YYYY-MM-DD), nationality, fatherName. If a field is not visible return null.`,
+            text: `Extract the following fields from this travel document image and return ONLY valid JSON with keys: firstName, lastName, fullName, dateOfBirth (YYYY-MM-DD), documentNumber, expiryDate (YYYY-MM-DD), nationality, fatherName, documentType (passport or cnic). If a field is not visible return null.`,
           },
           { type: "image_url", image_url: { url: dataUrl } },
         ],
@@ -93,21 +127,32 @@ async function runAiOcr(objectKey: string): Promise<ScanResult> {
     fatherName: parsed.fatherName ?? null,
     confidence: 95,
     provider: "ai",
+    detectedDocumentType: parsed.documentType === "cnic" ? "cnic" : "passport",
+    mrzChecksumValid: false,
     lowConfidence: false,
   };
 }
 
 export async function scanDocument(
   objectKey: string,
-  provider: OcrProvider = "ai",
-  documentType: "passport" | "cnic" = "passport"
+  provider?: OcrProvider,
+  documentType?: "passport" | "cnic"
 ): Promise<ScanResult> {
-  if (provider === "local") {
+  const enabled = await isOcrEnabled();
+  if (!enabled) {
+    return { ...STUB_RESULT, rawText: "OCR is disabled — enable it in AI Settings → OCR Settings" };
+  }
+
+  // Use configured default if not specified
+  const resolvedProvider = provider ?? (await getDefaultProvider()) as OcrProvider;
+  const lowConfidenceThreshold = await getLowConfidenceThreshold();
+
+  if (resolvedProvider === "local") {
     try {
       const result = await runLocalOcr(objectKey, documentType);
       const f = result.fields;
       const nameParts = (f.fullName ?? "").split(" ").filter(Boolean);
-      const lowConfidence = result.confidence < LOW_CONFIDENCE_THRESHOLD;
+      const lowConfidence = result.confidence < lowConfidenceThreshold;
       return {
         rawText: result.rawText,
         firstName: nameParts[0] ?? null,
@@ -120,6 +165,8 @@ export async function scanDocument(
         fatherName: f.fatherName ?? null,
         confidence: result.confidence,
         provider: "local",
+        detectedDocumentType: result.detectedDocumentType,
+        mrzChecksumValid: result.mrzChecksumValid,
         lowConfidence,
       };
     } catch (err) {
@@ -128,10 +175,10 @@ export async function scanDocument(
     }
   }
 
-  if (provider === "ai") {
+  if (resolvedProvider === "ai") {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      logger.warn("AI OCR skipped — OpenAI not configured. Add OPENAI_API_KEY in ERP → AI Settings.");
+      logger.warn("AI OCR skipped — OpenAI not configured.");
       return STUB_RESULT;
     }
     try {

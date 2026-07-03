@@ -13,10 +13,22 @@ export const passengerDocumentsTable = pgTable("passenger_documents", {
   fatherName: text("father_name"),
   passportKey: text("passport_key"),
   cnicKey: text("cnic_key"),
+  // Auto-detected document type
+  documentType: text("document_type"),
+  // OCR fields
   ocrProvider: text("ocr_provider"),
   ocrConfidence: numeric("ocr_confidence", { precision: 5, scale: 2 }),
+  // Original OCR result (before staff correction)
+  ocrOriginal: text("ocr_original"),
+  // Latest OCR result
   ocrResult: text("ocr_result"),
   ocrCorrected: boolean("ocr_corrected").notNull().default(false),
+  // MRZ checksum validation result
+  mrzChecksumValid: boolean("mrz_checksum_valid"),
+  // Staff verification
+  verifiedBy: integer("verified_by"),
+  verifiedByName: text("verified_by_name"),
+  verifiedAt: timestamp("verified_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -5,6 +5,7 @@ const ADMIN_MGMT: UserRole[] = ["management", "admin"];
 const NOT_ACCOUNTS: UserRole[] = ["sales", "management", "operations", "admin"];
 const FINANCE_FULL: UserRole[] = ["accounts", "management", "admin"];
 const FINANCE_OPS: UserRole[] = ["accounts", "management", "operations", "admin"];
+const SENSITIVE_DOCS: UserRole[] = ["management", "operations", "admin"];
 
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/dashboard": ALL,
@@ -41,6 +42,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/documents": NOT_ACCOUNTS,
   "/gds-settings": ADMIN_MGMT,
   "/ai-settings": ADMIN_MGMT,
+  "/local-airline-settings": ADMIN_MGMT,
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
@@ -49,7 +51,8 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/flights/cancellations": NOT_ACCOUNTS,
   "/flights/bsp-report": FINANCE_OPS,
   "/flights/staff-log": NOT_ACCOUNTS,
-  "/flights/passengers": NOT_ACCOUNTS,
+  "/flights/passengers": SENSITIVE_DOCS,
+  "/flights/local-airlines": ADMIN_MGMT,
 };
 
 export function canAccess(role: string | undefined, route: string): boolean {
@@ -63,6 +66,40 @@ export function canAccess(role: string | undefined, route: string): boolean {
     .sort((a, b) => b.length - a.length)[0];
   if (prefix) return ROUTE_PERMISSIONS[prefix].includes(r);
   return false;
+}
+
+// ── Granular Action Permissions ───────────────────────────────────────────────
+
+export type ActionPermission =
+  | "viewPassport"
+  | "downloadPassport"
+  | "deletePassport"
+  | "changeOcrResult"
+  | "refundTicket"
+  | "approveRefund"
+  | "cancelTicket"
+  | "viewDocuments"
+  | "uploadDocuments"
+  | "verifyDocuments";
+
+const ACTION_PERMISSIONS: Record<ActionPermission, UserRole[]> = {
+  viewPassport: SENSITIVE_DOCS,
+  downloadPassport: ["management", "admin"],
+  deletePassport: ["management", "admin"],
+  changeOcrResult: SENSITIVE_DOCS,
+  refundTicket: ["accounts", "management", "admin"],
+  approveRefund: ["management", "admin"],
+  cancelTicket: ["operations", "management", "admin"],
+  viewDocuments: SENSITIVE_DOCS,
+  uploadDocuments: SENSITIVE_DOCS,
+  verifyDocuments: ["management", "operations", "admin"],
+};
+
+export function canDo(role: string | undefined, action: ActionPermission): boolean {
+  if (!role) return false;
+  const r = role as UserRole;
+  if (r === "management" || r === "admin") return true;
+  return (ACTION_PERMISSIONS[action] ?? []).includes(r);
 }
 
 export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
@@ -98,6 +135,7 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/documents": NOT_ACCOUNTS,
   "/gds-settings": ADMIN_MGMT,
   "/ai-settings": ADMIN_MGMT,
+  "/local-airline-settings": ADMIN_MGMT,
   "/website-settings": ADMIN_MGMT,
   "/whatsapp-inbox": ADMIN_MGMT,
   "/bot-campaign": ADMIN_MGMT,
@@ -106,7 +144,8 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/flights/cancellations": NOT_ACCOUNTS,
   "/flights/bsp-report": FINANCE_OPS,
   "/flights/staff-log": NOT_ACCOUNTS,
-  "/flights/passengers": NOT_ACCOUNTS,
+  "/flights/passengers": SENSITIVE_DOCS,
+  "/flights/local-airlines": ADMIN_MGMT,
 };
 
 export const ROLE_LABELS: Record<string, string> = {

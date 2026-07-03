@@ -22,3 +22,5 @@ export * from "./flight-request-events";
 export * from "./media-library";
 export * from "./flight-ticket-events";
 export * from "./passenger-documents";
+export * from "./local-airline-settings";
+export * from "./ocr-settings";

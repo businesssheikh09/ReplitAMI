@@ -7,7 +7,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { and, eq, gte, desc, or } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { postFlightCancelled, postFlightRefund } from "../services/journal-poster.js";
 
 const router = Router();
@@ -332,6 +332,120 @@ router.post("/flight-quotations/:id/refund-pending", requireAuth, async (req, re
     return res.json({ ok: true, flight: fmtFlight(flight) });
   } catch (err) {
     req.log.error({ err }, "Mark refund pending error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── 4-Step Refund Workflow ────────────────────────────────────────────────────
+
+router.post("/flight-quotations/:id/refund-request", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { notes, refundAmount } = req.body;
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(flightQuotationsTable).where(eq(flightQuotationsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (!["cancelled"].includes(existing.status)) {
+      return res.status(400).json({ error: "Ticket must be cancelled before requesting a refund" });
+    }
+    const amt = refundAmount ? parseFloat(refundAmount) : null;
+    const [flight] = await db.update(flightQuotationsTable)
+      .set({ status: "refund_requested", refundAmount: amt?.toString() ?? null, updatedAt: new Date() })
+      .where(eq(flightQuotationsTable.id, id)).returning();
+    await db.insert(flightTicketEventsTable).values({
+      ticketId: id, eventType: "refund_requested",
+      statusBefore: existing.status, statusAfter: "refund_requested",
+      notes: notes ?? (amt ? `Refund requested: PKR ${amt.toLocaleString()}` : "Refund requested"),
+      userId: user?.id ?? null, userName: user?.name ?? null,
+    });
+    return res.json({ ok: true, flight: fmtFlight(flight) });
+  } catch (err) {
+    req.log.error({ err }, "Refund request error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/flight-quotations/:id/refund-approve", requireAuth, requireRole("management", "admin"), async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { notes } = req.body;
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(flightQuotationsTable).where(eq(flightQuotationsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (existing.status !== "refund_requested") {
+      return res.status(400).json({ error: "Ticket must be in refund_requested status" });
+    }
+    const [flight] = await db.update(flightQuotationsTable)
+      .set({ status: "refund_approved", updatedAt: new Date() })
+      .where(eq(flightQuotationsTable.id, id)).returning();
+    await db.insert(flightTicketEventsTable).values({
+      ticketId: id, eventType: "refund_approved",
+      statusBefore: "refund_requested", statusAfter: "refund_approved",
+      notes: notes ?? "Refund approved by management",
+      userId: user?.id ?? null, userName: user?.name ?? null,
+    });
+    return res.json({ ok: true, flight: fmtFlight(flight) });
+  } catch (err) {
+    req.log.error({ err }, "Refund approve error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/flight-quotations/:id/refund-reject", requireAuth, requireRole("management", "admin"), async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { notes } = req.body;
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(flightQuotationsTable).where(eq(flightQuotationsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (existing.status !== "refund_requested") {
+      return res.status(400).json({ error: "Ticket must be in refund_requested status" });
+    }
+    const [flight] = await db.update(flightQuotationsTable)
+      .set({ status: "refund_rejected", updatedAt: new Date() })
+      .where(eq(flightQuotationsTable.id, id)).returning();
+    await db.insert(flightTicketEventsTable).values({
+      ticketId: id, eventType: "refund_rejected",
+      statusBefore: "refund_requested", statusAfter: "refund_rejected",
+      notes: notes ?? "Refund rejected",
+      userId: user?.id ?? null, userName: user?.name ?? null,
+    });
+    return res.json({ ok: true, flight: fmtFlight(flight) });
+  } catch (err) {
+    req.log.error({ err }, "Refund reject error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/flight-quotations/:id/refund-pay", requireAuth, requireRole("accounts", "management", "admin"), async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { refundAmount, notes } = req.body;
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(flightQuotationsTable).where(eq(flightQuotationsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (!["refund_approved", "refund_pending"].includes(existing.status)) {
+      return res.status(400).json({ error: "Refund must be approved first" });
+    }
+    const amt = parseFloat(refundAmount ?? existing.refundAmount ?? existing.amount ?? "0");
+    const [flight] = await db.update(flightQuotationsTable)
+      .set({ status: "refunded", refundAmount: amt.toString(), refundedAt: new Date(), updatedAt: new Date() })
+      .where(eq(flightQuotationsTable.id, id)).returning();
+    await db.insert(flightTicketEventsTable).values({
+      ticketId: id, eventType: "refunded",
+      statusBefore: existing.status, statusAfter: "refunded",
+      notes: notes ?? `Refund paid: PKR ${amt.toLocaleString()}`,
+      userId: user?.id ?? null, userName: user?.name ?? null,
+    });
+    await postFlightRefund({
+      ticketId: flight.id,
+      ticketNumber: flight.ticketNumber ?? `TKT-${flight.id}`,
+      refundAmount: amt,
+      currency: "PKR",
+    });
+    return res.json({ ok: true, flight: fmtFlight(flight) });
+  } catch (err) {
+    req.log.error({ err }, "Refund pay error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

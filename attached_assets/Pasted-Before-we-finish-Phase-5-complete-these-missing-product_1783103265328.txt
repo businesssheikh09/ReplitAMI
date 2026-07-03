@@ -1,0 +1,106 @@
+Before we finish Phase 5, complete these missing production items. Do not rewrite existing work—extend it only.
+
+1. Passenger Document OCR
+- Validate MRZ checksums where available.
+- Detect document type automatically (Passport / CNIC).
+- Save OCR confidence score.
+- Keep original image and corrected values separately.
+- Add "Re-run OCR" button.
+- Add "Verified by Staff" checkbox with user and timestamp.
+
+2. Passenger Document Management
+- Allow multiple passengers per booking.
+- Each passenger has independent documents.
+- Show document expiry warnings.
+- Show missing document warnings.
+
+3. Flight Ticket History
+- Timeline showing:
+  - Created
+  - Quoted
+  - Confirmed
+  - Issued
+  - Cancelled
+  - Refunded
+  - Reissued
+- Include user, date, time and notes.
+
+4. BSP Improvements
+- Airline filter.
+- Date range.
+- Export CSV.
+- Print layout.
+- Totals:
+  - Fare
+  - Tax
+  - Commission
+  - Net BSP.
+
+5. Refund Workflow
+- Refund Requested
+- Refund Approved
+- Refund Paid
+- Refund Rejected
+- Audit trail for every step.
+
+6. Local Airline Infrastructure
+Do NOT integrate APIs yet.
+Only infrastructure.
+
+Each airline should support:
+- Status
+- Environment
+- Credentials
+- Test Connection
+- Enable/Disable
+- Notes
+
+Keep completely isolated from existing GDS.
+
+7. OCR Settings
+Extend existing AI Settings page.
+
+Allow:
+- AI OCR
+- Local OCR (Tesseract)
+- Manual Only
+
+Set default provider.
+
+Enable/Disable OCR.
+
+Minimum confidence threshold.
+
+Auto-review threshold.
+
+8. Permissions
+Only authorised roles can:
+- View passport
+- Download passport
+- Delete passport
+- Change OCR result
+- Refund tickets
+- Cancel tickets
+
+9. Testing
+Run full smoke tests:
+- Upload passport
+- Upload CNIC
+- OCR extraction
+- Manual correction
+- Flight issue
+- Cancellation
+- Refund
+- BSP report
+- Staff log
+- Timeline
+- Permission checks
+
+Typecheck everything.
+
+Do not push to GitHub.
+Return:
+- Files changed
+- DB changes
+- API changes
+- Remaining limitations

@@ -34,6 +34,7 @@ import BookingInquiriesPage from "@/pages/booking-inquiries";
 import PortalUsersPage from "@/pages/portal-users";
 import PendingQuotationsPage from "@/pages/pending-quotations";
 import AiSettingsPage from "@/pages/ai-settings";
+import LocalAirlineSettingsPage from "@/pages/local-airline-settings";
 import GeneralJournalPage from "@/pages/general-journal";
 import FlightRequestsPage from "@/pages/flight-requests";
 import VouchersPage from "@/pages/vouchers";
@@ -167,6 +168,7 @@ function Router() {
         <ProtectedRoute path="/currency-settings" component={CurrencySettingsPage} />
         <ProtectedRoute path="/website-settings" component={WebsiteSettingsPage} />
         <ProtectedRoute path="/ai-settings" component={AiSettingsPage} />
+        <ProtectedRoute path="/local-airline-settings" component={LocalAirlineSettingsPage} />
 
         <Route component={NotFound} />
       </Switch>
