@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Eye, EyeOff, ChevronDown, X, Check, UserCheck, UserX } from "lucide-react";
+import { Eye, ChevronDown, X, Check, UserCheck, UserX } from "lucide-react";
 
 interface PortalUser {
   id: number;
@@ -151,12 +151,6 @@ export default function PortalUsersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [revealedIds, setRevealedIds] = useState<Set<number>>(new Set());
-  const togglePassword = (id: number) => setRevealedIds(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
 
   const { data: users = [], isLoading } = useQuery<PortalUser[]>({
     queryKey: ["portal-users", token],
@@ -229,12 +223,7 @@ export default function PortalUsersPage() {
                   <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
                   {isManagement && (
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-sm">{revealedIds.has(user.id) ? (user.password || "—") : "••••••"}</span>
-                        <button onClick={() => togglePassword(user.id)} className="p-0.5 text-muted-foreground hover:text-foreground">
-                          {revealedIds.has(user.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
+                      <span className="text-xs text-muted-foreground">••••••</span>
                     </td>
                   )}
                   <td className="px-4 py-3 text-muted-foreground">{new Date(user.createdAt).toLocaleDateString("en-PK")}</td>

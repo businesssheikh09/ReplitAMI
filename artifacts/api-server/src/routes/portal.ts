@@ -135,7 +135,7 @@ router.get("/portal/users", requireAuth, async (req, res) => {
 
     if (type && type !== "all") rows = rows.filter((u) => u.type === type);
     if (status && status !== "all") rows = rows.filter((u) => u.status === status);
-    return res.json(rows.map(({ passwordHash, ...u }) => ({ ...u, password: passwordHash })));
+    return res.json(rows.map(({ passwordHash: _, ...u }) => ({ ...u })));
   } catch (err) {
     req.log.error({ err }, "List portal users error");
     return res.status(500).json({ error: "Internal server error" });

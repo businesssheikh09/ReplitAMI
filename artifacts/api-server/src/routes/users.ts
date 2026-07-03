@@ -14,9 +14,8 @@ router.get("/users", async (req, res) => {
       const s = search.toLowerCase();
       users = users.filter(u => u.name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s));
     }
-    return res.json(users.map(({ passwordHash, ticketingPin, ...u }) => ({
+    return res.json(users.map(({ passwordHash: _, ticketingPin, ...u }) => ({
       ...u,
-      password: passwordHash,
       hasTicketingPin: !!ticketingPin,
     })));
   } catch (err) {

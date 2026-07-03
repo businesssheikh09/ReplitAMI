@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, ShieldCheck, UserCheck, UserX, TicketCheck, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Plus, Search, Trash2, ShieldCheck, UserCheck, UserX, TicketCheck, KeyRound, Eye } from "lucide-react";
 
 const ROLES = ["management", "sales", "accounts", "operations"];
 const ROLE_COLORS: Record<string, string> = {
@@ -33,12 +33,6 @@ export default function UsersPage() {
   const [pinUser, setPinUser] = useState<any>(null);
   const [newPin, setNewPin] = useState("");
   const [canIssue, setCanIssue] = useState(false);
-  const [revealedPasswords, setRevealedPasswords] = useState<Set<number>>(new Set());
-  const togglePassword = (id: number) => setRevealedPasswords(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "sales", phone: "", canIssueTickets: false, ticketingPin: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -175,16 +169,7 @@ export default function UsersPage() {
                         : <span className="flex items-center gap-1 text-red-600 text-sm"><UserX className="h-3 w-3" />Inactive</span>}
                     </TableCell>
                     <TableCell>
-                      {isManagement ? (
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-sm">{revealedPasswords.has(u.id) ? (u.password || "—") : "••••••"}</span>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => togglePassword(u.id)}>
-                            {revealedPasswords.has(u.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">••••••</span>
-                      )}
+                      <span className="text-xs text-muted-foreground">••••••</span>
                     </TableCell>
                     <TableCell>
                       {u.canIssueTickets ? (
