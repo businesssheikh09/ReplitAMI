@@ -35,7 +35,9 @@ export default function HotelInvoicesListPage() {
         (inv.partyName || "").toLowerCase().includes(q) ||
         (inv.passengerName || "").toLowerCase().includes(q) ||
         (inv.hotelName || "").toLowerCase().includes(q) ||
-        (inv.status || "").toLowerCase().includes(q)
+        (inv.status || "").toLowerCase().includes(q) ||
+        (inv.reference || "").toLowerCase().includes(q) ||
+        (inv.cnfNumber || "").toLowerCase().includes(q)
       )
     : invoices;
 

@@ -77,6 +77,15 @@ router.post("/portal/login", async (req, res) => {
     if (!user || user.passwordHash !== password) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
+    if (user.status === "pending_approval") {
+      return res.status(403).json({ error: "Your account is pending approval. Our team will contact you within 1–2 business days." });
+    }
+    if (user.status === "suspended") {
+      return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+    }
+    if (user.status === "rejected") {
+      return res.status(403).json({ error: "Your account application was not approved. Please contact us for more information." });
+    }
 
     const token = randomBytes(32).toString("hex");
     await db.update(portalUsersTable).set({ portalSessionToken: token }).where(eq(portalUsersTable.id, user.id));

@@ -27,10 +27,10 @@ export function Footer() {
           <div>
             <h4 className="font-medium text-lg mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm text-primary-foreground/80">
-              <li><a href="#about" className="hover:text-white transition-colors">Our Promise</a></li>
-              <li><a href="#packages" className="hover:text-white transition-colors">Umrah Packages</a></li>
-              <li><a href="#experience" className="hover:text-white transition-colors">The Experience</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
+              <li><a href="/#about" className="hover:text-white transition-colors">Our Promise</a></li>
+              <li><a href="/#packages" className="hover:text-white transition-colors">Umrah Packages</a></li>
+              <li><a href="/#experience" className="hover:text-white transition-colors">The Experience</a></li>
+              <li><a href="/#group-tickets" className="hover:text-white transition-colors">Available Seats</a></li>
             </ul>
           </div>
 

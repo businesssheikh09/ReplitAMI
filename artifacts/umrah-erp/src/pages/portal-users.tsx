@@ -146,7 +146,8 @@ function UserDetailModal({ userId, onClose, token }: { userId: number; onClose: 
 }
 
 export default function PortalUsersPage() {
-  const { token } = useAuth();
+  const { token, user: currentUser } = useAuth();
+  const isManagement = currentUser?.role === "management" || currentUser?.role === "admin";
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -212,7 +213,7 @@ export default function PortalUsersPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-stone-50">
               <tr>
-                {["Name", "Type", "Phone", "Email", "Company", "Status", "Password", "Joined", ""].map((h) => (
+                {["Name", "Type", "Phone", "Email", "Company", "Status", ...(isManagement ? ["Password"] : []), "Joined", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -226,14 +227,16 @@ export default function PortalUsersPage() {
                   <td className="px-4 py-3 text-muted-foreground">{user.email ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{user.companyName ?? "—"}</td>
                   <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <span className="font-mono text-sm">{revealedIds.has(user.id) ? (user.password || "—") : "••••••"}</span>
-                      <button onClick={() => togglePassword(user.id)} className="p-0.5 text-muted-foreground hover:text-foreground">
-                        {revealedIds.has(user.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </td>
+                  {isManagement && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-sm">{revealedIds.has(user.id) ? (user.password || "—") : "••••••"}</span>
+                        <button onClick={() => togglePassword(user.id)} className="p-0.5 text-muted-foreground hover:text-foreground">
+                          {revealedIds.has(user.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-muted-foreground">{new Date(user.createdAt).toLocaleDateString("en-PK")}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => setSelectedId(user.id)} className="flex items-center gap-1 text-teal-600 hover:text-teal-700 font-medium text-xs">

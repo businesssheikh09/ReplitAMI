@@ -19,6 +19,12 @@ export interface Hotel {
   notes?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  googleImageUrl?: string | null;
+  /** @nullable */
+  vendorWhatsapp?: string | null;
+  /** @nullable */
+  vendorWhatsappGroupId?: string | null;
   isActive?: boolean;
   createdAt: string;
 }

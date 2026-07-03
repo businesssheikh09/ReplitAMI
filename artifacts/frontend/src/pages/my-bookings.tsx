@@ -65,10 +65,17 @@ export default function MyBookingsPage() {
 
   const { data: bookings = [], isLoading } = useQuery<BookingInquiry[]>({
     queryKey: ["my-bookings", token],
-    queryFn: () =>
-      fetch("/api/public/booking-inquiries/mine", {
+    queryFn: async () => {
+      const r = await fetch("/api/public/booking-inquiries/mine", {
         headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
+      });
+      if (r.status === 401) {
+        logout();
+        navigate("/portal-login");
+        return [];
+      }
+      return r.json();
+    },
     enabled: isAuthenticated,
   });
 

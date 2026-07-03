@@ -1,0 +1,65 @@
+Approved for Phase 1A + Phase 1B only.
+
+Do not build Phase 2 vouchers yet.
+Do not build reports yet.
+Do not build A/C Head hierarchy yet.
+Do not build transport invoices yet.
+Do not build local airlines yet.
+Do not touch accounting foundation yet except the invoice counter fix.
+
+Build only:
+
+PHASE 1A — Critical Fixes
+1. Fix invoice counter bug with DB-backed sequence.
+2. Fix hotel invoice search by Reference / CNF / DN.
+3. Fix portal registration invalid credentials bug.
+4. Fix My Bookings login guard.
+5. Stop DC auto-login after registration; show pending approval message instead.
+6. Remove plaintext password display for non-management roles.
+7. Fix Experience button.
+8. Fix public website auto-scroll button issues.
+9. Ensure every public page ends cleanly at Quick Links + Contact/footer.
+10. Rename public “WhatsApp Group Tickets” label to “Available Seats”.
+
+PHASE 1B — Hotel Vendor Messaging
+1. Extend hotel master with:
+   - vendorId
+   - WhatsApp contact
+   - WhatsApp group ID
+   - Google image/photo URL
+2. Add these fields to Hotels page.
+3. Add Send to Vendor button in Hotel Requests.
+4. Send formatted hotel query through existing WhatsApp sending system.
+5. Message format:
+
+Hotel Name:
+Check In:
+Check Out:
+No of Rooms:
+Type of Room:
+Meal Type:
+Special Requests:
+
+6. Support room types:
+Single, Double, Triple, Quad, Quint, Family, Junior Suite, Executive Suite, Presidential Suite
+
+7. Support meal types:
+RO, BB, HB, FB, AI
+
+Strict rules:
+- Do not touch Flights local airline integration.
+- Do not touch vouchers.
+- Do not touch reports.
+- Do not touch dashboard cleanup beyond links needed for these fixes.
+- Do not create duplicate APIs/components if existing ones can be extended.
+- Follow OpenAPI/codegen rules if API contracts change.
+- Run DB push only if schema changes are made.
+- Keep all current working modules intact.
+
+After completion provide:
+1. Files changed
+2. DB changes
+3. API changes
+4. Exact testing steps
+5. Any remaining issues
+6. Confirmation no unrelated modules were modified

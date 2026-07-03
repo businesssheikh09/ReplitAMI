@@ -21,11 +21,11 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8">
-          <a href="#about" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Our Promise</a>
+          <a href="/#about" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Our Promise</a>
           <Link href="/flights" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Flights</Link>
-          <a href="#customize" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Build Package</a>
-          <a href="#packages" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Journeys</a>
-          <a href="#experience" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Experience</a>
+          <a href="/#customize" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Build Package</a>
+          <a href="/#packages" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Journeys</a>
+          <a href="/#experience" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">Experience</a>
         </nav>
 
         {/* Actions */}
@@ -89,9 +89,9 @@ export function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-md px-4 py-5 space-y-4">
-          <a href="#group-tickets" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-foreground/80 hover:text-primary">Group Flights</a>
-          <a href="#customize" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-foreground/80 hover:text-primary">Build Package</a>
-          <a href="#packages" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-foreground/80 hover:text-primary">Journeys</a>
+          <a href="/#group-tickets" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-foreground/80 hover:text-primary">Available Seats</a>
+          <a href="/#customize" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-foreground/80 hover:text-primary">Build Package</a>
+          <a href="/#packages" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-foreground/80 hover:text-primary">Journeys</a>
           {isAuthenticated ? (
             <>
               <button onClick={() => { navigate("/my-bookings"); setMenuOpen(false); }} className="block text-sm font-medium text-primary">My Bookings</button>

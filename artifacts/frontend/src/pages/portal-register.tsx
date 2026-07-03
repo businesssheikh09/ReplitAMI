@@ -65,12 +65,8 @@ export default function PortalRegisterPage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
-      if (data.user.status === "active") {
-        navigate("/portal-login");
-      } else {
-        setDone(true);
-      }
+    onSuccess: () => {
+      setDone(true);
     },
   });
 
@@ -83,7 +79,7 @@ export default function PortalRegisterPage() {
       <p className="text-muted-foreground max-w-sm mb-6">
         {accountType === "party"
           ? "Your party account application is under review. Our team will contact you within 1–2 business days."
-          : "Your DC account has been created. You can now sign in."}
+          : "Your account has been created successfully. You can now sign in with your credentials."}
       </p>
       <button onClick={() => navigate("/portal-login")} className="text-teal-600 hover:underline text-sm">
         Go to sign in →

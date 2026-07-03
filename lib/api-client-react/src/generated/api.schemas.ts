@@ -282,6 +282,12 @@ export interface Hotel {
   notes?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  googleImageUrl?: string | null;
+  /** @nullable */
+  vendorWhatsapp?: string | null;
+  /** @nullable */
+  vendorWhatsappGroupId?: string | null;
   isActive?: boolean;
   createdAt: string;
 }
@@ -303,6 +309,9 @@ export interface HotelInput {
   mealPlans?: string[];
   notes?: string;
   imageUrl?: string;
+  googleImageUrl?: string;
+  vendorWhatsapp?: string;
+  vendorWhatsappGroupId?: string;
 }
 
 export interface HotelUpdate {
@@ -314,6 +323,9 @@ export interface HotelUpdate {
   mealPlans?: string[];
   notes?: string;
   imageUrl?: string;
+  googleImageUrl?: string;
+  vendorWhatsapp?: string;
+  vendorWhatsappGroupId?: string;
   isActive?: boolean;
 }
 

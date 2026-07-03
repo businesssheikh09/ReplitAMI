@@ -16,7 +16,7 @@ export default function HotelsPage() {
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<{ name: string; city: HotelInputCity; stars: string; distanceFromHaram: string }>({ name: "", city: HotelInputCity.makkah, stars: "5", distanceFromHaram: "" });
+  const [form, setForm] = useState<{ name: string; city: HotelInputCity; stars: string; distanceFromHaram: string; vendorWhatsapp: string; vendorWhatsappGroupId: string; googleImageUrl: string }>({ name: "", city: HotelInputCity.makkah, stars: "5", distanceFromHaram: "", vendorWhatsapp: "", vendorWhatsappGroupId: "", googleImageUrl: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -36,7 +36,7 @@ export default function HotelsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Add Hotel</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
-              {[["name","Hotel Name"],["distanceFromHaram","Distance from Haram"]].map(([k, label]) => (
+              {[["name","Hotel Name"],["distanceFromHaram","Distance from Haram"],["vendorWhatsapp","Vendor WhatsApp"],["vendorWhatsappGroupId","WhatsApp Group ID"],["googleImageUrl","Google Image URL"]].map(([k, label]) => (
                 <div key={k} className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">{label}</Label>
                   <Input className="col-span-3" value={(form as any)[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.value }))} />

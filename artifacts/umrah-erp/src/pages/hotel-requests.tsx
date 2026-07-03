@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useListHotelRequests, useCreateHotelRequest, useUpdateHotelRequest, useListClients } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Send } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const STATUS_BADGE: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -26,11 +27,31 @@ export default function HotelRequestsPage() {
   const [form, setForm] = useState({ clientId: "", hotelName: "", city: "makkah", checkIn: "", checkOut: "", rooms: 1, roomType: "Double", mealPlan: "BB", specialNotes: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { token } = useAuth();
 
   const { data: requests = [], isLoading } = useListHotelRequests({ status: statusFilter !== "all" ? statusFilter : undefined });
   const { data: clients = [] } = useListClients({});
   const createRequest = useCreateHotelRequest({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/hotel-requests"] }); setOpen(false); toast({ title: "Request created" }); } } });
   const updateRequest = useUpdateHotelRequest({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/hotel-requests"] }); toast({ title: "Status updated" }); } } });
+
+  const sendToVendor = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/hotel-requests/${id}/send-to-vendor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error ?? "Failed to send");
+      return body;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/hotel-requests"] });
+      toast({ title: "✅ Sent to vendor via WhatsApp" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Send failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -141,8 +162,8 @@ export default function HotelRequestsPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         {r.status === "pending" && (
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateRequest.mutate({ id: r.id, data: { status: "sent_to_vendor" } })}>
-                            Send to Vendor
+                          <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => sendToVendor.mutate(r.id)} disabled={sendToVendor.isPending}>
+                            <Send className="h-3 w-3" />Send to Vendor
                           </Button>
                         )}
                       </div>

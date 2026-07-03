@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { hotelsTable, vendorsTable, hotelRequestsTable, vendorQuotesTable, clientsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { sendWhatsAppMessage } from "../services/whatsapp.js";
 
 const router = Router();
 
@@ -34,6 +35,9 @@ router.post("/hotels", async (req, res) => {
       mealPlans: req.body.mealPlans || [],
       notes: req.body.notes,
       imageUrl: req.body.imageUrl,
+      googleImageUrl: req.body.googleImageUrl,
+      vendorWhatsapp: req.body.vendorWhatsapp,
+      vendorWhatsappGroupId: req.body.vendorWhatsappGroupId,
     }).returning();
     return res.status(201).json(hotel);
   } catch (err) {
@@ -56,7 +60,7 @@ router.get("/hotels/:id", async (req, res) => {
 router.patch("/hotels/:id", async (req, res) => {
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
-    const fields = ["name", "city", "stars", "distanceFromHaram", "roomTypes", "mealPlans", "notes", "imageUrl", "isActive"];
+    const fields = ["name", "city", "stars", "distanceFromHaram", "roomTypes", "mealPlans", "notes", "imageUrl", "googleImageUrl", "vendorWhatsapp", "vendorWhatsappGroupId", "isActive"];
     fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
     const [hotel] = await db.update(hotelsTable).set(updates).where(eq(hotelsTable.id, parseInt(req.params.id))).returning();
     if (!hotel) return res.status(404).json({ error: "Hotel not found" });
@@ -197,6 +201,56 @@ router.post("/hotel-requests/:id/quotes", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Add vendor quote error");
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/hotel-requests/:id/send-to-vendor", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [request] = await db.select().from(hotelRequestsTable).where(eq(hotelRequestsTable.id, id));
+    if (!request) return res.status(404).json({ error: "Hotel request not found" });
+
+    // Look up the hotel by name to get vendor WhatsApp info
+    const hotels = await db.select().from(hotelsTable);
+    const hotel = hotels.find(h => h.name.toLowerCase() === request.hotelName.toLowerCase());
+
+    const vendorJid = hotel?.vendorWhatsappGroupId || hotel?.vendorWhatsapp;
+    if (!vendorJid) {
+      return res.status(400).json({ error: "No vendor WhatsApp configured for this hotel. Please add vendor WhatsApp in the Hotels section first." });
+    }
+
+    const checkIn = new Date(request.checkIn).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" });
+    const checkOut = new Date(request.checkOut).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" });
+
+    const message =
+      `*Hotel Booking Enquiry*\n\n` +
+      `Hotel Name: ${request.hotelName}\n` +
+      `Check In: ${checkIn}\n` +
+      `Check Out: ${checkOut}\n` +
+      `No of Rooms: ${request.rooms}\n` +
+      `Type of Room: ${request.roomType}\n` +
+      `Meal Type: ${request.mealPlan}\n` +
+      (request.specialNotes ? `Special Requests: ${request.specialNotes}\n` : "") +
+      `\n_Sent via Al Musafir International ERP_`;
+
+    await sendWhatsAppMessage(vendorJid, message);
+
+    const [updated] = await db
+      .update(hotelRequestsTable)
+      .set({ status: "sent_to_vendor", updatedAt: new Date() })
+      .where(eq(hotelRequestsTable.id, id))
+      .returning();
+
+    return res.json({
+      ...updated,
+      clientName: null,
+      checkIn: updated.checkIn.toISOString(),
+      checkOut: updated.checkOut.toISOString(),
+      vendorJid,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Send to vendor error");
+    return res.status(500).json({ error: err?.message ?? "Failed to send WhatsApp message" });
   }
 });
 

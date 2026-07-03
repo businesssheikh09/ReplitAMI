@@ -1,15 +1,19 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { invoicesTable, paymentsTable, expensesTable, clientsTable, vendorsTable, documentsTable, chartOfAccountsTable, generalJournalTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { postInvoicePayment } from "../services/journal-poster.js";
 
 const router = Router();
 
-let invoiceCounter = 1000;
-function generateInvoiceNumber() {
-  invoiceCounter++;
-  return `INV-${new Date().getFullYear()}-${String(invoiceCounter).padStart(4, "0")}`;
+async function generateInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `INV-${year}-`;
+  const result = await db.execute(
+    sql`SELECT COALESCE(MAX(CAST(NULLIF(REGEXP_REPLACE(invoice_number, ${prefix}, ''), '') AS INTEGER)), 1000) + 1 AS seq FROM invoices WHERE invoice_number LIKE ${prefix + "%"}`,
+  );
+  const seq = (result.rows[0] as any)?.seq ?? 1001;
+  return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
 router.get("/invoices", async (req, res) => {
@@ -42,7 +46,7 @@ router.get("/invoices", async (req, res) => {
 router.post("/invoices", async (req, res) => {
   try {
     const [invoice] = await db.insert(invoicesTable).values({
-      invoiceNumber: generateInvoiceNumber(),
+      invoiceNumber: await generateInvoiceNumber(),
       type: req.body.type || "customer",
       clientId: req.body.clientId || null,
       vendorId: req.body.vendorId || null,

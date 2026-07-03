@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { useListUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth();
+  const isManagement = currentUser?.role === "management" || currentUser?.role === "admin";
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [open, setOpen] = useState(false);
@@ -172,12 +175,16 @@ export default function UsersPage() {
                         : <span className="flex items-center gap-1 text-red-600 text-sm"><UserX className="h-3 w-3" />Inactive</span>}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-sm">{revealedPasswords.has(u.id) ? (u.password || "—") : "••••••"}</span>
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => togglePassword(u.id)}>
-                          {revealedPasswords.has(u.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        </Button>
-                      </div>
+                      {isManagement ? (
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-sm">{revealedPasswords.has(u.id) ? (u.password || "—") : "••••••"}</span>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => togglePassword(u.id)}>
+                            {revealedPasswords.has(u.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">••••••</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {u.canIssueTickets ? (

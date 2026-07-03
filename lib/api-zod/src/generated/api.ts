@@ -546,6 +546,9 @@ export const ListHotelsResponseItem = zod.object({
   "mealPlans": zod.array(zod.string()).optional(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "googleImageUrl": zod.string().nullish(),
+  "vendorWhatsapp": zod.string().nullish(),
+  "vendorWhatsappGroupId": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
 })
@@ -563,7 +566,10 @@ export const CreateHotelBody = zod.object({
   "roomTypes": zod.array(zod.string()).optional(),
   "mealPlans": zod.array(zod.string()).optional(),
   "notes": zod.string().optional(),
-  "imageUrl": zod.string().optional()
+  "imageUrl": zod.string().optional(),
+  "googleImageUrl": zod.string().optional(),
+  "vendorWhatsapp": zod.string().optional(),
+  "vendorWhatsappGroupId": zod.string().optional()
 })
 
 
@@ -584,6 +590,9 @@ export const GetHotelResponse = zod.object({
   "mealPlans": zod.array(zod.string()).optional(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "googleImageUrl": zod.string().nullish(),
+  "vendorWhatsapp": zod.string().nullish(),
+  "vendorWhatsappGroupId": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
 })
@@ -605,6 +614,9 @@ export const UpdateHotelBody = zod.object({
   "mealPlans": zod.array(zod.string()).optional(),
   "notes": zod.string().optional(),
   "imageUrl": zod.string().optional(),
+  "googleImageUrl": zod.string().optional(),
+  "vendorWhatsapp": zod.string().optional(),
+  "vendorWhatsappGroupId": zod.string().optional(),
   "isActive": zod.boolean().optional()
 })
 
@@ -618,6 +630,9 @@ export const UpdateHotelResponse = zod.object({
   "mealPlans": zod.array(zod.string()).optional(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "googleImageUrl": zod.string().nullish(),
+  "vendorWhatsapp": zod.string().nullish(),
+  "vendorWhatsappGroupId": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
 })

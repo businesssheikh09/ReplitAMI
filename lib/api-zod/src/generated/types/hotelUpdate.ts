@@ -15,5 +15,8 @@ export interface HotelUpdate {
   mealPlans?: string[];
   notes?: string;
   imageUrl?: string;
+  googleImageUrl?: string;
+  vendorWhatsapp?: string;
+  vendorWhatsappGroupId?: string;
   isActive?: boolean;
 }

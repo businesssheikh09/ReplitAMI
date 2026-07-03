@@ -1,0 +1,89 @@
+Read /docs and inspect the current ERP accounting, hotel invoice, voucher, reports, books, party/vendor statement, and dashboard files.
+
+This is PLANNING ONLY. Do not code yet.
+
+Goal:
+Recreate the legacy Al Musafir accounting + hotel workflow inside my ERP.
+
+Use the screenshots I provided as the reference system.
+
+Required workflow to map:
+
+1. Dashboard
+- Remove extra/unrelated dashboard clutter.
+- Create clean shortcuts for:
+  Record Hotel Invoice
+  Search H-Invoice
+  Check Hotel In/Out Report
+  Record Receipt
+  Payment Voucher
+  Search Voucher
+  Party Statement
+  Vendor Statement
+  Ledger
+  Party Summary
+  Vendor Summary
+  Books
+  Room Occupancy
+  Search Ref-Invoice
+
+2. Files Section
+- A/C Head Section
+- Employee Management
+- Add Salesman
+- Hotel/Transport Names
+- Transaction Authorization
+
+3. Recording
+- Hotel Invoice
+- Transport Invoice
+- Receipt Voucher
+- Payment Voucher
+- Journal Voucher
+- Cash Voucher
+- RV 2nd Format
+
+4. Reports
+- Books
+- Ledger
+- Ledger Foreign Currency
+- Fortnight-wise Ledger
+- Trial Balance
+- Print Invoice
+- Summary Analysis
+- Party Statement
+- Vendor Statement
+- Party Summary
+- Vendor Summary
+- Room Occupancy
+- Room Occupancy 2
+- Booking Validation Report
+- Hotel Check-In/Out Report
+- DN Report
+
+5. Searching
+- Search Voucher
+- Search Transport Invoice
+- Search Hotel Invoice by Reference No, Reservation No, DN No.
+
+Important:
+Every entry must post to the correct ledger/accounting records.
+Hotel invoice must affect party statement, vendor statement, ledger, books, summaries, and reports.
+Receipt/payment vouchers must affect party/vendor balances and books.
+Reports must be printable and readable.
+Every record must be searchable.
+No fake buttons.
+No dead links.
+
+Before coding, provide:
+
+1. Existing files/modules that already support this.
+2. Missing database tables or fields.
+3. Missing APIs.
+4. Exact accounting data flow.
+5. Exact hotel invoice data flow.
+6. Screenshots/features that are still unclear and need more screenshots.
+7. Phase-by-phase implementation plan.
+8. Which phase should be built first.
+
+Do not code until I approve the plan.

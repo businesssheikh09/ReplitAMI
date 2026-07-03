@@ -1,0 +1,333 @@
+Read the latest GitHub/main code and all /docs files first.
+
+This is PLAN MODE ONLY.
+
+Do NOT write code yet.
+Do NOT modify files yet.
+Do NOT run migrations yet.
+Do NOT touch GitHub yet.
+
+You are now acting as the lead software architect for this ERP.
+
+Goal:
+Create one complete implementation plan to finish and connect the ERP based on:
+
+1. Current repository code
+2. Current /docs files
+3. Existing Umrah Gateway Pro modules
+4. The AMI / Al Musafir workflow screenshots and notes shared by the owner
+
+Important:
+AMI is the BUSINESS WORKFLOW reference, not the UI design reference.
+Do not copy old UI style.
+Use modern ERP UI, but reproduce the workflow and accounting logic.
+
+Main objective:
+Every transaction should be recorded once and automatically flow to all connected modules, ledgers, statements, books, reports, and dashboards.
+
+Do not create duplicate pages, APIs, database tables, services, hooks, or components if something existing can be extended.
+
+==================================================
+PHASE 1 — CURRENT ERP STABILIZATION
+==================================================
+
+Analyze and plan fixes for existing issues:
+
+Frontend:
+- Buttons should not unexpectedly auto-scroll to next sections.
+- Every public page should end cleanly at Quick Links + Contact/footer.
+- Experience button must work.
+- My Bookings must require login/sign-in prompt.
+- Do not auto-create accounts.
+- New Party Account registration invalid credentials issue must be fixed.
+- Flight search should use real/live search where available.
+- Remove visible service fee/tax/markup wording from customer UI.
+- Show only final all-inclusive fare.
+- Support local Pakistan airlines where possible: PIA, Airblue, Fly Jinnah, AirSial, SereneAir.
+- If APIs do not provide them, plan manual local inventory.
+- Flight selection form must support:
+  - International: passport upload
+  - Domestic/local: CNIC or passport upload
+- Remove public wording like “WhatsApp Group Tickets”.
+- Keep group ticket routes/code for future live inventory integration.
+
+Hotel Vendor Messaging:
+- Hotel master must support vendor list, WhatsApp group/vendor mapping, Google image/photo URL.
+- Send to Vendor button must send formatted query to selected vendors/groups through WhatsApp inbox.
+- Message format:
+  Hotel Name:
+  Check In:
+  Check Out:
+  No of Rooms:
+  Type of Room:
+  Meal Type:
+  Special Requests:
+
+Room types:
+Single, Double, Triple, Quad, Quint, Family, Junior Suite, Executive Suite, Presidential Suite
+
+Meal types:
+RO, BB, HB, FB, AI
+
+==================================================
+PHASE 2 — ACCOUNTING + AMI WORKFLOW FOUNDATION
+==================================================
+
+Analyze and plan full recreation of AMI accounting workflow.
+
+Sections to include:
+
+FILES SECTION:
+- A/C Head Section
+- Main account groups:
+  - Non-Current Liabilities
+  - Current Liabilities
+  - Incomes
+  - Non-Current Assets
+  - Current Assets
+  - Expenses
+  - Capital
+- Sub Heads
+- Account Heads
+- Party/customer accounts
+- Vendor accounts
+- Cash/bank accounts
+- Opening balances
+- Active/Blocked status
+- Account contact fields:
+  - Name
+  - Email
+  - Address
+  - Phone
+  - Mobile
+  - Opening Balance
+- Party/client extra fields:
+  - Credit Limit
+  - IATA No
+  - DTS No
+  - Owner Name
+  - IATA/DTS copy status
+  - Affidavit copy status
+  - Company letterhead request status
+  - CNIC/NTN copy status
+  - Bank maintaining certificate status
+  - Cheque copy status
+
+Employee/User Management:
+- Employee Name
+- Login Name
+- Phone
+- Email
+- Mobile
+- Employed At
+- Login allowed/blocked
+- Recording allowed/blocked
+- Reporting allowed/blocked
+- Edit/Delete allowed/blocked
+- Special Reports allowed/blocked
+- Authorization permission
+- No plain-text passwords
+
+Salesman Master:
+- Add salesman
+- Search/list salesman
+- Active/blocked status
+
+Hotel/Transport/Service Master:
+- Name
+- Detail
+- Description/category
+- Payable-to account/vendor
+- Status available/expired
+
+RECORDING SECTION:
+- Hotel Invoice / DN Invoice
+- Transport Invoice
+- Receipt Voucher
+- Payment Voucher
+- Journal Voucher
+- Cash Voucher
+- RV 2nd Format if enough information exists
+- Voucher authorization
+- Search/Edit/Print workflows
+
+Hotel DN Invoice must include:
+- Invoice Date
+- DN No
+- Party
+- Vendor
+- Passenger name
+- Nationality
+- Detail
+- No of Pax
+- Voucher Type
+- Option Date
+- Hotel
+- View
+- Room Type
+- Meal Plan
+- Check In
+- Check Out
+- No of Nights
+- Reference
+- CNF No
+- Room No
+- Remarks
+- Contact Person/Number
+- No of Rooms
+- Receivable SAR
+- Receivable PKR
+- Payable SAR
+- Payable PKR
+- Income Head
+- Salesman
+- Status
+- Accept/Clear
+- Edit
+- Print Hotel Voucher
+- Print Hotel Voucher 2
+- Print Hotel Voucher Invoice
+- Search by DN, reference, reservation, CNF
+
+Voucher engine must support:
+- Receipt Voucher
+- Payment Voucher
+- Journal Voucher
+- Cash Voucher
+- Multi-line debit/credit rows
+- SAR + PKR amounts
+- Exchange rate
+- Ref number
+- Cheque number/date
+- Adjustment date
+- Voucher status: Hold / Authorized / Cancelled
+- Search/Edit/Print
+- Authorization workflow
+- Debit/Credit must balance before save
+
+Accounting posting rules:
+- Hotel Invoice:
+  Dr Party Receivable
+  Cr Hotel Income
+  Also track vendor payable
+- Receipt Voucher:
+  Dr Cash/Bank
+  Cr Party Receivable
+- Payment Voucher:
+  Dr Vendor Payable / Expense / Selected Account
+  Cr Cash/Bank
+- Journal Voucher:
+  User-selected debit/credit accounts
+- Cash Voucher:
+  Dr Expense/Selected Account
+  Cr Cash
+
+Every posting must affect:
+- Ledger
+- Party Statement
+- Vendor Statement
+- Books
+- Party Summary
+- Vendor Summary
+- Trial Balance
+- Reports
+
+REPORTS:
+Plan these reports from real data:
+- Ledger
+- Ledger Foreign Currency
+- Fortnight-wise Ledger
+- Trial Balance
+- Books
+- Cash Book
+- Receipt Book
+- Payment Book
+- Journal Book
+- DN Report
+- Print Invoice
+- Summary Analysis
+- Party Statement
+- Vendor Statement
+- Party Summary
+- Vendor Summary
+- Room Occupancy
+- Room Occupancy 2
+- Booking Validation Report
+- Hotel Check-In/Out Report
+- Search Voucher
+- Search Transport Invoice
+- Search Hotel Invoice
+- Search Ref-Invoice
+
+DASHBOARD:
+Plan dashboard cleanup.
+Remove unrelated clutter.
+Create shortcut groups:
+- Record Hotel Invoice
+- Search H-Invoice
+- Check Hotel In/Out Report
+- Record Receipt
+- Payment Voucher
+- Search Voucher
+- Party Statement
+- Vendor Statement
+- Ledger
+- Party Summary
+- Vendor Summary
+- Books
+- Room Occupancy
+- Booking Validation
+- Search Ref-Invoice
+
+==================================================
+DEFINITION OF DONE FOR EVERY SCREEN
+==================================================
+
+Every screen must satisfy:
+
+- Page opens
+- Every button works
+- Save works
+- Edit works
+- Delete/Cancel works if applicable
+- Search works
+- Print works if applicable
+- Filters work
+- Validation messages work
+- Permissions work
+- Accounting posting works where applicable
+- Related reports update automatically
+- No dummy buttons
+- No dead links
+- No duplicate manual entry
+- User-friendly errors
+- GitHub checkpoint after module completion
+
+==================================================
+WHAT TO RETURN NOW
+==================================================
+
+Return one complete plan only.
+
+Do not code yet.
+
+Your response must include:
+
+1. Current modules already complete
+2. Current modules partially complete
+3. Missing modules/features
+4. Broken areas found
+5. Existing files to reuse
+6. Files likely to modify
+7. Database tables/columns needed
+8. API routes needed
+9. Frontend pages/components needed
+10. Accounting posting rules
+11. Report generation rules
+12. Screenshot gaps still needed
+13. Exact phased build sequence
+14. The first build task you recommend
+15. Estimated risk level for each phase
+
+Stop after the plan.
+Wait for owner approval before coding.

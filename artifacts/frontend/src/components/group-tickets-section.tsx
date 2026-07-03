@@ -105,7 +105,7 @@ export function GroupTicketsSection() {
         {/* Header */}
         <div className="text-center mb-12">
           <p className="text-sm font-medium tracking-widest text-teal-600 uppercase mb-3">Direct Flights</p>
-          <h2 className="text-3xl md:text-5xl font-serif text-foreground mb-4">Group Tickets</h2>
+          <h2 className="text-3xl md:text-5xl font-serif text-foreground mb-4">Available Seats</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Guaranteed seats on scheduled departures — book early for the best fares.
           </p>

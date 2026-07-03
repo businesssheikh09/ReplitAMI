@@ -2418,6 +2418,12 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
+        googleImageUrl:
+          type: ["string", "null"]
+        vendorWhatsapp:
+          type: ["string", "null"]
+        vendorWhatsappGroupId:
+          type: ["string", "null"]
         isActive:
           type: boolean
         createdAt:
@@ -2448,6 +2454,12 @@ components:
           type: string
         imageUrl:
           type: string
+        googleImageUrl:
+          type: string
+        vendorWhatsapp:
+          type: string
+        vendorWhatsappGroupId:
+          type: string
 
     HotelUpdate:
       type: object
@@ -2471,6 +2483,12 @@ components:
         notes:
           type: string
         imageUrl:
+          type: string
+        googleImageUrl:
+          type: string
+        vendorWhatsapp:
+          type: string
+        vendorWhatsappGroupId:
           type: string
         isActive:
           type: boolean
