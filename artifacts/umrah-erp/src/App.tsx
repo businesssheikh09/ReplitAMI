@@ -45,6 +45,10 @@ import AccountingReportsHubPage from "@/pages/accounting-reports";
 import FinancialYearsPage from "@/pages/financial-years";
 import PnlPage from "@/pages/pnl";
 import BalanceSheetPage from "@/pages/balance-sheet";
+import FlightCancellationsPage from "@/pages/flight-cancellations";
+import BspReportPage from "@/pages/bsp-report";
+import StaffTicketLogPage from "@/pages/staff-ticket-log";
+import PassengerDocumentsPage from "@/pages/passenger-documents-page";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -123,6 +127,10 @@ function Router() {
         <ProtectedRoute path="/vendors" component={VendorsPage} />
         <ProtectedRoute path="/transport" component={TransportPage} />
         <ProtectedRoute path="/flights" component={FlightsPage} />
+        <ProtectedRoute path="/flights/cancellations" component={FlightCancellationsPage} />
+        <ProtectedRoute path="/flights/bsp-report" component={BspReportPage} />
+        <ProtectedRoute path="/flights/staff-log" component={StaffTicketLogPage} />
+        <ProtectedRoute path="/flights/passengers" component={PassengerDocumentsPage} />
         <ProtectedRoute path="/visa" component={VisaPage} />
 
         {/* Finance */}

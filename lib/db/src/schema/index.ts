@@ -20,3 +20,5 @@ export * from "./portal-users";
 export * from "./flight-requests";
 export * from "./flight-request-events";
 export * from "./media-library";
+export * from "./flight-ticket-events";
+export * from "./passenger-documents";

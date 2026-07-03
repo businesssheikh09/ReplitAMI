@@ -30,6 +30,7 @@ import mediaLibraryRouter from "./media-library.js";
 import vouchersRouter from "./vouchers.js";
 import accountingReportsRouter from "./accounting-reports.js";
 import financialYearRouter from "./financial-year.js";
+import passengerDocumentsRouter from "./passenger-documents.js";
 
 const router: IRouter = Router();
 
@@ -64,5 +65,6 @@ router.use(mediaLibraryRouter);
 router.use(vouchersRouter);
 router.use(accountingReportsRouter);
 router.use(financialYearRouter);
+router.use(passengerDocumentsRouter);
 
 export default router;

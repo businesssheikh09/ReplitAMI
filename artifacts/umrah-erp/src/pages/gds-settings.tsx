@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plane, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle } from "lucide-react";
+import { Plane, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 const PROVIDERS = [
   {
@@ -263,6 +264,55 @@ export default function GdsSettingsPage() {
           );
         })}
       </div>
+
+      {/* Local Airlines */}
+      <LocalAirlinesPanel token={token!} />
+    </div>
+  );
+}
+
+function LocalAirlinesPanel({ token }: { token: string }) {
+  const { data: airlines = [] } = useQuery<any[]>({
+    queryKey: ["airlines-providers"],
+    queryFn: () =>
+      fetch("/api/airlines/providers", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+    enabled: !!token,
+  });
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+        <Plane className="h-5 w-5" /> Local / Direct Airline APIs
+      </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Pakistan & Middle East Carriers</CardTitle>
+          <CardDescription>
+            Direct API integrations with local airlines — bypass GDS fees and get real-time availability.
+            These are currently in development; early access coming soon.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            {airlines.map((a: any) => (
+              <div key={a.code} className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
+                <div>
+                  <div className="font-medium text-sm">{a.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Code: <span className="font-mono">{a.code}</span> · {a.integrationType.replace(/_/g, " ")}
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs flex items-center gap-1 shrink-0">
+                  <Clock className="h-3 w-3" /> Coming Soon
+                </Badge>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">
+            To request early access to a specific carrier integration, contact the Al Musafir technical team.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

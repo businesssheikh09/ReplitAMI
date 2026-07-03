@@ -291,3 +291,49 @@ export async function postFlightIssued(opts: {
     },
   ]);
 }
+
+/**
+ * Called when a flight ticket is cancelled.
+ * DR AIR (reversal of revenue) / CR PARTY (cancel receivable)
+ */
+export async function postFlightCancelled(opts: {
+  ticketId:     number;
+  ticketNumber: string;
+  amount:       number;
+  currency?:    string;
+}): Promise<void> {
+  await postJournalEntries([
+    {
+      debitCode:   "AIR",
+      creditCode:  "PARTY",
+      amount:      opts.amount,
+      description: `Flight cancelled: ${opts.ticketNumber} — revenue reversed PKR ${opts.amount.toLocaleString()}`,
+      currency:    opts.currency ?? "PKR",
+      sourceType:  "flight_cancelled",
+      sourceId:    opts.ticketId,
+    },
+  ]);
+}
+
+/**
+ * Called when a flight refund is processed.
+ * DR PARTY (refund liability cleared) / CR MSFR (cash paid out)
+ */
+export async function postFlightRefund(opts: {
+  ticketId:     number;
+  ticketNumber: string;
+  refundAmount: number;
+  currency?:    string;
+}): Promise<void> {
+  await postJournalEntries([
+    {
+      debitCode:   "PARTY",
+      creditCode:  "MSFR",
+      amount:      opts.refundAmount,
+      description: `Flight refund: ${opts.ticketNumber} — PKR ${opts.refundAmount.toLocaleString()} paid to client`,
+      currency:    opts.currency ?? "PKR",
+      sourceType:  "flight_refund",
+      sourceId:    opts.ticketId,
+    },
+  ]);
+}

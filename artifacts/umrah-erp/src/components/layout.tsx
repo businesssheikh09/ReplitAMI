@@ -33,6 +33,10 @@ import {
   BarChart3,
   CalendarRange,
   FileBarChart,
+  XCircle,
+  ClipboardList,
+  FileSearch,
+  Banknote,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -76,6 +80,10 @@ const navGroups = [
       { title: "Vendors", href: "/vendors", icon: Store },
       { title: "Transport", href: "/transport", icon: Car },
       { title: "Flights", href: "/flights", icon: Plane },
+      { title: "Cancellations & Refunds", href: "/flights/cancellations", icon: XCircle },
+      { title: "BSP Report", href: "/flights/bsp-report", icon: Banknote },
+      { title: "Staff Ticket Log", href: "/flights/staff-log", icon: ClipboardList },
+      { title: "Passenger Documents", href: "/flights/passengers", icon: FileSearch },
       { title: "Visa", href: "/visa", icon: BookOpen },
     ],
   },

@@ -1,0 +1,156 @@
+#89 - Phase 5 — Flight Operations + Independent OCR
+
+Build Mode approved.
+
+Read latest GitHub main first. Reuse existing flight, GDS, accounting, journal, media/document, OCR, and portal systems.
+
+Do NOT disturb existing GDS search.
+Do NOT build live local airline APIs yet.
+Do NOT touch unrelated modules.
+Do NOT depend only on paid AI OCR APIs.
+
+Objective:
+Complete Flight Operations and add an independent OCR method for passenger documents.
+
+1. Ticket lifecycle
+- Issued
+- Cancelled
+- Refunded
+- Refund pending
+- Refund completed
+- Manual staff notes
+- Full audit trail
+
+2. Cancellation + Refund
+- Add cancel ticket action
+- Add refund action
+- Store cancellation reason
+- Store refund amount
+- Post refund journal entry using existing accounting/journal system
+
+3. BSP Settlement Preparation
+Report:
+- Airline
+- Ticket number / PNR
+- Passenger
+- Route
+- Fare
+- Taxes
+- Commission
+- Net payable
+- Date issued
+- Staff issued by
+- CSV export
+- Print
+
+4. Airline Commission Tracking
+- Store commission per booking/ticket
+- Show in Flight Revenue report
+- Include in accounting/reporting
+
+5. Staff Ticket Log
+Track:
+- Issued
+- Cancelled
+- Refunded
+- Staff user
+- Passenger
+- Airline
+- Amount
+- Status
+- Date/time
+
+6. Passenger Documents
+Add documents tab to flight request/detail:
+- Passport upload
+- CNIC upload
+- Passport number
+- CNIC number
+- Passport expiry
+- Document preview/download
+Use existing media/storage system.
+
+7. Independent OCR Method
+Add OCR extraction that works without paid AI APIs.
+
+Required:
+- Add local/open-source OCR option using Tesseract OCR or an equivalent self-hosted OCR library/service.
+- It should extract text from uploaded passport/CNIC images.
+- It should work as fallback when AI OCR API is disabled, unavailable, or too costly.
+- Keep existing AI OCR if already present, but make OCR provider selectable:
+  - AI OCR
+  - Local OCR
+  - Manual Entry
+- If local OCR confidence is low, show extracted text for manual correction instead of auto-saving.
+- Never overwrite manually entered passport/CNIC details without user confirmation.
+
+OCR fields to extract where possible:
+Passport:
+- Passport number
+- Full name
+- Nationality
+- Date of birth
+- Expiry date
+
+CNIC:
+- CNIC number
+- Full name
+- Father name if available
+- Date of birth if available
+
+Important:
+- If Tesseract or local OCR dependency cannot be installed safely, stop and explain what is required.
+- Do not break existing upload flow.
+- Do not expose document images publicly.
+- Store OCR result, confidence, provider, and correction status.
+
+8. Local Airline Infrastructure Only
+Prepare disabled/stub providers for:
+- PIA
+- Airblue
+- AirSial
+- Fly Jinnah
+- Salam Air
+
+Show “Coming Soon / Not Integrated”.
+Do not change current GDS results.
+Do not add live API logic yet.
+Do not break Amadeus/Sabre/Galileo.
+
+9. UI
+Add pages/sections:
+- Flight Cancellations
+- Refunds
+- BSP Settlement
+- Staff Ticket Log
+- Passenger Documents
+- OCR Review / Manual Correction panel
+
+10. API
+Extend existing APIs only.
+Update OpenAPI first.
+Run codegen.
+
+11. Testing
+Smoke test:
+- Issue flight
+- Cancel flight
+- Refund flight
+- Confirm journal entry
+- Upload passport/CNIC
+- Run local OCR
+- Manually correct OCR fields
+- View BSP report
+- View staff log
+
+After completion provide:
+1. Files changed
+2. DB changes
+3. API changes
+4. OCR provider used
+5. New pages/routes
+6. Test results
+7. Known issues
+
+Do not push to GitHub.
+Wait for my approval.

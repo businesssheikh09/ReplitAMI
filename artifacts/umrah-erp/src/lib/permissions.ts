@@ -46,6 +46,10 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/bot-campaign": ADMIN_MGMT,
   "/media-library": ADMIN_MGMT,
   "/flight-requests": NOT_ACCOUNTS,
+  "/flights/cancellations": NOT_ACCOUNTS,
+  "/flights/bsp-report": FINANCE_OPS,
+  "/flights/staff-log": NOT_ACCOUNTS,
+  "/flights/passengers": NOT_ACCOUNTS,
 };
 
 export function canAccess(role: string | undefined, route: string): boolean {
@@ -99,6 +103,10 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/bot-campaign": ADMIN_MGMT,
   "/media-library": ADMIN_MGMT,
   "/flight-requests": NOT_ACCOUNTS,
+  "/flights/cancellations": NOT_ACCOUNTS,
+  "/flights/bsp-report": FINANCE_OPS,
+  "/flights/staff-log": NOT_ACCOUNTS,
+  "/flights/passengers": NOT_ACCOUNTS,
 };
 
 export const ROLE_LABELS: Record<string, string> = {

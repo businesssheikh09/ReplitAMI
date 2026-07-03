@@ -1,0 +1,120 @@
+#89 - Phase 5 — Flight Operations
+
+Build Mode approved.
+
+Read latest GitHub main first. Reuse existing flight, GDS, accounting, journal, media/document, and portal systems.
+
+Do NOT disturb existing GDS search.
+Do NOT build live local airline APIs yet.
+Do NOT touch unrelated modules.
+
+Objective:
+Complete Flight Operations after existing flight booking and accounting foundation.
+
+Build:
+
+1. Ticket lifecycle
+- Issued
+- Cancelled
+- Refunded
+- Refund pending
+- Refund completed
+- Manual staff notes
+
+2. Cancellation + Refund
+- Add cancel ticket action
+- Add refund action
+- Store cancellation reason
+- Store refund amount
+- Post refund journal entry using existing journal-poster/accounting system
+- Keep full audit trail
+
+3. BSP Settlement Preparation
+Create report:
+- Airline
+- Ticket number / PNR
+- Passenger
+- Route
+- Fare
+- Taxes
+- Commission
+- Net payable
+- Date issued
+- Staff issued by
+- CSV export
+- Print
+
+4. Airline Commission Tracking
+- Store commission per booking/ticket
+- Show commission in Flight Revenue report
+- Include in accounting/reporting
+
+5. Staff Ticket Log
+Create staff ticket log:
+- Issued tickets
+- Cancelled tickets
+- Refunded tickets
+- User/staff
+- Date/time
+- Passenger
+- Airline
+- Amount
+- Status
+
+6. Passenger Documents
+Add documents tab to flight request/detail:
+- Passport upload
+- CNIC upload
+- Passport number
+- CNIC number
+- Passport expiry
+- Document preview/download
+Use existing media/storage system.
+
+7. Local Airline Infrastructure Only
+Prepare disabled/stub providers for:
+- PIA
+- Airblue
+- AirSial
+- Fly Jinnah
+- Salam Air
+
+Important:
+These must show “Coming Soon / Not Integrated”.
+Do not change current GDS results.
+Do not add live API logic yet.
+Do not break Amadeus/Sabre/Galileo.
+
+8. UI
+Add pages/sections:
+- Flight Cancellations
+- Refunds
+- BSP Settlement
+- Staff Ticket Log
+- Passenger Documents
+
+9. API
+Extend existing APIs only.
+Update OpenAPI first.
+Run codegen.
+
+10. Testing
+Smoke test:
+- Issue flight
+- Cancel flight
+- Refund flight
+- Confirm journal entry
+- Upload passenger docs
+- View BSP report
+- View staff log
+
+After completion provide:
+1. Files changed
+2. DB changes
+3. API changes
+4. New pages/routes
+5. Test results
+6. Known issues
+
+Do not push to GitHub.
+Wait for my approval.
