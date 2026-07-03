@@ -79,12 +79,14 @@ function useReport(type: ReportType, params: Record<string, string>, token: stri
   return useQuery({
     queryKey: ["report", type, params],
     queryFn: async () => {
-      const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => !!v)));
+      const qs = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([k, v]) => !!v && k !== "_run")),
+      );
       const r = await fetch(`/api/accounting/reports/${type}?${qs}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "API error"); }
       return r.json();
     },
-    enabled: !!token && Object.keys(params).length > 0,
+    enabled: !!token && !!params._run,
   });
 }
 
@@ -991,8 +993,8 @@ export default function AccountingReportsPage() {
   function generate() {
     const params: Record<string, string> = {};
     Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
-    // For hotel-checkin default type to checkin if not set
     if (active === "hotel-checkin" && !params.type) params.type = "checkin";
+    params._run = String(Date.now());
     setApplied(params);
   }
 
