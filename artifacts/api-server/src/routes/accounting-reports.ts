@@ -8,7 +8,9 @@ import {
   clientsTable,
   vendorsTable,
   hotelInvoicesTable,
+  hotelsTable,
   transportBookingsTable,
+  currencyTransactionsTable,
 } from "@workspace/db";
 import { eq, desc, gte, lte, and, sql, or, asc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
@@ -765,6 +767,197 @@ router.get("/accounting/reports/search-ref-invoice", requireAuth, async (req, re
     return res.json([...hotelResults, ...transportResults]);
   } catch (err) {
     req.log.error({ err }, "Search ref invoice error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Room Occupancy Report ─────────────────────────────────────────────────────
+
+router.get("/accounting/reports/room-occupancy", requireAuth, async (req, res) => {
+  try {
+    const { from, to, hotelId } = req.query as Record<string, string>;
+
+    let invoices = await db
+      .select()
+      .from(hotelInvoicesTable)
+      .orderBy(asc(hotelInvoicesTable.checkIn));
+
+    if (from) invoices = invoices.filter((i) => !!i.checkIn && i.checkIn >= from);
+    if (to) invoices = invoices.filter((i) => !!i.checkIn && i.checkIn <= to);
+    if (hotelId) invoices = invoices.filter((i) => i.hotelId === parseInt(hotelId));
+
+    // Group by hotelName + roomType to show occupancy stats
+    const groups = new Map<string, {
+      hotelName: string; hotelId: number | null; roomType: string;
+      bookings: number; totalRoomNights: number; totalRooms: number; totalPax: number;
+    }>();
+
+    for (const inv of invoices) {
+      if (!inv.checkIn || !inv.checkOut) continue;
+      const hotelName = inv.hotelName ?? "Unknown Hotel";
+      const roomType = inv.roomType ?? "Standard";
+      const key = `${hotelName}__${roomType}`;
+      const nights = inv.noOfNights ??
+        Math.max(1, Math.ceil((new Date(inv.checkOut).getTime() - new Date(inv.checkIn).getTime()) / 86_400_000));
+      const rooms = inv.noOfRooms ?? 1;
+
+      const existing = groups.get(key) ?? {
+        hotelName, hotelId: inv.hotelId ?? null, roomType,
+        bookings: 0, totalRoomNights: 0, totalRooms: 0, totalPax: 0,
+      };
+      existing.bookings++;
+      existing.totalRoomNights += nights * rooms;
+      existing.totalRooms += rooms;
+      existing.totalPax += inv.noOfPax ?? 1;
+      groups.set(key, existing);
+    }
+
+    const rows = Array.from(groups.values()).sort((a, b) => a.hotelName.localeCompare(b.hotelName));
+    return res.json({
+      rows,
+      totalBookings: invoices.filter((i) => i.checkIn && i.checkOut).length,
+      totalRoomNights: rows.reduce((s, r) => s + r.totalRoomNights, 0),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Room occupancy error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Fortnight Ledger ──────────────────────────────────────────────────────────
+
+router.get("/accounting/reports/fortnight-ledger", requireAuth, async (req, res) => {
+  try {
+    const { accountId, from, to } = req.query as Record<string, string>;
+    if (!accountId) return res.status(400).json({ error: "accountId is required" });
+
+    const acctId = parseInt(accountId);
+    const accounts = await db.select().from(chartOfAccountsTable);
+    const account = accounts.find((a) => a.id === acctId);
+    if (!account) return res.status(404).json({ error: "Account not found" });
+
+    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+
+    let entries = await db
+      .select()
+      .from(generalJournalTable)
+      .where(
+        or(
+          eq(generalJournalTable.debitAccountId, acctId),
+          eq(generalJournalTable.creditAccountId, acctId),
+        )!,
+      )
+      .orderBy(asc(generalJournalTable.date));
+
+    if (from) entries = entries.filter((e) => e.date >= new Date(from));
+    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); entries = entries.filter((e) => e.date <= t); }
+
+    // Group into fortnight periods (1-15 and 16-end of month)
+    const periodsMap = new Map<string, {
+      label: string; from: string; to: string;
+      dr: number; cr: number; count: number;
+    }>();
+
+    for (const e of entries) {
+      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const day = d.getDate();
+      const half = day <= 15 ? 1 : 2;
+      const key = `${year}-${String(month + 1).padStart(2, "0")}-H${half}`;
+
+      if (!periodsMap.has(key)) {
+        const pFrom = new Date(year, month, half === 1 ? 1 : 16);
+        const pTo = half === 1 ? new Date(year, month, 15) : new Date(year, month + 1, 0);
+        periodsMap.set(key, {
+          label: `${pFrom.toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })} – ${pTo.toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}`,
+          from: pFrom.toISOString().slice(0, 10),
+          to: pTo.toISOString().slice(0, 10),
+          dr: 0, cr: 0, count: 0,
+        });
+      }
+
+      const p = periodsMap.get(key)!;
+      const amt = parseFloat(e.amount);
+      if (e.debitAccountId === acctId) p.dr += amt;
+      else p.cr += amt;
+      p.count++;
+    }
+
+    let running = 0;
+    const rows = Array.from(periodsMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, p]) => {
+        const opening = running;
+        running = running + p.dr - p.cr;
+        return { ...p, opening, closing: running };
+      });
+
+    return res.json({
+      rows,
+      account: { ...account, debitAccount: acctMap.get(account.id) },
+      totalDr: rows.reduce((s, r) => s + r.dr, 0),
+      totalCr: rows.reduce((s, r) => s + r.cr, 0),
+      closing: running,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Fortnight ledger error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Foreign Currency Ledger ───────────────────────────────────────────────────
+
+router.get("/accounting/reports/fx-ledger", requireAuth, async (req, res) => {
+  try {
+    const { currency, from, to } = req.query as Record<string, string>;
+
+    let txns = await db
+      .select()
+      .from(currencyTransactionsTable)
+      .orderBy(asc(currencyTransactionsTable.date));
+
+    if (currency) txns = txns.filter((t) => t.currency === currency);
+    if (from) txns = txns.filter((t) => t.date >= new Date(from));
+    if (to) { const t2 = new Date(to); t2.setHours(23, 59, 59, 999); txns = txns.filter((t) => t.date <= t2); }
+
+    let runningFc = 0;
+    let runningPkr = 0;
+    const rows = txns.map((t) => {
+      const fcAmt = parseFloat(t.amount);
+      const pkrCost = parseFloat(t.vendorCost);
+      const pkrRevenue = parseFloat(t.clientRevenue);
+      runningFc += fcAmt;
+      runningPkr += pkrRevenue;
+      return {
+        id: t.id,
+        currency: t.currency,
+        amount: fcAmt,
+        vendorRate: parseFloat(t.vendorRate),
+        clientRate: parseFloat(t.clientRate),
+        vendorCost: pkrCost,
+        clientRevenue: pkrRevenue,
+        profit: parseFloat(t.profit),
+        notes: t.notes ?? null,
+        date: t.date instanceof Date ? t.date.toISOString() : String(t.date),
+        runningFc,
+        runningPkr,
+      };
+    });
+
+    const allCurrencies = [...new Set(
+      (await db.select({ currency: currencyTransactionsTable.currency }).from(currencyTransactionsTable)).map((r) => r.currency),
+    )];
+
+    return res.json({
+      rows,
+      currencies: allCurrencies,
+      totalFc: runningFc,
+      totalPkr: runningPkr,
+      totalProfit: rows.reduce((s, r) => s + r.profit, 0),
+    });
+  } catch (err) {
+    req.log.error({ err }, "FX ledger error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

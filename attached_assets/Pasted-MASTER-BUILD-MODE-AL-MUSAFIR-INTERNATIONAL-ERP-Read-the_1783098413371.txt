@@ -1,0 +1,424 @@
+MASTER BUILD MODE — AL MUSAFIR INTERNATIONAL ERP
+
+Read the latest GitHub main branch first.
+
+This is the master implementation specification for completing the ERP.
+
+Do NOT rewrite existing working modules.
+Do NOT duplicate existing functionality.
+Reuse all existing APIs, database tables, services, UI components, permissions, OpenAPI definitions, accounting engine, voucher engine, journal engine, media library, authentication, portal system, WhatsApp system, and flight framework wherever possible.
+
+OBJECTIVE
+
+Complete the ERP into a production-ready travel agency ERP.
+
+Work only on unfinished modules.
+
+Everything must integrate with existing workflows.
+
+No mock data.
+
+No placeholder pages.
+
+Everything must be fully functional.
+
+==================================================
+PHASE 3 — COMPLETE BUSINESS OPERATIONS
+==================================================
+
+Complete:
+
+• Party Statement
+• Vendor Statement
+• Party Summary
+• Vendor Summary
+• Cash Book
+• Receipt Book
+• Payment Book
+• Journal Book
+• Search Voucher
+• Search Hotel Invoice
+• Search Transport Invoice
+• Search Ref Invoice
+• DN Report
+• Booking Validation Report
+• Hotel Check-In / Check-Out Report
+• Room Occupancy Report
+• Room Occupancy Format 2 (when screenshots are available)
+• Fortnight Ledger
+• Foreign Currency Ledger
+
+Requirements
+
+• Printable
+• CSV Export
+• Date filters
+• Advanced search
+• Running balances
+• Totals
+• Real database records only
+
+==================================================
+PHASE 4 — HOTEL PROCUREMENT AUTOMATION
+==================================================
+
+Complete complete hotel procurement workflow.
+
+Hotel Master
+
+Add
+
+• Google Image
+• Vendor Mapping
+• WhatsApp Vendor Group
+• WhatsApp Vendor Contact
+• Room Types
+• Meal Plans
+• Vendor Priority
+
+Hotel Request Workflow
+
+Customer Request
+
+↓
+
+Hotel Request
+
+↓
+
+Send to Vendor
+
+↓
+
+Vendor Reply
+
+↓
+
+Vendor Comparison
+
+↓
+
+Approve Vendor
+
+↓
+
+Generate Hotel Invoice
+
+↓
+
+Vendor Payable
+
+↓
+
+Journal Posting
+
+↓
+
+Customer Notification
+
+Vendor comparison screen
+
+Track
+
+• Price
+• Meal
+• Distance
+• Cancellation
+• Availability
+• Vendor notes
+
+Maintain full history.
+
+==================================================
+PHASE 5 — FLIGHT OPERATIONS
+==================================================
+
+Do NOT disturb existing GDS.
+
+Prepare for future Local Airlines integration.
+
+Complete
+
+• Flight Revenue reporting
+• Flight Statements
+• Flight Profit
+• Ticket Issue workflow
+• Ticket Cancellation workflow
+• Refund workflow
+• BSP settlement preparation
+• Airline commission tracking
+• Staff ticket logs
+• Passenger documents
+• Passport verification
+• CNIC verification
+
+Prepare infrastructure only for
+
+• Airblue
+• AirSial
+• Fly Jinnah
+• PIA
+• Salam Air
+
+WITHOUT changing current GDS.
+
+==================================================
+PHASE 6 — CRM
+==================================================
+
+Complete CRM
+
+Leads
+
+Customers
+
+Agencies
+
+Corporate
+
+Groups
+
+Pipeline
+
+Tasks
+
+Follow-ups
+
+Call logs
+
+WhatsApp history
+
+Email history
+
+Documents
+
+Sales targets
+
+Conversion %
+
+Lost reasons
+
+Reminders
+
+Notes
+
+Owner assignment
+
+==================================================
+PHASE 7 — REPORTING
+==================================================
+
+Owner Dashboard
+
+Sales Dashboard
+
+Accounts Dashboard
+
+Operations Dashboard
+
+Hotel Dashboard
+
+Flight Dashboard
+
+CRM Dashboard
+
+WhatsApp Dashboard
+
+Portal Dashboard
+
+Reports
+
+Revenue
+
+Expenses
+
+Profit
+
+Bookings
+
+Pending Payments
+
+Receivables
+
+Payables
+
+Cash Flow
+
+Outstanding Vendors
+
+Outstanding Parties
+
+Flight Sales
+
+Hotel Sales
+
+Visa Sales
+
+Transport Sales
+
+Top Customers
+
+Top Vendors
+
+Top Salesmen
+
+Monthly comparison
+
+Yearly comparison
+
+==================================================
+PHASE 8 — AUTOMATION
+==================================================
+
+Automate
+
+Payment reminders
+
+Booking reminders
+
+Check-in reminders
+
+Passport expiry
+
+Visa expiry
+
+Hotel follow-up
+
+Vendor follow-up
+
+WhatsApp automation
+
+Email automation
+
+Daily summaries
+
+Owner notifications
+
+Escalations
+
+Pending approval alerts
+
+Scheduler
+
+==================================================
+PHASE 9 — CUSTOMER PORTAL
+==================================================
+
+Complete portal.
+
+Customer Dashboard
+
+Bookings
+
+Invoices
+
+Statements
+
+Receipts
+
+Hotel Vouchers
+
+Flight Tickets
+
+Visa Status
+
+Transport
+
+Documents
+
+Passport Upload
+
+Payment Upload
+
+Booking Timeline
+
+Notifications
+
+Profile
+
+Password
+
+Company Details
+
+Agency Accounts
+
+Download Centre
+
+==================================================
+GLOBAL REQUIREMENTS
+==================================================
+
+Everything must be
+
+• Responsive
+
+• Permission controlled
+
+• Audit logged
+
+• Printable
+
+• Searchable
+
+• Exportable
+
+• Linked together
+
+Every financial transaction must trace back to its originating document.
+
+Every booking must have complete lifecycle tracking.
+
+Every approval must be recorded.
+
+No duplicate business logic.
+
+Reuse existing components.
+
+Reuse existing database.
+
+Reuse existing accounting.
+
+Reuse existing authentication.
+
+Follow OpenAPI-first.
+
+Run codegen whenever API changes.
+
+Run DB migrations only when required.
+
+Run typechecks before completion.
+
+Do NOT push to GitHub.
+
+==================================================
+DELIVERY PROCESS
+==================================================
+
+DO NOT immediately start writing code.
+
+FIRST:
+
+1. Read the entire latest GitHub project.
+
+2. Analyse every existing module.
+
+3. Detect completed work.
+
+4. Detect partially completed work.
+
+5. Detect duplicate implementations.
+
+6. Produce one dependency-aware implementation plan showing exactly:
+   - what already exists,
+   - what needs extending,
+   - what needs creating,
+   - what can be reused,
+   - build order,
+   - database changes,
+   - API changes,
+   - frontend changes,
+   - risks.
+
+Stop there.
+
+Wait for my approval before writing any code.
