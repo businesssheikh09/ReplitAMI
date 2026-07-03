@@ -71,6 +71,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return;
+    const id = setInterval(() => {
+      fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => {
+          if (!r.ok) { setToken(null); setUser(null); setLocation("/login"); }
+        })
+        .catch(() => {});
+    }, 2 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setToken(null);
+        setUser(null);
+        setLocation("/login");
+      }, 10 * 60 * 1000);
+    };
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"] as const;
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [token]);
+
   return (
     <AuthContext.Provider value={{ token, user, setToken, setUser, isAuthenticated: !!token, logout }}>
       {children}

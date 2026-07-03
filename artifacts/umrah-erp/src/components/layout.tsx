@@ -113,7 +113,7 @@ function useInboxUnread() {
     queryFn: () =>
       fetch("/api/whatsapp-inbox/unread-count", {
         headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
+      }).then((r) => r.ok ? r.json() : { total: 0 }),
     enabled: canSee && !!token,
     refetchInterval: 30_000,
     staleTime: 20_000,
@@ -128,7 +128,7 @@ function usePortalPending() {
     queryKey: ["portal-pending-count", token],
     queryFn: () =>
       fetch("/api/portal/users?status=pending_approval", { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.json())
+        .then((r) => r.ok ? r.json() : [])
         .then((users) => ({ count: Array.isArray(users) ? users.length : 0 })),
     enabled: canSee && !!token,
     refetchInterval: 60_000,
@@ -142,7 +142,7 @@ function usePackageInquiriesPending() {
     queryKey: ["package-inquiries-count", token],
     queryFn: () =>
       fetch("/api/package-inquiries/count", { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.json()),
+        .then((r) => r.ok ? r.json() : { count: 0 }),
     enabled: isAuthenticated && !!token,
     refetchInterval: 60_000,
     staleTime: 30_000,
@@ -155,7 +155,7 @@ function useFlightRequestsPending() {
     queryKey: ["flight-requests-count", token],
     queryFn: () =>
       fetch("/api/flight-requests/count", { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.json()),
+        .then((r) => r.ok ? r.json() : { count: 0 }),
     enabled: isAuthenticated && !!token,
     refetchInterval: 60_000,
     staleTime: 30_000,

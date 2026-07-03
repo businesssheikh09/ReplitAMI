@@ -110,7 +110,7 @@ router.get("/portal/me", requirePortalAuth, (req, res) => {
 router.get("/portal/users", requireAuth, async (req, res) => {
   try {
     const { type, status } = req.query as Record<string, string>;
-    let users = await db.select({
+    let rows = await db.select({
       id: portalUsersTable.id,
       type: portalUsersTable.type,
       status: portalUsersTable.status,
@@ -121,11 +121,12 @@ router.get("/portal/users", requireAuth, async (req, res) => {
       companyName: portalUsersTable.companyName,
       ownerName: portalUsersTable.ownerName,
       createdAt: portalUsersTable.createdAt,
+      passwordHash: portalUsersTable.passwordHash,
     }).from(portalUsersTable);
 
-    if (type && type !== "all") users = users.filter((u) => u.type === type);
-    if (status && status !== "all") users = users.filter((u) => u.status === status);
-    return res.json(users);
+    if (type && type !== "all") rows = rows.filter((u) => u.type === type);
+    if (status && status !== "all") rows = rows.filter((u) => u.status === status);
+    return res.json(rows.map(({ passwordHash, ...u }) => ({ ...u, password: passwordHash })));
   } catch (err) {
     req.log.error({ err }, "List portal users error");
     return res.status(500).json({ error: "Internal server error" });

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Eye, ChevronDown, X, Check, UserCheck, UserX } from "lucide-react";
+import { Eye, EyeOff, ChevronDown, X, Check, UserCheck, UserX } from "lucide-react";
 
 interface PortalUser {
   id: number;
@@ -14,6 +14,7 @@ interface PortalUser {
   companyName: string | null;
   ownerName: string | null;
   createdAt: string;
+  password: string | null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -149,11 +150,18 @@ export default function PortalUsersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [revealedIds, setRevealedIds] = useState<Set<number>>(new Set());
+  const togglePassword = (id: number) => setRevealedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const { data: users = [], isLoading } = useQuery<PortalUser[]>({
     queryKey: ["portal-users", token],
     queryFn: () =>
-      fetch("/api/portal/users", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch("/api/portal/users", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : []),
     enabled: !!token,
     refetchInterval: 30_000,
   });
@@ -204,7 +212,7 @@ export default function PortalUsersPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-stone-50">
               <tr>
-                {["Name", "Type", "Phone", "Company", "Status", "Joined", ""].map((h) => (
+                {["Name", "Type", "Phone", "Email", "Company", "Status", "Password", "Joined", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -215,8 +223,17 @@ export default function PortalUsersPage() {
                   <td className="px-4 py-3 font-medium">{user.fullName}</td>
                   <td className="px-4 py-3"><span className="capitalize text-muted-foreground">{user.type}</span></td>
                   <td className="px-4 py-3 text-muted-foreground">{user.phone}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{user.email ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{user.companyName ?? "—"}</td>
                   <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-sm">{revealedIds.has(user.id) ? (user.password || "—") : "••••••"}</span>
+                      <button onClick={() => togglePassword(user.id)} className="p-0.5 text-muted-foreground hover:text-foreground">
+                        {revealedIds.has(user.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(user.createdAt).toLocaleDateString("en-PK")}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => setSelectedId(user.id)} className="flex items-center gap-1 text-teal-600 hover:text-teal-700 font-medium text-xs">
