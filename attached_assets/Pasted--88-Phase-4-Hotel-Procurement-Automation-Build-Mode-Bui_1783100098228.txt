@@ -1,0 +1,440 @@
+#88 - Phase 4 — Hotel Procurement Automation (Build Mode)
+
+Build Mode approved.
+
+Read the latest GitHub version first, then read the current workspace completely before making any changes. Reuse existing code wherever possible. Do NOT rewrite working modules.
+
+Objective:
+Complete the Hotel Procurement workflow so it becomes a production-ready hotel purchasing system integrated with Accounting, WhatsApp, Hotel Invoices, and the existing Journal system.
+
+Existing completed work must remain untouched:
+- Accounting Foundation
+- Voucher Engine
+- Reports
+- Journal Posting
+- WhatsApp Inbox
+- Campaign System
+- Hotel Invoice module
+
+====================================================
+BUILD REQUIREMENTS
+====================================================
+
+1. HOTEL MASTER
+
+Extend Hotel Master.
+
+Each hotel must support:
+
+• Default Vendor
+• Multiple Vendors
+• Vendor Priority
+• WhatsApp Vendor Contact
+• WhatsApp Vendor Group
+• Google Image URL
+• Hotel Description
+• Room Types
+• Meal Plans
+• Distance from Haram
+• Hotel Category
+• Active / Inactive
+
+Room Types must support:
+
+Single
+Double
+Triple
+Quad
+Quint
+Family
+Junior Suite
+Executive Suite
+Presidential Suite
+
+Meal Plans:
+
+RO
+BB
+HB
+FB
+AI
+
+Hotel images must display inside Hotel Master.
+
+====================================================
+
+2. HOTEL REQUEST WORKFLOW
+
+Implement complete workflow.
+
+Status Flow:
+
+Pending
+
+↓
+
+Sent to Vendors
+
+↓
+
+Quotes Received
+
+↓
+
+Vendor Selected
+
+↓
+
+Invoice Generated
+
+↓
+
+Customer Notified
+
+Every status change must be recorded with:
+
+Date
+
+Time
+
+User
+
+Notes
+
+====================================================
+
+3. SEND TO VENDOR
+
+Use existing WhatsApp infrastructure.
+
+NO new WhatsApp implementation.
+
+Reuse existing service.
+
+Allow:
+
+Send to one vendor
+
+Send to multiple vendors
+
+Send to WhatsApp group
+
+Message format:
+
+Hotel Name
+
+Check-in
+
+Check-out
+
+Nights
+
+Rooms
+
+Room Type
+
+Meal Plan
+
+Guests
+
+Special Requests
+
+Reference Number
+
+Preview before sending.
+
+Log:
+
+Sent Time
+
+Sent By
+
+Vendor
+
+Message Status
+
+====================================================
+
+4. VENDOR QUOTES
+
+Create vendor quote management.
+
+Each quote stores:
+
+Vendor
+
+Price
+
+Currency
+
+Meal Plan
+
+Room Type
+
+Distance
+
+Availability
+
+Cancellation Policy
+
+Vendor Notes
+
+Received Time
+
+Received By
+
+Files
+
+Status
+
+====================================================
+
+5. VENDOR COMPARISON SCREEN
+
+Create:
+
+/hotel-requests/:id/compare
+
+Display all quotes side-by-side.
+
+Allow sorting by:
+
+Lowest Price
+
+Vendor Priority
+
+Distance
+
+Meal Plan
+
+Availability
+
+Highlight Best Quote.
+
+One-click:
+
+Select Vendor
+
+====================================================
+
+6. VENDOR SELECTION
+
+When selected:
+
+Update workflow
+
+Lock other quotes
+
+Generate Hotel Invoice automatically
+
+Create accounting journal automatically
+
+Keep audit history
+
+====================================================
+
+7. HOTEL INVOICE INTEGRATION
+
+Reuse existing Hotel Invoice module.
+
+Do NOT duplicate invoice logic.
+
+Invoice generation must:
+
+Use existing numbering
+
+Use existing posting
+
+Use existing print
+
+Use existing accounting
+
+====================================================
+
+8. ACCOUNTING
+
+Reuse Accounting Foundation.
+
+Generate correct journal entries.
+
+No duplicate posting.
+
+No manual posting.
+
+====================================================
+
+9. CUSTOMER NOTIFICATION
+
+Reuse WhatsApp service.
+
+After invoice generation:
+
+Send confirmation automatically.
+
+Message contains:
+
+Hotel
+
+Dates
+
+Rooms
+
+Meal Plan
+
+Reference
+
+Confirmation Number
+
+Log notification time.
+
+====================================================
+
+10. REQUEST HISTORY
+
+Every request keeps complete audit history.
+
+Show:
+
+Created
+
+Sent
+
+Quotes Received
+
+Vendor Selected
+
+Invoice Generated
+
+Customer Notified
+
+User
+
+Timestamp
+
+Notes
+
+====================================================
+
+11. FRONTEND
+
+Complete:
+
+Hotel Master
+
+Vendor Quote page
+
+Vendor Comparison page
+
+Hotel Request Detail
+
+Workflow Timeline
+
+Status Badges
+
+History Panel
+
+Image Preview
+
+Vendor Cards
+
+Quote Cards
+
+====================================================
+
+12. API
+
+Extend existing APIs.
+
+Reuse routes wherever possible.
+
+Only create new endpoints where absolutely necessary.
+
+Update OpenAPI.
+
+Run codegen.
+
+====================================================
+
+13. DATABASE
+
+Only add required columns/tables.
+
+Do NOT redesign existing schema.
+
+Keep migrations clean.
+
+====================================================
+
+14. SECURITY
+
+All endpoints require authentication.
+
+Respect existing permissions.
+
+Only authorised users may:
+
+Select Vendor
+
+Generate Invoice
+
+Send WhatsApp
+
+====================================================
+
+15. TESTING
+
+Before finishing:
+
+Run DB migration
+
+Run codegen
+
+Run backend typecheck
+
+Run frontend typecheck
+
+Restart services
+
+Smoke test:
+
+Create Hotel
+
+Create Request
+
+Send Vendor Request
+
+Receive Quote
+
+Compare Quotes
+
+Select Vendor
+
+Generate Invoice
+
+Verify Journal Entry
+
+Verify WhatsApp Notification
+
+Verify History Timeline
+
+====================================================
+
+DELIVERABLE
+
+At completion provide:
+
+1. Files changed
+
+2. Database changes
+
+3. API changes
+
+4. Frontend pages created
+
+5. Smoke-test results
+
+6. Remaining known issues
+
+DO NOT push to GitHub.
+
+Wait for my approval after testing before pushing.

@@ -13,6 +13,8 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/quotations": NOT_ACCOUNTS,
   "/quotations/pending": NOT_ACCOUNTS,
   "/hotel-requests": NOT_ACCOUNTS,
+  "/hotel-requests/:id": NOT_ACCOUNTS,
+  "/hotel-requests/:id/compare": NOT_ACCOUNTS,
   "/booking-inquiries": ADMIN_MGMT,
   "/portal-users": ADMIN_MGMT,
   "/hotels": ["management", "operations", "admin"],

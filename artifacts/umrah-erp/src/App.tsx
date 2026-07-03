@@ -12,6 +12,8 @@ import FollowUpsPage from "@/pages/follow-ups";
 import QuotationsPage from "@/pages/quotations";
 import QuotationDetailPage from "@/pages/quotation-detail";
 import HotelRequestsPage from "@/pages/hotel-requests";
+import HotelRequestDetailPage from "@/pages/hotel-request-detail";
+import HotelRequestComparePage from "@/pages/hotel-request-compare";
 import HotelsPage from "@/pages/hotels";
 import VendorsPage from "@/pages/vendors";
 import TransportPage from "@/pages/transport";
@@ -108,6 +110,8 @@ function Router() {
         <ProtectedRoute path="/quotations/pending" component={PendingQuotationsPage} />
         <ProtectedRoute path="/quotations/:id" component={QuotationDetailPage} />
         <ProtectedRoute path="/hotel-requests" component={HotelRequestsPage} />
+        <ProtectedRoute path="/hotel-requests/:id/compare" component={HotelRequestComparePage} />
+        <ProtectedRoute path="/hotel-requests/:id" component={HotelRequestDetailPage} />
 
         {/* Direct Bookings */}
         <ProtectedRoute path="/booking-inquiries" component={BookingInquiriesPage} />
