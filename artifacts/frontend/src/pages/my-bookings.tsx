@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft, Clock, Check, XCircle, Upload, Loader2, LogOut, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Clock, Check, XCircle, Upload, Loader2, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
 import { usePortalAuth } from "@/lib/portal-auth";
 
 interface PaymentReceipt {
@@ -63,6 +63,12 @@ export default function MyBookingsPage() {
   const qc = useQueryClient();
   const [uploading, setUploading] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/portal-login");
+    }
+  }, [isAuthenticated]);
+
   const { data: bookings = [], isLoading } = useQuery<BookingInquiry[]>({
     queryKey: ["my-bookings", token],
     queryFn: async () => {
@@ -105,18 +111,7 @@ export default function MyBookingsPage() {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-stone-50 px-4 text-center">
-        <AlertCircle className="h-10 w-10 text-muted-foreground" />
-        <h2 className="text-xl font-serif">Sign in to view your bookings</h2>
-        <button onClick={() => navigate("/portal-login")} className="px-6 py-3 rounded-xl bg-teal-600 text-white font-medium text-sm hover:bg-teal-700 transition">
-          Sign In
-        </button>
-        <button onClick={() => navigate("/")} className="text-sm text-muted-foreground hover:underline">← Back to home</button>
-      </div>
-    );
-  }
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-stone-50">

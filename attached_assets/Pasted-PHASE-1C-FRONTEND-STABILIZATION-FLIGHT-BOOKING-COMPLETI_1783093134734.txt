@@ -1,0 +1,187 @@
+PHASE 1C — FRONTEND STABILIZATION & FLIGHT BOOKING COMPLETION
+
+Read the latest GitHub main branch first.
+
+Continue from the latest commits:
+- Phase 1A + 1B completed
+- Do NOT revisit completed work.
+- Do NOT plan the ERP again.
+- Build only the items listed below.
+
+OBJECTIVE
+
+Finish the public website so every customer-facing workflow works correctly before we move to Accounting.
+
+DO NOT TOUCH
+
+- Accounting
+- Voucher Engine
+- Reports
+- A/C Heads
+- Transport Invoices
+- Dashboard redesign
+- Local Airlines integration
+- CRM
+- WhatsApp Campaigns
+- Hotel Vendor workflow (already completed)
+
+==================================================
+1. PUBLIC WEBSITE NAVIGATION
+==================================================
+
+Fix every remaining frontend navigation issue.
+
+- Every button must perform its intended action.
+- Remove unwanted auto-scroll behaviour.
+- Every page must end cleanly at the footer.
+- Footer must contain:
+  - Quick Links
+  - Contact
+  - Company Information
+
+Fix any broken navigation discovered during testing.
+
+==================================================
+2. EXPERIENCE BUTTON
+==================================================
+
+Experience button must work correctly.
+
+If it scrolls:
+- scroll to Experience section.
+
+If it routes:
+- route correctly.
+
+No dead links.
+
+==================================================
+3. MY BOOKINGS
+==================================================
+
+Guest users:
+
+- Must NEVER see booking history.
+- Must NEVER auto-create account.
+- Clicking My Bookings should redirect to Login.
+
+Authenticated users:
+
+- View booking history.
+- View payment status.
+- View uploaded documents.
+
+==================================================
+4. PARTY REGISTRATION
+==================================================
+
+Completely fix registration.
+
+- No invalid credential errors.
+- No automatic login after registration.
+- Show:
+"Registration submitted successfully.
+Waiting for approval."
+
+==================================================
+5. FLIGHT SEARCH
+==================================================
+
+Review the complete existing implementation.
+
+If live search exists:
+
+Use it.
+
+If mock fallback exists:
+
+Only use fallback when provider unavailable.
+
+Remove all customer-visible:
+
+- Service Fee
+- Processing Fee
+- Hidden Fee
+- Tax labels that are not actual airline taxes
+
+Show only:
+
+Final All Inclusive Fare
+
+==================================================
+6. DOMESTIC / INTERNATIONAL DOCUMENTS
+==================================================
+
+After customer selects flight:
+
+Domestic:
+
+Require:
+
+CNIC
+
+OR
+
+Passport
+
+International:
+
+Require Passport.
+
+Store document against booking.
+
+Reuse existing upload/storage system.
+
+==================================================
+7. GROUP TICKETS
+==================================================
+
+Public website:
+
+Do not display:
+
+"WhatsApp Group Tickets"
+
+Rename appropriately.
+
+Keep all routes.
+
+Keep backend.
+
+Do not remove inventory logic.
+
+==================================================
+8. COMPLETE TESTING
+==================================================
+
+After implementation:
+
+Test every changed page.
+
+Confirm:
+
+✓ Navigation
+✓ Buttons
+✓ Login
+✓ Registration
+✓ Flight Search
+✓ Flight Booking
+✓ Upload
+✓ Footer
+✓ Mobile Responsive
+
+==================================================
+OUTPUT
+==================================================
+
+Return only:
+
+1. Files modified
+2. APIs modified
+3. Database changes (if any)
+4. Manual testing checklist
+5. Remaining frontend issues
+
+Then stop.
+
+Wait for approval before moving to Accounting.

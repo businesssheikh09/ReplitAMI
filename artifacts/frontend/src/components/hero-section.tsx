@@ -38,13 +38,13 @@ export function HeroSection() {
         </p>
         <div className="flex flex-col sm:flex-row gap-4">
           <a
-            href="#packages"
+            href="/#packages"
             className="inline-flex h-12 items-center justify-center rounded-md bg-white px-8 py-2 text-base font-medium text-primary shadow transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             View Our Packages
           </a>
           <a
-            href="#about"
+            href="/#about"
             className="inline-flex h-12 items-center justify-center rounded-md border border-white/30 bg-black/20 backdrop-blur-sm px-8 py-2 text-base font-medium text-white shadow-sm transition-colors hover:bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Our Philosophy

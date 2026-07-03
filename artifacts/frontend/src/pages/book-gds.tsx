@@ -22,6 +22,12 @@ const STATUS_STEPS = [
 
 const MARKUP_PKR = 2000;
 
+const PK_AIRPORTS = new Set(["KHI","LHE","ISB","PEW","MUX","LYP","UET","SKZ","BHV","GIL","TUK","SYW","CJL","PZH","DSK","LRG","KDD","GWD","RYK","ATG","WNS","JIW","PJG","MJD","SBQ","SKT"]);
+
+function isDomestic(origin: string, dest: string): boolean {
+  return PK_AIRPORTS.has(origin.toUpperCase()) && PK_AIRPORTS.has(dest.toUpperCase());
+}
+
 interface FlightResult {
   id: string;
   airline: string;
@@ -109,6 +115,11 @@ export default function BookGdsPage() {
   const [proofSubmitted, setProofSubmitted] = useState(false);
   const [proofError, setProofError] = useState("");
 
+  const [docType, setDocType] = useState<"cnic" | "passport">("passport");
+  const [docObjectKey, setDocObjectKey] = useState<string | null>(null);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docError, setDocError] = useState("");
+
   const { data: ratesData } = useQuery({
     queryKey: ["currency-rates"],
     queryFn: () => fetch("/api/currency/rates").then((r) => r.json()),
@@ -167,7 +178,7 @@ export default function BookGdsPage() {
           requestType: "direct",
           source: "website_gds",
           holdMinutes: 120,
-          flightDataJson: f,
+          flightDataJson: { ...f, documentType: isDom ? docType : "passport", documentObjectKey: docObjectKey },
         }),
       });
       if (!res.ok) {
@@ -215,6 +226,27 @@ export default function BookGdsPage() {
     return () => clearInterval(id);
   }, [holdExpiresAt]);
 
+  async function handleDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocUploading(true);
+    setDocError("");
+    try {
+      const uploadRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      const { uploadURL, objectPath } = await uploadRes.json();
+      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      setDocObjectKey(objectPath);
+    } catch {
+      setDocError("Upload failed. Please try again.");
+    } finally {
+      setDocUploading(false);
+    }
+  }
+
   async function handleProofUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !bookingRef) return;
@@ -244,7 +276,8 @@ export default function BookGdsPage() {
   }
 
   const canSearch = origin.trim() && destination.trim() && departureDate;
-  const canBook = clientName.trim() && clientPhone.trim();
+  const isDom = selectedFlight ? isDomestic(selectedFlight.origin, selectedFlight.destination) : false;
+  const canBook = clientName.trim() && clientPhone.trim() && !!docObjectKey;
   const holdExpired = countdown === "Expired";
   const currentStatus = statusData?.status ?? (view === "hold" ? "on_hold" : "");
   const statusIdx = STATUS_STEPS.findIndex((s) => s.key === currentStatus);
@@ -566,7 +599,7 @@ export default function BookGdsPage() {
                   : `${results.length} flight${results.length !== 1 ? "s" : ""} found`}
               </h2>
               <span className="text-xs text-muted-foreground">
-                All prices include taxes and our service fee
+                All fares are final · taxes and fees included
               </span>
             </div>
 
@@ -639,9 +672,12 @@ export default function BookGdsPage() {
                               <p className="text-xs text-teal-600 font-medium">✓ All inclusive</p>
                             </div>
                             <button
-                              onClick={() => setSelectedFlight(
-                                selectedFlight?.id === flight.id ? null : flight
-                              )}
+                              onClick={() => {
+                                const next = selectedFlight?.id === flight.id ? null : flight;
+                                setSelectedFlight(next);
+                                setDocObjectKey(null);
+                                setDocError("");
+                              }}
                               className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors ${
                                 selectedFlight?.id === flight.id
                                   ? "bg-teal-600 text-white"
@@ -700,12 +736,42 @@ export default function BookGdsPage() {
                             </div>
                           </div>
 
+                          {/* Document upload */}
+                          <div className="border-t border-border pt-4 space-y-3">
+                            <h3 className="font-semibold text-sm text-foreground">
+                              Travel Document {isDom ? "(CNIC or Passport)" : "(Passport Required)"}
+                            </h3>
+                            {isDom && (
+                              <div className="flex gap-2">
+                                {(["cnic", "passport"] as const).map((t) => (
+                                  <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => { setDocType(t); setDocObjectKey(null); setDocError(""); }}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${docType === t ? "bg-teal-600 text-white border-teal-600" : "border-border text-muted-foreground hover:border-teal-400"}`}
+                                  >
+                                    {t === "cnic" ? "CNIC" : "Passport"}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed text-sm cursor-pointer w-fit transition ${docObjectKey ? "border-teal-400 text-teal-700 bg-teal-50" : "border-border text-muted-foreground hover:border-teal-400 hover:text-teal-700"}`}>
+                              {docUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                              {docUploading ? "Uploading…" : docObjectKey ? "✓ Document uploaded" : `Upload ${isDom && docType === "cnic" ? "CNIC" : "Passport"} (photo or scan)`}
+                              <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleDocUpload} disabled={docUploading} />
+                            </label>
+                            {docError && <p className="text-xs text-destructive">{docError}</p>}
+                            {!docObjectKey && !docUploading && (
+                              <p className="text-xs text-amber-700">Document upload is required to complete booking</p>
+                            )}
+                          </div>
+
                           <div className="flex items-start gap-2 bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-900">
                             <Clock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                             <span>
                               Clicking <strong>Reserve</strong> will hold this seat for{" "}
                               <strong>2 hours</strong>.
-                              No payment is taken now — our team will send payment details via WhatsApp.
+                              No payment is taken now — our team will contact you with payment details.
                             </span>
                           </div>
 

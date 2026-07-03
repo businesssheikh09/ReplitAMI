@@ -75,11 +75,9 @@ export default function PortalRegisterPage() {
       <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-6">
         <Check className="h-8 w-8 text-teal-600" />
       </div>
-      <h2 className="text-2xl font-serif mb-3">Application Submitted!</h2>
+      <h2 className="text-2xl font-serif mb-3">Registration Submitted</h2>
       <p className="text-muted-foreground max-w-sm mb-6">
-        {accountType === "party"
-          ? "Your party account application is under review. Our team will contact you within 1–2 business days."
-          : "Your account has been created successfully. You can now sign in with your credentials."}
+        Registration submitted successfully. Our team will review your application and contact you within 1–2 business days. You will be notified once your account is activated.
       </p>
       <button onClick={() => navigate("/portal-login")} className="text-teal-600 hover:underline text-sm">
         Go to sign in →
