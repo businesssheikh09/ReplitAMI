@@ -27,6 +27,12 @@ import {
   Landmark,
   PlaneTakeoff,
   Library,
+  FileStack,
+  Scale,
+  TrendingUp,
+  BarChart3,
+  CalendarRange,
+  FileBarChart,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -80,7 +86,14 @@ const navGroups = [
       { title: "Invoices", href: "/accounting/invoices", icon: Receipt },
       { title: "Expenses", href: "/accounting/expenses", icon: CreditCard },
       { title: "Hotel Invoices DN", href: "/hotel-invoices", icon: Hotel },
+      { title: "Vouchers", href: "/accounting/vouchers", icon: FileStack },
       { title: "General Journal", href: "/general-journal", icon: Landmark },
+      { title: "Account Ledger", href: "/accounting/ledger", icon: BookOpen },
+      { title: "Trial Balance", href: "/accounting/trial-balance", icon: Scale },
+      { title: "Reports", href: "/accounting/reports", icon: FileBarChart },
+      { title: "P&L Statement", href: "/accounting/pnl", icon: TrendingUp },
+      { title: "Balance Sheet", href: "/accounting/balance-sheet", icon: BarChart3 },
+      { title: "Financial Years", href: "/accounting/financial-years", icon: CalendarRange },
       { title: "Currency", href: "/currency-settings", icon: ArrowRightLeft },
     ],
   },

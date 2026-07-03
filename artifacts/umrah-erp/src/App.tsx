@@ -34,6 +34,15 @@ import PendingQuotationsPage from "@/pages/pending-quotations";
 import AiSettingsPage from "@/pages/ai-settings";
 import GeneralJournalPage from "@/pages/general-journal";
 import FlightRequestsPage from "@/pages/flight-requests";
+import VouchersPage from "@/pages/vouchers";
+import VoucherFormPage from "@/pages/voucher-form";
+import VoucherDetailPage from "@/pages/voucher-detail";
+import AccountingLedgerPage from "@/pages/accounting-ledger";
+import TrialBalancePage from "@/pages/trial-balance";
+import AccountingReportsHubPage from "@/pages/accounting-reports";
+import FinancialYearsPage from "@/pages/financial-years";
+import PnlPage from "@/pages/pnl";
+import BalanceSheetPage from "@/pages/balance-sheet";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -120,6 +129,19 @@ function Router() {
         <ProtectedRoute path="/accounting/hotel-invoice/:id" component={HotelInvoiceFormPage} />
         <ProtectedRoute path="/hotel-invoices" component={HotelInvoicesListPage} />
         <ProtectedRoute path="/general-journal" component={GeneralJournalPage} />
+
+        {/* Vouchers */}
+        <ProtectedRoute path="/accounting/vouchers" component={VouchersPage} />
+        <ProtectedRoute path="/accounting/vouchers/new" component={VoucherFormPage} />
+        <ProtectedRoute path="/accounting/vouchers/:id" component={VoucherDetailPage} />
+
+        {/* Accounting foundation */}
+        <ProtectedRoute path="/accounting/ledger" component={AccountingLedgerPage} />
+        <ProtectedRoute path="/accounting/trial-balance" component={TrialBalancePage} />
+        <ProtectedRoute path="/accounting/reports" component={AccountingReportsHubPage} />
+        <ProtectedRoute path="/accounting/financial-years" component={FinancialYearsPage} />
+        <ProtectedRoute path="/accounting/pnl" component={PnlPage} />
+        <ProtectedRoute path="/accounting/balance-sheet" component={BalanceSheetPage} />
 
         {/* Messaging */}
         <ProtectedRoute path="/whatsapp-inbox" component={WhatsAppInboxPage} />

@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { invoicesTable, paymentsTable, expensesTable, clientsTable, vendorsTable, documentsTable, chartOfAccountsTable, generalJournalTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
-import { postInvoicePayment } from "../services/journal-poster.js";
+import { eq, desc, asc, or, sql } from "drizzle-orm";
+import { postInvoicePayment, postInvoiceCreated, nextEntryNumber, ensureAccounts } from "../services/journal-poster.js";
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -58,6 +59,17 @@ router.post("/invoices", async (req, res) => {
       dueDate: new Date(req.body.dueDate),
       notes: req.body.notes,
     }).returning();
+
+    // Auto-post journal entry: DR PARTY / CR revenue account
+    if (req.body.type === "customer" || !req.body.type) {
+      await postInvoiceCreated({
+        invoiceId: invoice.id,
+        amount: parseFloat(invoice.amount),
+        currency: invoice.currency,
+        invoiceType: req.body.invoiceType ?? "umra",
+      });
+    }
+
     return res.status(201).json({
       ...invoice,
       clientName: null,
@@ -217,13 +229,9 @@ router.post("/accounting/journal", async (req, res) => {
       return res.status(400).json({ error: "Amount must be a positive number" });
     }
     // Ensure accounts exist (seeds if needed)
-    const { ensureAccounts } = await import("../services/journal-poster.js");
     await ensureAccounts();
 
-    const yr = new Date().getFullYear();
-    const count = await db.select().from(generalJournalTable);
-    const seq = count.length + 1;
-    const entryNumber = `JE-${yr}-${String(seq).padStart(5, "0")}`;
+    const entryNumber = await nextEntryNumber("JE");
 
     const [entry] = await db.insert(generalJournalTable).values({
       entryNumber,
@@ -328,6 +336,124 @@ router.post("/documents/generate", async (req, res) => {
     return res.status(201).json({ ...doc, clientName: null });
   } catch (err) {
     req.log.error({ err }, "Generate document error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Account Ledger ────────────────────────────────────────────────────────────
+
+router.get("/accounting/ledger", requireAuth, async (req, res) => {
+  try {
+    const { accountId, from, to } = req.query as Record<string, string>;
+    if (!accountId) return res.status(400).json({ error: "accountId query param required" });
+
+    const acctIdNum = parseInt(accountId);
+    const [account] = await db
+      .select()
+      .from(chartOfAccountsTable)
+      .where(eq(chartOfAccountsTable.id, acctIdNum));
+    if (!account) return res.status(404).json({ error: "Account not found" });
+
+    let entries = await db
+      .select()
+      .from(generalJournalTable)
+      .where(
+        or(
+          eq(generalJournalTable.debitAccountId, acctIdNum),
+          eq(generalJournalTable.creditAccountId, acctIdNum),
+        )!,
+      )
+      .orderBy(asc(generalJournalTable.date));
+
+    if (from) entries = entries.filter((e) => e.date >= new Date(from));
+    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); entries = entries.filter((e) => e.date <= t); }
+
+    const accounts = await db.select().from(chartOfAccountsTable);
+    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+
+    // Determine normal balance: asset/expense = DR normal; liability/revenue/equity = CR normal
+    const drNormal = ["asset", "expense"].includes(account.type);
+    let runningBalance = 0;
+
+    const ledgerRows = entries.map((e) => {
+      const amt = parseFloat(e.amount);
+      const isDr = e.debitAccountId === acctIdNum;
+      const drAmt = isDr ? amt : 0;
+      const crAmt = isDr ? 0 : amt;
+      runningBalance += drNormal ? drAmt - crAmt : crAmt - drAmt;
+
+      return {
+        id: e.id,
+        entryNumber: e.entryNumber,
+        date: e.date instanceof Date ? e.date.toISOString() : e.date,
+        description: e.description,
+        debitAmount: drAmt,
+        creditAmount: crAmt,
+        runningBalance,
+        oppositeAccount: isDr
+          ? (acctMap.get(e.creditAccountId) ?? null)
+          : (acctMap.get(e.debitAccountId) ?? null),
+        sourceType: e.sourceType,
+        sourceId: e.sourceId,
+        currency: e.currency,
+      };
+    });
+
+    const totalDebit = ledgerRows.reduce((s, r) => s + r.debitAmount, 0);
+    const totalCredit = ledgerRows.reduce((s, r) => s + r.creditAmount, 0);
+
+    return res.json({ account, ledger: ledgerRows, totalDebit, totalCredit, closingBalance: runningBalance });
+  } catch (err) {
+    req.log.error({ err }, "Account ledger error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Trial Balance ─────────────────────────────────────────────────────────────
+
+router.get("/accounting/trial-balance", requireAuth, async (req, res) => {
+  try {
+    const { from, to } = req.query as Record<string, string>;
+
+    const accounts = await db.select().from(chartOfAccountsTable).where(eq(chartOfAccountsTable.isActive, true));
+
+    let entries = await db.select().from(generalJournalTable).orderBy(asc(generalJournalTable.date));
+    if (from) entries = entries.filter((e) => e.date >= new Date(from));
+    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); entries = entries.filter((e) => e.date <= t); }
+
+    // Compute debit/credit totals per account
+    const totals: Record<number, { debit: number; credit: number }> = {};
+    for (const acct of accounts) totals[acct.id] = { debit: 0, credit: 0 };
+
+    for (const e of entries) {
+      const amt = parseFloat(e.amount);
+      if (totals[e.debitAccountId]) totals[e.debitAccountId].debit += amt;
+      if (totals[e.creditAccountId]) totals[e.creditAccountId].credit += amt;
+    }
+
+    const rows = accounts
+      .map((a) => {
+        const t = totals[a.id] ?? { debit: 0, credit: 0 };
+        const netDebit = t.debit - t.credit;
+        const drBalance = netDebit > 0 ? netDebit : 0;
+        const crBalance = netDebit < 0 ? Math.abs(netDebit) : 0;
+        return {
+          account: a,
+          totalDebit: t.debit,
+          totalCredit: t.credit,
+          drBalance,
+          crBalance,
+        };
+      })
+      .filter((r) => r.totalDebit > 0 || r.totalCredit > 0);
+
+    const grandDr = rows.reduce((s, r) => s + r.drBalance, 0);
+    const grandCr = rows.reduce((s, r) => s + r.crBalance, 0);
+    const isBalanced = Math.abs(grandDr - grandCr) < 0.01;
+
+    return res.json({ rows, grandDr, grandCr, isBalanced, period: { from: from ?? null, to: to ?? null } });
+  } catch (err) {
+    req.log.error({ err }, "Trial balance error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -27,6 +27,9 @@ import portalRouter from "./portal.js";
 import aiSettingsRouter from "./ai-settings.js";
 import flightRequestsRouter from "./flight-requests.js";
 import mediaLibraryRouter from "./media-library.js";
+import vouchersRouter from "./vouchers.js";
+import accountingReportsRouter from "./accounting-reports.js";
+import financialYearRouter from "./financial-year.js";
 
 const router: IRouter = Router();
 
@@ -58,5 +61,8 @@ router.use(whatsappGroupsRouter);
 router.use(whatsappInboxRouter);
 router.use(botRouter);
 router.use(mediaLibraryRouter);
+router.use(vouchersRouter);
+router.use(accountingReportsRouter);
+router.use(financialYearRouter);
 
 export default router;

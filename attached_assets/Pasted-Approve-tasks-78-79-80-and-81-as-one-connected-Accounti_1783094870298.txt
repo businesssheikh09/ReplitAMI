@@ -1,0 +1,101 @@
+Approve tasks #78, #79, #80, and #81 as one connected Accounting Foundation build, with these required additions.
+
+Do not start unrelated work.
+Do not touch Flights UI, WhatsApp, Hotels UI, Portal, public website, or dashboard except where accounting integration requires links.
+
+Build the accounting foundation in this order:
+1. #78 Journal hardening
+2. #79 Voucher engine
+3. #80 Ledger + Trial Balance
+4. Operational Reports added below
+5. #81 Financial Year + P&L + Balance Sheet
+
+Add the missing Operational Reports before Financial Year:
+
+- Party Statement
+- Vendor Statement
+- Party Summary
+- Vendor Summary
+- Cash Book
+- Receipt Book
+- Payment Book
+- Journal Book
+- Voucher Search
+- DN Report
+- Hotel Check-In / Check-Out Report
+- Booking Validation Report
+- Search Hotel Invoice
+- Search Transport Invoice
+- Search Ref Invoice
+
+Important audit requirement:
+Every accounting action must create an audit trail.
+
+Track:
+- Created by
+- Created at
+- Updated by
+- Updated at
+- Approved by
+- Approved at
+- Posted by
+- Posted at
+- Cancelled by
+- Cancelled at
+- Previous values and new values where practical
+
+Rules:
+- Posted vouchers must not be silently edited.
+- If a posted voucher needs correction, create a reversal or adjustment entry.
+- Do not delete financial records permanently.
+- Use soft cancel/reversal instead.
+- All voucher numbers and journal entry numbers must be DB-safe and restart-safe.
+- All reports must be generated from real database records, not dummy data.
+- Every voucher must optionally link to business source records:
+  - Hotel Invoice
+  - Flight Request
+  - Transport Invoice
+  - Visa Application
+  - Customer / Party
+  - Vendor
+  - Portal User
+
+Accounting posting rules:
+- Receipt Voucher: Dr Cash/Bank, Cr Party Receivable
+- Payment Voucher: Dr Vendor Payable / Expense / Selected Account, Cr Cash/Bank
+- Journal Voucher: user-selected debit/credit accounts, must balance
+- Cash/Contra Voucher: Cash-to-bank or bank-to-cash movement, must balance
+- Flight issued: Dr Party Receivable, Cr Flight Revenue
+- Hotel invoice: Dr Party Receivable, Cr Hotel Income, and track vendor payable
+- Transport invoice: Dr Party Receivable, Cr Transport Income, and track vendor payable
+
+Strict requirements:
+- Follow OpenAPI-first rule.
+- Update openapi.yaml before API contract changes.
+- Run codegen after OpenAPI changes.
+- Run DB push after schema changes.
+- Reuse existing chart_of_accounts and general_journal where possible.
+- Do not create duplicate accounting systems.
+- Do not break existing hotel invoice posting.
+- Do not break existing general journal page.
+- Do not expose password hashes or sensitive data.
+- Keep all existing working modules intact.
+
+After build:
+1. Run all available typechecks.
+2. Confirm DB push/codegen completed.
+3. Provide exact files changed.
+4. Provide DB changes.
+5. Provide API changes.
+6. Provide testing checklist for:
+   - journal numbering after restart
+   - voucher create/approve/post
+   - ledger
+   - trial balance
+   - party statement
+   - vendor statement
+   - books
+   - financial year
+   - P&L
+   - balance sheet
+7. Do not push to GitHub automatically unless I ask.

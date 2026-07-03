@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { db, flightRequestsTable, flightRequestEventsTable, usersTable, chartOfAccountsTable, generalJournalTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { db, flightRequestsTable, flightRequestEventsTable, usersTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 import { calculatePaymentDeadline } from "../services/deadline-calculator.js";
+import { postFlightIssued } from "../services/journal-poster.js";
 
 const router = Router();
 
@@ -12,54 +13,6 @@ function generateRequestNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const rand = String(Math.floor(Math.random() * 9000) + 1000);
   return `FR-${date}-${rand}`;
-}
-
-async function getOrCreateAccount(code: string, name: string, type: string): Promise<number> {
-  const [existing] = await db
-    .select({ id: chartOfAccountsTable.id })
-    .from(chartOfAccountsTable)
-    .where(eq(chartOfAccountsTable.code, code))
-    .limit(1);
-  if (existing) return existing.id;
-  const [created] = await db
-    .insert(chartOfAccountsTable)
-    .values({ code, name, type, description: "Auto-created for flight accounting" })
-    .returning({ id: chartOfAccountsTable.id });
-  return created.id;
-}
-
-async function postFlightJournal(
-  requestId: number,
-  requestNumber: string,
-  bookingFare: number,
-  actualFare: number,
-) {
-  try {
-    const [arId, revId] = await Promise.all([
-      getOrCreateAccount("AR-FLIGHT", "Accounts Receivable — Flights", "ASSET"),
-      getOrCreateAccount("FLIGHT-REV", "Flight Revenue", "REVENUE"),
-    ]);
-
-    const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(generalJournalTable);
-    const seq = Number(n) + 1;
-    const yr = new Date().getFullYear();
-    const entryNumber = `JE-FL-${yr}-${String(seq).padStart(5, "0")}`;
-    const markup = bookingFare - actualFare;
-
-    await db.insert(generalJournalTable).values({
-      entryNumber,
-      date: new Date(),
-      description: `Flight issued: ${requestNumber} — Booking PKR ${bookingFare.toLocaleString()} (Actual PKR ${actualFare.toLocaleString()}, Markup PKR ${markup.toLocaleString()})`,
-      debitAccountId: arId,
-      creditAccountId: revId,
-      amount: String(bookingFare),
-      currency: "PKR",
-      sourceType: "flight_request",
-      sourceId: requestId,
-    });
-  } catch {
-    // non-blocking — don't fail the caller
-  }
 }
 
 // ── Public ───────────────────────────────────────────────────────────────────
@@ -384,7 +337,7 @@ router.patch("/flight-requests/:id", requireAuth, async (req, res) => {
     if (status === "issued" && updated.bookingFare) {
       const bf = parseFloat(updated.bookingFare);
       const af = updated.actualFare ? parseFloat(updated.actualFare) : Math.max(0, bf - PKR_MARKUP);
-      await postFlightJournal(updated.id, updated.requestNumber, bf, af);
+      await postFlightIssued({ requestId: updated.id, requestNumber: updated.requestNumber, bookingFare: bf, actualFare: af });
     }
 
     return res.json({
@@ -445,7 +398,7 @@ router.post("/flight-requests/:id/issue-ticket", requireAuth, async (req, res) =
     if (updated.bookingFare) {
       const bf = parseFloat(updated.bookingFare);
       const af = updated.actualFare ? parseFloat(updated.actualFare) : Math.max(0, bf - PKR_MARKUP);
-      await postFlightJournal(updated.id, updated.requestNumber, bf, af);
+      await postFlightIssued({ requestId: updated.id, requestNumber: updated.requestNumber, bookingFare: bf, actualFare: af });
     }
 
     return res.json({ success: true, requestNumber: updated.requestNumber, message: "Ticket issued successfully" });

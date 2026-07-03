@@ -1,0 +1,224 @@
+PHASE 2 — ACCOUNTING FOUNDATION (PLANNING + ANALYSIS ONLY)
+
+Read the latest GitHub main branch first.
+
+Read all current Accounting code, database schema, APIs, ERP pages, OpenAPI specification and documentation.
+
+Read every existing accounting-related implementation before proposing changes.
+
+Do NOT write code.
+
+Do NOT modify files.
+
+Do NOT create migrations.
+
+Do NOT generate OpenAPI.
+
+Do NOT touch GitHub.
+
+====================================================
+
+OBJECTIVE
+
+Design the complete Accounting Foundation that will support the entire ERP.
+
+The accounting system must support every future module including:
+
+• Flights
+• Hotels
+• Transport
+• Visa
+• Packages
+• Customer Payments
+• Vendor Payments
+• CRM
+• Portal
+• Group Tickets
+• Future modules
+
+Everything must be designed so accounting is entered ONCE and automatically flows throughout the ERP.
+
+====================================================
+
+ANALYZE EXISTING SYSTEM
+
+Analyze completely:
+
+Current Chart of Accounts
+
+Current Journal Posting
+
+Current General Journal
+
+Hotel Invoice Posting
+
+Flight Revenue
+
+Expenses
+
+Currency Handling
+
+SAR
+
+PKR
+
+Forex
+
+Users
+
+Permissions
+
+Existing Reports
+
+Existing DB schema
+
+Existing APIs
+
+Current Dashboard
+
+Current Analysis pages
+
+====================================================
+
+COMPARE
+
+Compare existing implementation with:
+
+AMI Accounting workflow
+
+Owner requirements
+
+Current repository
+
+Determine:
+
+Already complete
+
+Reusable
+
+Needs extension
+
+Needs replacement
+
+Missing
+
+Broken
+
+====================================================
+
+DESIGN THE COMPLETE FOUNDATION
+
+Design:
+
+1.
+Chart of Accounts hierarchy
+
+2.
+Voucher architecture
+
+Receipt Voucher
+
+Payment Voucher
+
+Cash Voucher
+
+Journal Voucher
+
+3.
+Voucher numbering
+
+4.
+Authorization flow
+
+5.
+Posting rules
+
+6.
+Automatic journal posting
+
+7.
+Ledger engine
+
+8.
+Statement engine
+
+9.
+Books engine
+
+10.
+Reporting engine
+
+11.
+Audit trail
+
+12.
+Currency handling
+
+13.
+Opening balances
+
+14.
+Financial year handling
+
+15.
+Account hierarchy
+
+16.
+Permissions
+
+17.
+Dashboard integration
+
+====================================================
+
+VERY IMPORTANT
+
+Do NOT start coding.
+
+This is architecture planning only.
+
+If screenshots or AMI information are missing,
+
+list them.
+
+Do NOT guess.
+
+====================================================
+
+RETURN
+
+Return ONLY:
+
+1.
+Architecture diagram
+
+2.
+Database design
+
+3.
+Workflow diagram
+
+4.
+Posting rules
+
+5.
+Module dependency map
+
+6.
+Implementation phases
+
+7.
+Risk analysis
+
+8.
+Files that will be modified
+
+9.
+New files required
+
+10.
+Screenshots still required before coding.
+
+Stop.
+
+Wait for approval.
