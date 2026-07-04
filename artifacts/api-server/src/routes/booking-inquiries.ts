@@ -158,6 +158,12 @@ router.post("/public/payment-receipts", requirePortalAuth, async (req, res) => {
       .limit(1);
 
     if (!receipt) return res.status(404).json({ error: "Receipt record not found" });
+
+    // Ownership check — portal user may only upload against their own receipt
+    if (receipt.portalUserId !== req.portalUser!.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     if (new Date() > receipt.deadlineAt) {
       return res.status(410).json({ error: "Payment deadline has passed", tier: receipt.deadlineTier });
     }
