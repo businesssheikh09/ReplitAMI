@@ -48,7 +48,10 @@ import { Badge } from "@/components/ui/badge";
 const navGroups = [
   {
     title: "Overview",
-    items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
+    items: [
+      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Reports Overview", href: "/reports", icon: FileBarChart },
+    ],
   },
   {
     title: "CRM",

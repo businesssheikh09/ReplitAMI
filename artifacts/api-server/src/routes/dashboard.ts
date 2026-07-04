@@ -2,8 +2,13 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   clientsTable, quotationsTable, invoicesTable, visaApplicationsTable,
-  followUpsTable, transportBookingsTable, expensesTable, usersTable, activityLogsTable
+  followUpsTable, transportBookingsTable, expensesTable, usersTable, activityLogsTable,
+  hotelInvoicesTable, flightQuotationsTable, whatsappMessagesTable,
+  portalUsersTable, flightRequestsTable, vouchersTable, publicBookingInquiriesTable,
+  generalJournalTable,
 } from "@workspace/db";
+import { eq, and, gte, lte, or, sql, lt } from "drizzle-orm";
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -150,6 +155,135 @@ router.get("/dashboard/staff-performance", async (req, res) => {
     return res.json(performance);
   } catch (err) {
     req.log.error({ err }, "Staff performance error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Operational Summary (role-based widgets) ──────────────────────────────────
+
+router.get("/dashboard/operational", requireAuth, async (req, res) => {
+  try {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStart = new Date(todayStr + "T00:00:00.000Z");
+    const todayEnd = new Date(todayStr + "T23:59:59.999Z");
+
+    const [
+      checkInsToday,
+      checkOutsToday,
+      pendingFlightRequests,
+      refundsPending,
+      flightsIssuedToday,
+      whatsappUnread,
+      portalPending,
+      bookingInquiriesNew,
+      recentVouchers,
+      recentHotelInvoices,
+    ] = await Promise.all([
+      // Hotel check-ins today
+      db.select({ id: hotelInvoicesTable.id })
+        .from(hotelInvoicesTable)
+        .where(eq(hotelInvoicesTable.checkIn, todayStr)),
+      // Hotel check-outs today
+      db.select({ id: hotelInvoicesTable.id })
+        .from(hotelInvoicesTable)
+        .where(eq(hotelInvoicesTable.checkOut, todayStr)),
+      // Pending flight requests
+      db.select({ id: flightRequestsTable.id })
+        .from(flightRequestsTable)
+        .where(eq(flightRequestsTable.status, "pending")),
+      // Refunds pending (any refund stage)
+      db.select({ id: flightQuotationsTable.id })
+        .from(flightQuotationsTable)
+        .where(
+          or(
+            eq(flightQuotationsTable.status, "refund_requested"),
+            eq(flightQuotationsTable.status, "refund_approved"),
+            eq(flightQuotationsTable.status, "refund_pending"),
+          )
+        ),
+      // Flight tickets issued today
+      db.select({ id: flightQuotationsTable.id })
+        .from(flightQuotationsTable)
+        .where(
+          and(
+            or(
+              eq(flightQuotationsTable.status, "ticketed"),
+              eq(flightQuotationsTable.status, "issued"),
+            ),
+            gte(flightQuotationsTable.issuedAt, todayStart),
+            lte(flightQuotationsTable.issuedAt, todayEnd),
+          )
+        ),
+      // WhatsApp unread messages
+      db.select({ id: whatsappMessagesTable.id })
+        .from(whatsappMessagesTable)
+        .where(eq(whatsappMessagesTable.isRead, false)),
+      // Portal users pending approval
+      db.select({ id: portalUsersTable.id })
+        .from(portalUsersTable)
+        .where(eq(portalUsersTable.status, "pending_approval")),
+      // New booking inquiries
+      db.select({ id: publicBookingInquiriesTable.id })
+        .from(publicBookingInquiriesTable)
+        .where(eq(publicBookingInquiriesTable.status, "new")),
+      // Recent vouchers (last 5)
+      db.select({
+        id: vouchersTable.id,
+        voucherNumber: vouchersTable.voucherNumber,
+        type: vouchersTable.type,
+        status: vouchersTable.status,
+        narration: vouchersTable.narration,
+        createdAt: vouchersTable.createdAt,
+      })
+        .from(vouchersTable)
+        .orderBy(sql`${vouchersTable.createdAt} DESC`)
+        .limit(5),
+      // Recent hotel invoices (last 5)
+      db.select({
+        id: hotelInvoicesTable.id,
+        dnNumber: hotelInvoicesTable.dnNumber,
+        passengerName: hotelInvoicesTable.passengerName,
+        receivablePkr: hotelInvoicesTable.receivablePkr,
+        status: hotelInvoicesTable.status,
+        checkIn: hotelInvoicesTable.checkIn,
+        checkOut: hotelInvoicesTable.checkOut,
+        createdAt: hotelInvoicesTable.createdAt,
+      })
+        .from(hotelInvoicesTable)
+        .orderBy(sql`${hotelInvoicesTable.createdAt} DESC`)
+        .limit(5),
+    ]);
+
+    return res.json({
+      checkInsToday: checkInsToday.length,
+      checkOutsToday: checkOutsToday.length,
+      pendingFlightRequests: pendingFlightRequests.length,
+      refundsPending: refundsPending.length,
+      flightsIssuedToday: flightsIssuedToday.length,
+      whatsappUnread: whatsappUnread.length,
+      portalPending: portalPending.length,
+      bookingInquiriesNew: bookingInquiriesNew.length,
+      recentVouchers: recentVouchers.map((v) => ({
+        id: v.id,
+        voucherNumber: v.voucherNumber,
+        type: v.type,
+        status: v.status,
+        narration: v.narration,
+        createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : v.createdAt,
+      })),
+      recentHotelInvoices: recentHotelInvoices.map((h) => ({
+        id: h.id,
+        dnNumber: h.dnNumber,
+        passengerName: h.passengerName,
+        receivablePkr: h.receivablePkr ? parseFloat(h.receivablePkr) : 0,
+        status: h.status,
+        checkIn: h.checkIn,
+        checkOut: h.checkOut,
+        createdAt: h.createdAt instanceof Date ? h.createdAt.toISOString() : h.createdAt,
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Operational dashboard error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

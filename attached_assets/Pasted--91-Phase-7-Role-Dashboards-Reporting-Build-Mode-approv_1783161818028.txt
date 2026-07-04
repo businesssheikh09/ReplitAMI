@@ -1,0 +1,105 @@
+#91 - Phase 7 — Role Dashboards & Reporting
+
+Build Mode approved.
+
+Read latest GitHub main first.
+
+Do NOT rebuild CRM.
+Do NOT modify Phase 6 / Sales / Clients unless needed only for dashboard links.
+Do NOT disturb Accounting, Reports, Flights, Hotels, WhatsApp, or Portal workflows.
+
+Objective:
+Create role-based internal office dashboards, not sales-first dashboards.
+
+Main dashboard must follow AMI-style office operations layout.
+
+Build:
+
+1. Main Office Dashboard
+For management/admin/accounts, show shortcut cards:
+- Record Hotel Invoice
+- Search Hotel Invoice
+- Check Hotel In/Out
+- Record Receipt
+- Payment Voucher
+- Search Voucher
+- Party Statement
+- Vendor Statement
+- Ledger
+- Party Summary
+- Vendor Summary
+- Books
+- Room Occupancy
+- Booking Validation
+- Reports
+
+2. Role dashboards
+Create/complete dashboards for:
+- Owner / Management
+- Accounts
+- Operations
+- Hotel
+- Flight
+- WhatsApp
+- Portal
+- Sales only inside Sales tab
+
+3. Dashboard widgets
+Use real database data only:
+- Pending approvals
+- Today check-ins
+- Today check-outs
+- Pending payments
+- Outstanding parties
+- Outstanding vendors
+- Cash/bank balance
+- Recent vouchers
+- Recent hotel invoices
+- Pending hotel requests
+- Flight tickets issued today
+- Refunds pending
+- WhatsApp unread messages
+- Portal registrations pending
+
+4. Reports overview
+Create Reports overview page with links to:
+- Accounting Reports
+- Hotel Reports
+- Flight Reports
+- Portal Reports
+- WhatsApp Reports
+
+5. Permissions
+Show role-relevant widgets only.
+Sales widgets must not dominate main dashboard.
+
+6. UI
+Use clean internal-office ERP style.
+No marketing-style dashboard.
+No unnecessary charts unless useful.
+Fast shortcut-based workflow.
+
+7. Testing
+Smoke test:
+- Admin dashboard
+- Accounts dashboard
+- Operations dashboard
+- Flight dashboard
+- Hotel dashboard
+- WhatsApp dashboard
+- Portal dashboard
+- Sidebar links
+- Permission visibility
+- All shortcut cards open correct pages
+
+Run typechecks.
+
+Do not push to GitHub.
+
+After completion provide:
+1. Files changed
+2. API changes
+3. DB changes if any
+4. New routes/pages
+5. Testing results
+6. Known issues
