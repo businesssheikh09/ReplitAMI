@@ -9,6 +9,7 @@ export interface PortalAuthUser {
   fullName: string;
   email: string | null;
   phone: string;
+  clientId: number | null;
 }
 
 declare global {
@@ -34,6 +35,7 @@ export async function requirePortalAuth(req: Request, res: Response, next: NextF
       fullName: portalUsersTable.fullName,
       email: portalUsersTable.email,
       phone: portalUsersTable.phone,
+      clientId: portalUsersTable.clientId,
     })
     .from(portalUsersTable)
     .where(eq(portalUsersTable.portalSessionToken, token))

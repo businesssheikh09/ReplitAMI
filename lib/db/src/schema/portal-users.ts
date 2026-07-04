@@ -14,6 +14,7 @@ export const portalUsersTable = pgTable("portal_users", {
   ownerName: text("owner_name"),
   address: text("address"),
   dtsNumber: text("dts_number"),
+  clientId: integer("client_id"),
   passwordHash: text("password_hash").notNull(),
   portalSessionToken: text("portal_session_token"),
   rejectionReason: text("rejection_reason"),

@@ -34,6 +34,7 @@ import passengerDocumentsRouter from "./passenger-documents.js";
 import localAirlineSettingsRouter from "./local-airline-settings.js";
 import ocrSettingsRouter from "./ocr-settings.js";
 import automationsRouter from "./automations.js";
+import portalCustomerRouter from "./portal-customer.js";
 
 const router: IRouter = Router();
 
@@ -72,5 +73,6 @@ router.use(passengerDocumentsRouter);
 router.use(localAirlineSettingsRouter);
 router.use(ocrSettingsRouter);
 router.use(automationsRouter);
+router.use(portalCustomerRouter);
 
 export default router;

@@ -173,6 +173,26 @@ router.patch("/portal/users/:id/status", requireAuth, async (req, res) => {
   }
 });
 
+router.patch("/portal/users/:id", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id));
+    const { clientId } = req.body;
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (clientId !== undefined) updates.clientId = clientId === null ? null : parseInt(String(clientId));
+    const [updated] = await db
+      .update(portalUsersTable)
+      .set(updates)
+      .where(eq(portalUsersTable.id, id))
+      .returning();
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    const { passwordHash: _, portalSessionToken: __, ...safe } = updated;
+    return res.json(safe);
+  } catch (err) {
+    req.log.error({ err }, "Update portal user error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.post("/portal/users/:id/scan-doc/:docId", requireAuth, async (req, res) => {
   try {
     const docId = parseInt(String(req.params.docId));

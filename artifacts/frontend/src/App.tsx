@@ -12,6 +12,17 @@ import PortalLoginPage from "@/pages/portal-login";
 import PortalRegisterPage from "@/pages/portal-register";
 import MyBookingsPage from "@/pages/my-bookings";
 import FlightsPage from "@/pages/flights";
+import PortalDashboardPage from "@/pages/portal/dashboard";
+import PortalBookingsPage from "@/pages/portal/bookings";
+import PortalInvoicesPage from "@/pages/portal/invoices";
+import PortalStatementPage from "@/pages/portal/statement";
+import PortalHotelVouchersPage from "@/pages/portal/hotel-vouchers";
+import PortalFlightTicketsPage from "@/pages/portal/flight-tickets";
+import PortalVisaPage from "@/pages/portal/visa";
+import PortalTransportPage from "@/pages/portal/transport";
+import PortalPaymentsPage from "@/pages/portal/payments";
+import PortalProfilePage from "@/pages/portal/profile";
+import PortalDownloadsPage from "@/pages/portal/downloads";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +38,17 @@ function Router() {
       <Route path="/portal-register" component={PortalRegisterPage} />
       <Route path="/my-bookings" component={MyBookingsPage} />
       <Route path="/flights" component={FlightsPage} />
+      <Route path="/portal" component={PortalDashboardPage} />
+      <Route path="/portal/bookings" component={PortalBookingsPage} />
+      <Route path="/portal/invoices" component={PortalInvoicesPage} />
+      <Route path="/portal/statement" component={PortalStatementPage} />
+      <Route path="/portal/hotel-vouchers" component={PortalHotelVouchersPage} />
+      <Route path="/portal/flight-tickets" component={PortalFlightTicketsPage} />
+      <Route path="/portal/visa" component={PortalVisaPage} />
+      <Route path="/portal/transport" component={PortalTransportPage} />
+      <Route path="/portal/payments" component={PortalPaymentsPage} />
+      <Route path="/portal/profile" component={PortalProfilePage} />
+      <Route path="/portal/downloads" component={PortalDownloadsPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Eye, ChevronDown, X, Check, UserCheck, UserX } from "lucide-react";
+import { Eye, ChevronDown, X, Check, UserCheck, UserX, Link2 } from "lucide-react";
 
 interface PortalUser {
   id: number;
@@ -13,8 +13,27 @@ interface PortalUser {
   whatsapp: string | null;
   companyName: string | null;
   ownerName: string | null;
+  clientId: number | null;
   createdAt: string;
   password: string | null;
+}
+
+interface Client { id: number; name: string; }
+
+interface PortalUserDetail {
+  id: number;
+  type: string;
+  status: string;
+  fullName: string;
+  email: string | null;
+  phone: string;
+  whatsapp: string | null;
+  companyName: string | null;
+  ownerName: string | null;
+  dtsNumber: string | null;
+  clientId: number | null;
+  createdAt: string;
+  documents: Array<{ id: number; documentType: string; objectKey: string }>;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -38,10 +57,24 @@ function StatusBadge({ status }: { status: string }) {
 function UserDetailModal({ userId, onClose, token }: { userId: number; onClose: () => void; token: string }) {
   const qc = useQueryClient();
   const [rejectionReason, setRejectionReason] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [clientLinkSaved, setClientLinkSaved] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<PortalUserDetail>({
     queryKey: ["portal-user", userId],
     queryFn: () => fetch(`/api/portal/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+  });
+
+  // Sync selectedClientId when data loads
+  const clientIdStr = data?.clientId ? String(data.clientId) : "";
+  if (selectedClientId === "" && clientIdStr !== "") {
+    setSelectedClientId(clientIdStr);
+  }
+
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["clients-list"],
+    queryFn: () => fetch("/api/clients", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.ok ? r.json().then((d: any) => d.map ? d : []) : []),
+    enabled: true,
   });
 
   const updateStatus = useMutation({
@@ -54,6 +87,21 @@ function UserDetailModal({ userId, onClose, token }: { userId: number; onClose: 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portal-users"] });
       qc.invalidateQueries({ queryKey: ["portal-user", userId] });
+    },
+  });
+
+  const linkClient = useMutation({
+    mutationFn: () =>
+      fetch(`/api/portal/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ clientId: selectedClientId ? parseInt(selectedClientId) : null }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-users"] });
+      qc.invalidateQueries({ queryKey: ["portal-user", userId] });
+      setClientLinkSaved(true);
+      setTimeout(() => setClientLinkSaved(false), 2000);
     },
   });
 
@@ -79,6 +127,44 @@ function UserDetailModal({ userId, onClose, token }: { userId: number; onClose: 
               {data.ownerName && <div><p className="text-muted-foreground">Owner</p><p className="font-medium">{data.ownerName}</p></div>}
               <div><p className="text-muted-foreground">Status</p><StatusBadge status={data.status} /></div>
               <div><p className="text-muted-foreground">Registered</p><p className="font-medium">{new Date(data.createdAt).toLocaleDateString("en-PK")}</p></div>
+              {data.clientId && (
+                <div className="col-span-2">
+                  <p className="text-muted-foreground">Linked Client</p>
+                  <p className="font-medium text-teal-700">
+                    {clients.find((c) => c.id === data.clientId)?.name ?? `Client #${data.clientId}`}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Client Link */}
+            <div className="border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Link2 className="h-4 w-4 text-teal-600" />
+                <h3 className="font-semibold text-sm">Link to ERP Client</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Linking enables the portal user to view their invoices, vouchers, flights, visa, and transport from the ERP.
+              </p>
+              <div className="flex gap-2">
+                <select
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                >
+                  <option value="">— No client linked —</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={String(c.id)}>{c.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => linkClient.mutate()}
+                  disabled={linkClient.isPending}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition disabled:opacity-60"
+                >
+                  {clientLinkSaved ? <><Check className="h-4 w-4" /> Saved</> : linkClient.isPending ? "Saving…" : "Save Link"}
+                </button>
+              </div>
             </div>
 
             {data.documents?.length > 0 && (
@@ -207,7 +293,7 @@ export default function PortalUsersPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-stone-50">
               <tr>
-                {["Name", "Type", "Phone", "Email", "Company", "Status", ...(isManagement ? ["Password"] : []), "Joined", ""].map((h) => (
+                {["Name", "Type", "Phone", "Email", "Company", "Status", "Client Linked", ...(isManagement ? ["Password"] : []), "Joined", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -221,6 +307,13 @@ export default function PortalUsersPage() {
                   <td className="px-4 py-3 text-muted-foreground">{user.email ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{user.companyName ?? "—"}</td>
                   <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
+                  <td className="px-4 py-3">
+                    {user.clientId ? (
+                      <span className="flex items-center gap-1 text-xs text-teal-600 font-medium"><Link2 className="h-3 w-3" /> Linked</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Not linked</span>
+                    )}
+                  </td>
                   {isManagement && (
                     <td className="px-4 py-3">
                       <span className="text-xs text-muted-foreground">••••••</span>
