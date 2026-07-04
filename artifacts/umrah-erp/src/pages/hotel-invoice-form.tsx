@@ -71,7 +71,7 @@ export default function HotelInvoiceFormPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const isEdit = !!params.id;
   const canWrite = WRITE_ROLES.includes(user?.role ?? "");
 
@@ -93,7 +93,7 @@ export default function HotelInvoiceFormPage() {
   // ── Next DN number (new only) ─────────────────────────────────────────────
   const { data: nextDn } = useQuery({
     queryKey: ["/api/invoices/hotel/next-dn"],
-    queryFn: () => fetch("/api/invoices/hotel/next-dn").then(r => r.json()),
+    queryFn: () => fetch("/api/invoices/hotel/next-dn", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
     enabled: !isEdit,
   });
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function HotelInvoiceFormPage() {
   // ── Load existing invoice (edit mode) ────────────────────────────────────
   const { data: existing } = useQuery({
     queryKey: ["/api/invoices/hotel", params.id],
-    queryFn: () => fetch(`/api/invoices/hotel/${params.id}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/invoices/hotel/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
     enabled: isEdit,
   });
   useEffect(() => {
@@ -241,7 +241,7 @@ export default function HotelInvoiceFormPage() {
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(await res.text());

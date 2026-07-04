@@ -19,13 +19,17 @@ const WRITE_ROLES = ["accounts", "management", "admin"];
 
 export default function HotelInvoicesListPage() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const canWrite = WRITE_ROLES.includes(user?.role ?? "");
   const [search, setSearch] = useState("");
 
   const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/invoices/hotel"],
-    queryFn: () => fetch("/api/invoices/hotel").then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/invoices/hotel", { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const q = search.toLowerCase();

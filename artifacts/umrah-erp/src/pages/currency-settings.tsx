@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -39,18 +40,20 @@ const EMPTY_TX_FORM   = { currency: "SAR", amount: "", rateTier: "client" as Rat
 export default function CurrencySettingsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { token } = useAuth();
+  const authHdr = { Authorization: `Bearer ${token}` };
 
   // ── Home currency ─────────────────────────────────────────────────────────
   const { data: settings } = useQuery({
     queryKey: ["/api/currency/settings"],
-    queryFn: () => fetch("/api/currency/settings").then(r => r.json()),
+    queryFn: () => fetch("/api/currency/settings", { headers: authHdr }).then(r => r.json()),
   });
   const [homeCurrency, setHomeCurrency] = useState("PKR");
   useEffect(() => { if (settings?.homeCurrency) setHomeCurrency(settings.homeCurrency); }, [settings]);
 
   const saveSettings = useMutation({
     mutationFn: (hc: string) => fetch("/api/currency/settings", {
-      method: "PUT", headers: { "Content-Type": "application/json" },
+      method: "PUT", headers: { "Content-Type": "application/json", ...authHdr },
       body: JSON.stringify({ homeCurrency: hc }),
     }).then(r => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/currency/settings"] }); toast({ title: "Home currency saved" }); },
@@ -60,7 +63,7 @@ export default function CurrencySettingsPage() {
   const [rateDate, setRateDate] = useState(today());
   const { data: dailyRates = [] } = useQuery<any[]>({
     queryKey: ["/api/currency/daily-rates", rateDate],
-    queryFn: () => fetch(`/api/currency/daily-rates?date=${rateDate}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/currency/daily-rates?date=${rateDate}`, { headers: authHdr }).then(r => r.json()),
   });
 
   const [rateForm, setRateForm] = useState(EMPTY_RATE_FORM);
@@ -68,7 +71,7 @@ export default function CurrencySettingsPage() {
 
   const saveRate = useMutation({
     mutationFn: (data: object) => fetch("/api/currency/daily-rates", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json", ...authHdr },
       body: JSON.stringify(data),
     }).then(r => r.json()),
     onSuccess: () => {
@@ -80,7 +83,7 @@ export default function CurrencySettingsPage() {
   });
 
   const deleteRate = useMutation({
-    mutationFn: (id: number) => fetch(`/api/currency/daily-rates/${id}`, { method: "DELETE" }).then(r => r.json()),
+    mutationFn: (id: number) => fetch(`/api/currency/daily-rates/${id}`, { method: "DELETE", headers: authHdr }).then(r => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/currency/daily-rates"] }); toast({ title: "Rate deleted" }); },
   });
 
@@ -93,11 +96,11 @@ export default function CurrencySettingsPage() {
   // ── Transactions ──────────────────────────────────────────────────────────
   const { data: transactions = [] } = useQuery<any[]>({
     queryKey: ["/api/currency/transactions"],
-    queryFn: () => fetch("/api/currency/transactions").then(r => r.json()),
+    queryFn: () => fetch("/api/currency/transactions", { headers: authHdr }).then(r => r.json()),
   });
   const { data: profitReport } = useQuery<any>({
     queryKey: ["/api/currency/profit-report"],
-    queryFn: () => fetch("/api/currency/profit-report").then(r => r.json()),
+    queryFn: () => fetch("/api/currency/profit-report", { headers: authHdr }).then(r => r.json()),
   });
 
   const [txOpen, setTxOpen] = useState(false);
@@ -117,7 +120,7 @@ export default function CurrencySettingsPage() {
   // When date changes in TX form, re-fetch daily rates for that date
   const { data: txDateRates = [] } = useQuery<any[]>({
     queryKey: ["/api/currency/daily-rates", txForm.date],
-    queryFn: () => fetch(`/api/currency/daily-rates?date=${txForm.date}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/currency/daily-rates?date=${txForm.date}`, { headers: authHdr }).then(r => r.json()),
     enabled: !!txForm.date,
   });
 
@@ -145,7 +148,7 @@ export default function CurrencySettingsPage() {
 
   const createTx = useMutation({
     mutationFn: (data: object) => fetch("/api/currency/transactions", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json", ...authHdr },
       body: JSON.stringify(data),
     }).then(r => r.json()),
     onSuccess: () => {
@@ -158,7 +161,7 @@ export default function CurrencySettingsPage() {
   });
 
   const deleteTx = useMutation({
-    mutationFn: (id: number) => fetch(`/api/currency/transactions/${id}`, { method: "DELETE" }).then(r => r.json()),
+    mutationFn: (id: number) => fetch(`/api/currency/transactions/${id}`, { method: "DELETE", headers: authHdr }).then(r => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/currency/transactions"] });
       qc.invalidateQueries({ queryKey: ["/api/currency/profit-report"] });

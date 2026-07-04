@@ -371,7 +371,7 @@ export default function AccountingPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const canWrite = WRITE_ROLES.includes(user?.role ?? "");
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
@@ -383,7 +383,11 @@ export default function AccountingPage() {
   const { data: clients = [] } = useListClients({});
   const { data: hotelInvoices = [], isLoading: hotelInvLoading } = useQuery<any[]>({
     queryKey: ["/api/invoices/hotel"],
-    queryFn: () => fetch("/api/invoices/hotel").then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/invoices/hotel", { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const [hotelSearch, setHotelSearch] = useState("");
   const createInvoice = useCreateInvoice({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/invoices"] }); setInvoiceOpen(false); toast({ title: "Invoice created" }); } } });

@@ -61,14 +61,14 @@ const navGroups = [
       { title: "Clients (CRM)", href: "/crm", icon: Users },
       { title: "Follow-ups", href: "/crm/follow-ups", icon: PhoneCall },
       { title: "Quotations", href: "/quotations", icon: FileText },
-      { title: "Pending Quotations", href: "/quotations/pending", icon: Package },
+      { title: "Package Inquiries", href: "/quotations/pending", icon: Package },
       { title: "Hotel Requests", href: "/hotel-requests", icon: Building2 },
     ],
   },
   {
     title: "Recording",
     items: [
-      { title: "Hotel Invoice (DN)", href: "/hotel-invoices/new", icon: Hotel },
+      { title: "Hotel Invoice (DN)", href: "/accounting/hotel-invoice/new", icon: Hotel },
       { title: "Receipt Voucher", href: "/accounting/vouchers/new?type=RV", icon: Receipt },
       { title: "Payment Voucher", href: "/accounting/vouchers/new?type=PV", icon: CreditCard },
       { title: "Journal Voucher", href: "/accounting/vouchers/new?type=JV", icon: FileStack },
