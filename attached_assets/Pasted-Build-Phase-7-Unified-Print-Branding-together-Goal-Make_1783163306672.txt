@@ -1,0 +1,264 @@
+Build Phase 7 + Unified Print Branding together.
+
+Goal:
+Make the ERP look like a real sellable internal-office system, not sales-first software. Also create one professional print/branding system used everywhere.
+
+1. Dashboard / Role Dashboards
+
+Rework dashboard so it is internal-office first.
+
+Main dashboard should be like the legacy AMI screenshots:
+- Quick operational tiles
+- Recording shortcuts
+- Reports shortcuts
+- Files section shortcuts
+- Search shortcuts
+- Pending approvals
+- Today’s hotel check-ins
+- Today’s flight departures
+- Pending vendor replies
+- Outstanding parties/vendors
+- Cash/bank balance summary
+- Recent journal entries
+- Booking validation alerts
+
+Do not make CRM or Sales the main focus.
+
+Move “Clients / CRM” under a Sales tab/menu only.
+CRM should not dominate the main dashboard.
+
+Role dashboards:
+- Owner / Management Dashboard
+- Accounts Dashboard
+- Operations Dashboard
+- Hotel Dashboard
+- Flight Dashboard
+- WhatsApp Dashboard
+- Portal/Admin Dashboard
+- Sales Dashboard only under Sales section
+
+Each dashboard should show only relevant real data.
+
+2. Website Settings Branding
+
+Add editable company branding in Website Settings:
+
+Fields:
+- Company Name
+- Legal Company Name
+- Company Logo upload
+- Print Logo upload if separate
+- Contact Number
+- WhatsApp Number
+- Email
+- Website
+- Address
+- NTN / Registration No if needed
+- Bank Details
+- Swift Code
+- Routing No
+- Default Terms & Conditions
+- Default Print Footer
+- Signature Name
+- Signature Title
+
+Logo must be stored properly using existing object storage/media system.
+
+Logo should be used everywhere:
+- ERP header where needed
+- Public website where needed
+- All print pages
+- Hotel vouchers
+- Hotel invoices
+- Flight tickets
+- Vouchers
+- Ledgers
+- Statements
+- Trial balance
+- Reports
+- BSP report
+- Portal downloads
+
+No hardcoded logo in print templates.
+
+3. Unified Print Engine
+
+Create a shared print layout/component used by all printable documents.
+
+Use the AMI hotel confirmation screenshot as the reference style.
+
+Print layout:
+- A4 portrait
+- Company logo centered
+- Company name/legal name
+- Date
+- To
+- Attention
+- From
+- Contact
+- Reference No
+- Optional diagonal watermark/status text
+- Blue/navy table headers
+- Clean bordered sections
+- Amount in words
+- Remarks section
+- Terms & conditions
+- Bank details
+- Printed by / printed date
+- Footer
+- Print button hidden during print
+
+Watermark text should support:
+- Definite Confirmation
+- Tentative
+- Cancelled
+- Provisional
+- Paid
+- Unpaid
+- Authorized
+
+4. Replace Hotel Print Template
+
+Replace current Hotel Invoice / Hotel Voucher print with the professional AMI-style template.
+
+Required fields:
+- Hotel Name
+- Guest Name
+- Party
+- DN / Ref No
+- Check-in
+- Check-out
+- Nights
+- Pax
+- Qty
+- Room Type
+- Meal Plan
+- View
+- Confirmation No
+- Room Rate
+- Amount
+- Net Accommodation Charges
+- Balance
+- Amount in words
+- Remarks
+- Bank details
+- Reservation officer
+
+Support multiple room lines and multi-page print.
+
+5. Apply Print Engine To Existing Documents
+
+Apply shared print branding to:
+
+- Hotel Voucher / DN
+- Hotel Invoice
+- Receipt Voucher
+- Payment Voucher
+- Journal Voucher
+- Cash Voucher
+- Account Ledger
+- Trial Balance
+- Party Statement
+- Vendor Statement
+- Cash Book
+- Receipt Book
+- Payment Book
+- Journal Book
+- DN Report
+- Booking Validation Report
+- Room Occupancy Report
+- BSP Settlement Report
+- Flight Ticket / itinerary
+- Transport invoice/voucher
+- Portal downloadable documents
+
+6. Reports Section / Role Reports
+
+Keep Phase 7 reporting practical.
+
+Add dashboard/report shortcuts for:
+- Revenue
+- Expenses
+- Profit
+- Bookings
+- Pending Payments
+- Receivables
+- Payables
+- Cash Flow
+- Outstanding Vendors
+- Outstanding Parties
+- Flight Sales
+- Hotel Sales
+- Top Customers
+- Top Vendors
+- Top Salesmen
+- Monthly Comparison
+- Yearly Comparison
+
+All reports must use real data, be printable, and CSV exportable.
+
+7. Navigation Cleanup
+
+Sidebar should be organized like:
+
+Dashboard
+Recording
+- Hotel Invoice
+- Transport Invoice
+- Receipt Voucher
+- Payment Voucher
+- Journal Voucher
+- Cash Voucher
+
+Reports
+- Accounting Reports
+- Hotel Reports
+- Flight Reports
+- Vendor Reports
+- Party Reports
+
+Files Section
+- A/C Heads
+- Hotels
+- Vendors
+- Salesman
+- Employees / Users
+- GDS Settings
+- Website Settings
+
+Sales
+- Clients
+- CRM Pipeline
+- Follow-ups
+- Quotations
+
+Portal
+WhatsApp
+Settings
+
+Do not remove existing working routes.
+Only reorganize navigation safely.
+
+8. Testing Required
+
+After build, run:
+- API typecheck
+- ERP typecheck
+- Frontend typecheck
+- Smoke test dashboard
+- Smoke test website settings logo upload
+- Smoke test hotel print preview
+- Smoke test voucher print
+- Smoke test ledger print
+- Smoke test report CSV export
+- Smoke test role dashboard access
+
+Do not push to GitHub until I approve.
+
+Return:
+- Files changed
+- Routes added
+- Settings added
+- Print templates updated
+- Test results
+- Known limitations
