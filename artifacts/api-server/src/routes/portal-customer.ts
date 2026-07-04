@@ -14,6 +14,7 @@ import {
   voucherLinesTable,
 } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { requirePortalAuth } from "../middlewares/portal-auth.js";
 
 const router = Router();
@@ -366,11 +367,15 @@ router.post("/portal/change-password", requirePortalAuth, async (req, res) => {
       .where(eq(portalUsersTable.id, u.id))
       .limit(1);
 
-    if (row.passwordHash !== currentPassword) {
+    // Support both bcrypt hashes (new) and plain-text legacy accounts
+    const valid = await bcrypt.compare(currentPassword, row.passwordHash).catch(() => false) ||
+      row.passwordHash === currentPassword;
+    if (!valid) {
       return res.status(400).json({ error: "Current password is incorrect" });
     }
 
-    await db.update(portalUsersTable).set({ passwordHash: newPassword }).where(eq(portalUsersTable.id, u.id));
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await db.update(portalUsersTable).set({ passwordHash: newHash }).where(eq(portalUsersTable.id, u.id));
 
     return res.json({ ok: true });
   } catch (err) {

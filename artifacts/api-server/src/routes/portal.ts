@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, portalUsersTable, portalUserDocumentsTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 import { requireAuth } from "../middlewares/auth.js";
 import { requirePortalAuth } from "../middlewares/portal-auth.js";
 import { scanDocument } from "../services/document-scan.js";
@@ -42,7 +43,7 @@ router.post("/portal/register", async (req, res) => {
       ownerName: ownerName ?? null,
       address: address ?? null,
       dtsNumber: dtsNumber ?? null,
-      passwordHash: password, // plain for now — upgrade to bcrypt when needed
+      passwordHash: await bcrypt.hash(password, 10),
     }).returning();
 
     if (documentKeys?.length) {
@@ -74,7 +75,11 @@ router.post("/portal/login", async (req, res) => {
       .where(or(eq(portalUsersTable.phone, emailOrPhone), eq(portalUsersTable.email, emailOrPhone)))
       .limit(1);
 
-    if (!user || user.passwordHash !== password) {
+    const passwordValid = user && (
+      await bcrypt.compare(password, user.passwordHash).catch(() => false) ||
+      user.passwordHash === password // backward-compat: plain-text legacy accounts
+    );
+    if (!passwordValid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
     if (user.status === "pending_approval") {
@@ -129,6 +134,7 @@ router.get("/portal/users", requireAuth, async (req, res) => {
       whatsapp: portalUsersTable.whatsapp,
       companyName: portalUsersTable.companyName,
       ownerName: portalUsersTable.ownerName,
+      clientId: portalUsersTable.clientId,
       createdAt: portalUsersTable.createdAt,
       passwordHash: portalUsersTable.passwordHash,
     }).from(portalUsersTable);

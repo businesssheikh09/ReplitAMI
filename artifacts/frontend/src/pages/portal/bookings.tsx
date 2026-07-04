@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePortalAuth } from "@/lib/portal-auth";
 import { PortalLayout } from "@/components/portal-layout";
-import { Upload, Clock, Check, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Upload, Clock, Check, XCircle, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 
 interface Passenger {
   id: number; firstName: string; lastName: string; title: string;
@@ -46,36 +46,67 @@ function DeadlineCountdown({ deadlineAt }: { deadlineAt: string }) {
   if (diff <= 0) return <span className="text-xs text-red-500">Deadline passed</span>;
   const h = Math.floor(diff / 3_600_000);
   const m = Math.floor((diff % 3_600_000) / 60_000);
-  return <span className={`text-xs font-medium flex items-center gap-1 ${diff < 3_600_000 ? "text-red-500" : "text-amber-600"}`}><Clock className="h-3 w-3" />{h > 0 ? `${h}h ${m}m` : `${m}m`} left</span>;
+  return (
+    <span className={`text-xs font-medium flex items-center gap-1 ${diff < 3_600_000 ? "text-red-500" : "text-amber-600"}`}>
+      <Clock className="h-3 w-3" />{h > 0 ? `${h}h ${m}m` : `${m}m`} left
+    </span>
+  );
+}
+
+async function uploadReceiptFile(file: File, token: string): Promise<string> {
+  // Step 1: Get presigned upload URL
+  const urlRes = await fetch("/api/storage/uploads/request-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+  });
+  if (!urlRes.ok) throw new Error("Failed to get upload URL");
+  const { uploadURL, objectPath } = await urlRes.json();
+
+  // Step 2: PUT file directly to presigned URL
+  const putRes = await fetch(uploadURL, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!putRes.ok) throw new Error("Failed to upload file");
+
+  return objectPath;
 }
 
 function BookingCard({ booking, token }: { booking: Booking; token: string }) {
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const upload = useMutation({
+  const submitReceipt = useMutation({
     mutationFn: async (file: File) => {
       setUploading(true);
-      const fd = new FormData(); fd.append("file", file);
-      const stored = await fetch("/api/storage/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd }).then((r) => r.json());
-      await fetch(`/api/booking-inquiries/${booking.id}/receipt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ objectKey: stored.key }),
-      });
-      setUploading(false);
+      setUploadError(null);
+      try {
+        const objectKey = await uploadReceiptFile(file, token);
+        const res = await fetch("/api/public/payment-receipts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ inquiryId: booking.id, objectKey }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to submit receipt");
+      } finally {
+        setUploading(false);
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-bookings"] }),
-    onError: () => setUploading(false),
+    onError: (err: Error) => setUploadError(err.message),
   });
 
   const r = booking.paymentReceipt;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-4 py-3 flex items-center justify-between gap-3" onClick={() => setExpanded((e) => !e)}>
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer" onClick={() => setExpanded((e) => !e)}>
+        <div className="flex items-center gap-3 min-w-0 flex-wrap">
           <div>
             <p className="text-sm font-semibold">#{booking.referenceNumber}</p>
             <p className="text-xs text-gray-400">{new Date(booking.createdAt).toLocaleDateString("en-PK")}</p>
@@ -110,13 +141,22 @@ function BookingCard({ booking, token }: { booking: Booking; token: string }) {
           {r && (
             <div className="bg-amber-50 rounded-lg p-3">
               <p className="text-xs font-semibold text-amber-700 mb-1">Payment Receipt</p>
+
               {r.paymentStatus === "pending_receipt" && (
                 <div className="space-y-2">
                   <p className="text-xs text-amber-600">Deadline: {new Date(r.deadlineAt).toLocaleString("en-PK")}</p>
+                  {uploadError && (
+                    <p className="flex items-center gap-1 text-xs text-red-600"><AlertCircle className="h-3 w-3" />{uploadError}</p>
+                  )}
                   <label className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-amber-300 text-sm font-medium text-amber-700 cursor-pointer hover:bg-amber-50 transition w-fit ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
                     <Upload className="h-4 w-4" />
                     {uploading ? "Uploading…" : "Upload Receipt"}
-                    <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); }} />
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*,.pdf"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) submitReceipt.mutate(f); }}
+                    />
                   </label>
                 </div>
               )}
@@ -128,6 +168,11 @@ function BookingCard({ booking, token }: { booking: Booking; token: string }) {
               )}
               {r.paymentStatus === "payment_rejected" && (
                 <p className="text-xs text-red-600 flex items-center gap-1"><XCircle className="h-3 w-3" /> Payment rejected — please contact support</p>
+              )}
+              {r.objectKey && (
+                <a href={`/api/storage/objects/${r.objectKey}`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs text-teal-600 hover:underline">
+                  View uploaded receipt
+                </a>
               )}
             </div>
           )}
