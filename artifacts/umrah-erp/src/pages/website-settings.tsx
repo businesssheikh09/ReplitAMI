@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGetWebsiteConfig, useUpdateWebsiteConfig } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Save, Loader2, RefreshCw, ExternalLink } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Globe, Save, Loader2, RefreshCw, ExternalLink, Building2, Upload, ImageIcon, Banknote, FileText, PenLine } from "lucide-react";
 
 type ConfigDraft = {
   siteName: string;
@@ -28,8 +29,53 @@ type ConfigDraft = {
   announcementEnabled: boolean;
 };
 
+type BrandingDraft = {
+  company_name: string;
+  legal_company_name: string;
+  logo_url: string;
+  print_logo_url: string;
+  company_address: string;
+  company_ntn: string;
+  company_email: string;
+  company_phone: string;
+  company_whatsapp: string;
+  company_website: string;
+  bank_name: string;
+  bank_account: string;
+  bank_iban: string;
+  swift_code: string;
+  routing_no: string;
+  terms_conditions: string;
+  print_footer: string;
+  signature_name: string;
+  signature_title: string;
+};
+
+const BRANDING_DEFAULTS: BrandingDraft = {
+  company_name: "Al Musafir International",
+  legal_company_name: "",
+  logo_url: "",
+  print_logo_url: "",
+  company_address: "",
+  company_ntn: "",
+  company_email: "",
+  company_phone: "",
+  company_whatsapp: "",
+  company_website: "",
+  bank_name: "",
+  bank_account: "",
+  bank_iban: "",
+  swift_code: "",
+  routing_no: "",
+  terms_conditions: "",
+  print_footer: "",
+  signature_name: "",
+  signature_title: "Reservation Officer",
+};
+
 export default function WebsiteSettingsPage() {
   const { toast } = useToast();
+  const { token } = useAuth();
   const qc = useQueryClient();
   const { data: config, isLoading } = useGetWebsiteConfig();
   const updateConfig = useUpdateWebsiteConfig({
@@ -45,6 +91,18 @@ export default function WebsiteSettingsPage() {
   });
 
   const [draft, setDraft] = useState<ConfigDraft | null>(null);
+  const [branding, setBranding] = useState<BrandingDraft>(BRANDING_DEFAULTS);
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [printLogoUploading, setPrintLogoUploading] = useState(false);
+  const logoRef = useRef<HTMLInputElement>(null);
+  const printLogoRef = useRef<HTMLInputElement>(null);
+
+  // Load branding from raw config
+  const { data: rawConfig } = useQuery<Record<string, string>>({
+    queryKey: ["/api/website-config"],
+    queryFn: () => fetch("/api/website-config").then((r) => r.json()),
+  });
 
   useEffect(() => {
     if (config && !draft) {
@@ -65,6 +123,78 @@ export default function WebsiteSettingsPage() {
       });
     }
   }, [config, draft]);
+
+  // Populate branding from raw config when it loads
+  useEffect(() => {
+    if (rawConfig) {
+      setBranding({
+        company_name:       rawConfig.company_name       ?? BRANDING_DEFAULTS.company_name,
+        legal_company_name: rawConfig.legal_company_name ?? "",
+        logo_url:           rawConfig.logo_url           ?? "",
+        print_logo_url:     rawConfig.print_logo_url     ?? "",
+        company_address:    rawConfig.company_address    ?? "",
+        company_ntn:        rawConfig.company_ntn        ?? "",
+        company_email:      rawConfig.company_email      ?? "",
+        company_phone:      rawConfig.company_phone      ?? "",
+        company_whatsapp:   rawConfig.company_whatsapp   ?? "",
+        company_website:    rawConfig.company_website    ?? "",
+        bank_name:          rawConfig.bank_name          ?? "",
+        bank_account:       rawConfig.bank_account       ?? "",
+        bank_iban:          rawConfig.bank_iban          ?? "",
+        swift_code:         rawConfig.swift_code         ?? "",
+        routing_no:         rawConfig.routing_no         ?? "",
+        terms_conditions:   rawConfig.terms_conditions   ?? "",
+        print_footer:       rawConfig.print_footer       ?? "",
+        signature_name:     rawConfig.signature_name     ?? "",
+        signature_title:    rawConfig.signature_title    ?? BRANDING_DEFAULTS.signature_title,
+      });
+    }
+  }, [rawConfig]);
+
+  const setB = (field: keyof BrandingDraft, value: string) =>
+    setBranding(prev => ({ ...prev, [field]: value }));
+
+  const handleSaveBranding = async () => {
+    setBrandingSaving(true);
+    try {
+      await fetch("/api/website-config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(branding),
+      });
+      qc.invalidateQueries({ queryKey: ["/api/website-config"] });
+      toast({ title: "Company branding saved", description: "Print templates will now use these details." });
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    } finally {
+      setBrandingSaving(false);
+    }
+  };
+
+  async function uploadLogo(file: File, field: "logo_url" | "print_logo_url") {
+    const setState = field === "logo_url" ? setLogoUploading : setPrintLogoUploading;
+    setState(true);
+    try {
+      const res = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!res.ok) throw new Error("Failed to get upload URL");
+      const { uploadURL, objectPath } = await res.json() as { uploadURL: string; objectPath: string };
+      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      const publicUrl = `/api/storage/public-objects/${objectPath.replace(/^\//, "")}`;
+      setB(field, publicUrl);
+      toast({ title: "Logo uploaded", description: "Save branding to apply." });
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setState(false);
+    }
+  }
 
   const set = (field: keyof ConfigDraft, value: string | boolean) =>
     setDraft(prev => prev ? { ...prev, [field]: value } : prev);
@@ -103,32 +233,206 @@ export default function WebsiteSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Globe className="h-6 w-6" />
-            Website Settings
-          </h2>
-          <p className="text-muted-foreground">Edit the public website content. Changes go live instantly.</p>
-        </div>
-        <div className="flex gap-2">
-          <a href="/frontend/" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Preview Site
-            </Button>
-          </a>
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
-          <Button onClick={handleSave} disabled={updateConfig.isPending}>
-            {updateConfig.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Changes
+    <div className="space-y-8 max-w-3xl">
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION 1 — COMPANY BRANDING (ERP internal, used in print)
+      ══════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-blue-700" />
+              Company Branding
+            </h2>
+            <p className="text-muted-foreground text-sm mt-0.5">Appears on all printed documents — vouchers, invoices, hotel bookings.</p>
+          </div>
+          <Button onClick={handleSaveBranding} disabled={brandingSaving}>
+            {brandingSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save Branding
           </Button>
         </div>
+
+        {/* Logo upload */}
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Logos</CardTitle>
+            <CardDescription>Upload your company logo for print documents. PNG or JPG recommended.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Main logo */}
+              <div className="space-y-2">
+                <Label>Website & Print Logo</Label>
+                <div className="flex items-center gap-3">
+                  {branding.logo_url ? (
+                    <img src={branding.logo_url} alt="Logo" className="h-12 max-w-[120px] object-contain border rounded" />
+                  ) : (
+                    <div className="h-12 w-24 bg-gray-100 border rounded flex items-center justify-center text-xs text-muted-foreground">No logo</div>
+                  )}
+                  <div>
+                    <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0], "logo_url")} />
+                    <Button size="sm" variant="outline" onClick={() => logoRef.current?.click()} disabled={logoUploading}>
+                      {logoUploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                      Upload
+                    </Button>
+                  </div>
+                </div>
+                <Input className="text-xs" placeholder="Or paste URL…" value={branding.logo_url} onChange={e => setB("logo_url", e.target.value)} />
+              </div>
+              {/* Print logo override */}
+              <div className="space-y-2">
+                <Label>Print-Only Logo <span className="text-xs text-muted-foreground">(optional, overrides above for print)</span></Label>
+                <div className="flex items-center gap-3">
+                  {branding.print_logo_url ? (
+                    <img src={branding.print_logo_url} alt="Print Logo" className="h-12 max-w-[120px] object-contain border rounded" />
+                  ) : (
+                    <div className="h-12 w-24 bg-gray-100 border rounded flex items-center justify-center text-xs text-muted-foreground">Same as above</div>
+                  )}
+                  <div>
+                    <input ref={printLogoRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0], "print_logo_url")} />
+                    <Button size="sm" variant="outline" onClick={() => printLogoRef.current?.click()} disabled={printLogoUploading}>
+                      {printLogoUploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                      Upload
+                    </Button>
+                  </div>
+                </div>
+                <Input className="text-xs" placeholder="Or paste URL…" value={branding.print_logo_url} onChange={e => setB("print_logo_url", e.target.value)} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Company identity */}
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4" /> Company Identity</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Company Name <span className="text-xs text-muted-foreground">(shown on documents)</span></Label>
+                <Input value={branding.company_name} onChange={e => setB("company_name", e.target.value)} placeholder="Al Musafir International" />
+              </div>
+              <div className="space-y-2">
+                <Label>Legal / Registered Name</Label>
+                <Input value={branding.legal_company_name} onChange={e => setB("legal_company_name", e.target.value)} placeholder="Al Musafir International (Pvt.) Ltd." />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Address</Label>
+                <Textarea rows={2} value={branding.company_address} onChange={e => setB("company_address", e.target.value)} placeholder="Office No. 5, 2nd Floor, Gulberg Plaza, Lahore" />
+              </div>
+              <div className="space-y-2">
+                <Label>NTN</Label>
+                <Input value={branding.company_ntn} onChange={e => setB("company_ntn", e.target.value)} placeholder="1234567-8" />
+              </div>
+              <div className="space-y-2">
+                <Label>Website</Label>
+                <Input value={branding.company_website} onChange={e => setB("company_website", e.target.value)} placeholder="www.almusafir.pk" />
+              </div>
+              <div className="space-y-2">
+                <Label>Company Email</Label>
+                <Input type="email" value={branding.company_email} onChange={e => setB("company_email", e.target.value)} placeholder="info@almusafir.pk" />
+              </div>
+              <div className="space-y-2">
+                <Label>Company Phone</Label>
+                <Input value={branding.company_phone} onChange={e => setB("company_phone", e.target.value)} placeholder="+92 42 1234 5678" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bank details */}
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Banknote className="h-4 w-4" /> Bank Details</CardTitle>
+            <CardDescription>Shown on invoices and payment vouchers.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Bank Name</Label>
+                <Input value={branding.bank_name} onChange={e => setB("bank_name", e.target.value)} placeholder="Meezan Bank Ltd" />
+              </div>
+              <div className="space-y-2">
+                <Label>Account No.</Label>
+                <Input value={branding.bank_account} onChange={e => setB("bank_account", e.target.value)} placeholder="0123456789" />
+              </div>
+              <div className="space-y-2">
+                <Label>IBAN</Label>
+                <Input value={branding.bank_iban} onChange={e => setB("bank_iban", e.target.value)} placeholder="PK36MEZN0001234567890100" />
+              </div>
+              <div className="space-y-2">
+                <Label>SWIFT / BIC Code</Label>
+                <Input value={branding.swift_code} onChange={e => setB("swift_code", e.target.value)} placeholder="MEZNPKKA" />
+              </div>
+              <div className="space-y-2">
+                <Label>Routing No.</Label>
+                <Input value={branding.routing_no} onChange={e => setB("routing_no", e.target.value)} placeholder="012345" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Terms, footer, signature */}
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><PenLine className="h-4 w-4" /> Document Footer &amp; Signature</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Terms &amp; Conditions <span className="text-xs text-muted-foreground">(printed on invoices)</span></Label>
+              <Textarea rows={4} value={branding.terms_conditions} onChange={e => setB("terms_conditions", e.target.value)} placeholder="1. All payments are non-refundable once confirmed.&#10;2. Passport validity of 6 months required…" />
+            </div>
+            <div className="space-y-2">
+              <Label>Print Footer Text</Label>
+              <Input value={branding.print_footer} onChange={e => setB("print_footer", e.target.value)} placeholder="Thank you for choosing Al Musafir International · info@almusafir.pk" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Signatory Name</Label>
+                <Input value={branding.signature_name} onChange={e => setB("signature_name", e.target.value)} placeholder="Muhammad Aamir" />
+              </div>
+              <div className="space-y-2">
+                <Label>Signatory Title</Label>
+                <Input value={branding.signature_title} onChange={e => setB("signature_title", e.target.value)} placeholder="Reservation Officer" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Separator />
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION 2 — PUBLIC WEBSITE CONTENT
+      ══════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Website Settings
+            </h2>
+            <p className="text-muted-foreground text-sm mt-0.5">Edit the public website content. Changes go live instantly.</p>
+          </div>
+          <div className="flex gap-2">
+            <a href="/frontend/" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Preview Site
+              </Button>
+            </a>
+            <Button variant="outline" size="sm" onClick={handleReset}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+            <Button onClick={handleSave} disabled={updateConfig.isPending}>
+              {updateConfig.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Changes
+            </Button>
+          </div>
+        </div>
 
       {/* Announcement Banner */}
       <Card>
@@ -269,6 +573,7 @@ export default function WebsiteSettingsPage() {
           Save All Changes
         </Button>
       </div>
+      </div>{/* end Section 2 */}
     </div>
   );
 }

@@ -2,11 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, CheckCircle, FileText, XCircle, RotateCcw } from "lucide-react";
+import { useBranding } from "@/components/print-layout";
 
 interface VoucherLine {
   id: number;
@@ -108,10 +108,13 @@ export default function VoucherDetailPage() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const branding = useBranding();
+
   if (isLoading) return <div className="p-6 text-center text-muted-foreground">Loading…</div>;
   if (!voucher) return <div className="p-6 text-center text-muted-foreground">Voucher not found</div>;
 
   const canPrint = voucher.status !== "cancelled";
+  const logoSrc = branding.printLogoUrl || branding.logoUrl;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5 print:p-2">
@@ -160,16 +163,39 @@ export default function VoucherDetailPage() {
       </div>
 
       {/* Voucher document */}
-      <Card className="print:shadow-none print:border-none">
+      <Card className="print:shadow-none print:border-none overflow-hidden">
+        {/* ── Print-only AMI branding header ── */}
+        <div className="hidden print:block border-b-4 border-blue-900 pb-3 pt-4 px-6">
+          <div className="flex items-center justify-between">
+            <div className="w-24 h-14 flex items-center">
+              {logoSrc ? (
+                <img src={logoSrc} alt="Logo" className="max-h-12 max-w-full object-contain" />
+              ) : (
+                <div className="h-12 w-20 bg-blue-900 rounded flex items-center justify-center text-white text-xs font-bold text-center leading-tight px-1">
+                  {branding.companyName}
+                </div>
+              )}
+            </div>
+            <div className="text-center flex-1 px-4">
+              <div className="text-base font-bold text-blue-900 uppercase tracking-wide">{branding.companyName}</div>
+              {branding.companyAddress && <div className="text-xs text-gray-600 mt-0.5">{branding.companyAddress}</div>}
+              {branding.companyPhone && <div className="text-xs text-gray-500">{branding.companyPhone}</div>}
+            </div>
+            <div className="text-right text-xs text-gray-500 w-24">
+              <div>Date: <strong className="text-gray-800">{voucher.date}</strong></div>
+            </div>
+          </div>
+        </div>
+
         <CardHeader className="border-b pb-4">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Al Musafir International</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 print:hidden">{branding.companyName}</div>
               <h2 className="text-xl font-bold">{TYPE_FULL[voucher.type] ?? voucher.type}</h2>
               <p className="font-mono text-sm font-semibold text-muted-foreground">{voucher.voucherNumber}</p>
             </div>
             <div className="text-right text-sm space-y-1">
-              <div><span className="text-muted-foreground">Date: </span><strong>{voucher.date}</strong></div>
+              <div className="print:hidden"><span className="text-muted-foreground">Date: </span><strong>{voucher.date}</strong></div>
               <div><span className="text-muted-foreground">Status: </span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[voucher.status]}`}>
                   {voucher.status}

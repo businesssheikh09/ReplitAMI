@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useListClients, useListUsers, useListHotels, useListVendors } from "@workspace/api-client-react";
 import { ArrowLeft, Printer, FileText, CheckCircle2 } from "lucide-react";
+import { useBranding } from "@/components/print-layout";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -74,6 +75,7 @@ export default function HotelInvoiceFormPage() {
   const isEdit = !!params.id;
   const canWrite = WRITE_ROLES.includes(user?.role ?? "");
 
+  const branding = useBranding();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [dnNumber, setDnNumber] = useState<string>("");
   const [convRate, setConvRate] = useState<string>("");
@@ -346,6 +348,30 @@ export default function HotelInvoiceFormPage() {
         className="border border-blue-200 bg-white print:border-gray-400 rounded-sm overflow-hidden shadow-sm"
         style={{ fontFamily: "Arial, sans-serif", fontSize: "13px" }}
       >
+        {/* ── Print-only AMI branding header ─────────────────────────────────── */}
+        <div className="hidden print:block border-b-2 border-blue-900 pb-3 pt-3 px-5">
+          <div className="flex items-center justify-between">
+            <div className="w-20 h-12 flex items-center">
+              {(branding.printLogoUrl || branding.logoUrl) ? (
+                <img src={branding.printLogoUrl || branding.logoUrl} alt="Logo" className="max-h-10 max-w-full object-contain" />
+              ) : (
+                <div className="h-10 w-16 bg-blue-900 rounded flex items-center justify-center text-white text-[9px] font-bold text-center leading-tight px-1">
+                  {branding.companyName}
+                </div>
+              )}
+            </div>
+            <div className="text-center flex-1 px-4">
+              <div className="text-sm font-bold text-blue-900 uppercase tracking-wide">{branding.companyName}</div>
+              {branding.companyAddress && <div className="text-[10px] text-gray-600">{branding.companyAddress}</div>}
+              {branding.companyPhone && <div className="text-[10px] text-gray-500">{branding.companyPhone}</div>}
+              {branding.companyNtn && <div className="text-[10px] text-gray-400">NTN: {branding.companyNtn}</div>}
+            </div>
+            <div className="text-right text-[10px] text-gray-500 w-24">
+              {branding.companyEmail && <div>{branding.companyEmail}</div>}
+            </div>
+          </div>
+        </div>
+
         {/* Title */}
         <div className="text-center py-3 border-b border-blue-700 bg-blue-900">
           <span className="text-xl font-bold tracking-widest text-white">

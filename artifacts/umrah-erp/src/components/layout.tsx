@@ -47,47 +47,30 @@ import { Badge } from "@/components/ui/badge";
 
 const navGroups = [
   {
-    title: "Overview",
+    title: "Dashboard",
     items: [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { title: "Reports Overview", href: "/reports", icon: FileBarChart },
     ],
   },
   {
-    title: "CRM",
-    items: [
-      { title: "Clients", href: "/crm", icon: Users },
-      { title: "Follow-ups", href: "/crm/follow-ups", icon: PhoneCall },
-    ],
-  },
-  {
     title: "Sales",
     items: [
+      { title: "Clients (CRM)", href: "/crm", icon: Users },
+      { title: "Follow-ups", href: "/crm/follow-ups", icon: PhoneCall },
       { title: "Quotations", href: "/quotations", icon: FileText },
       { title: "Pending Quotations", href: "/quotations/pending", icon: Package },
       { title: "Hotel Requests", href: "/hotel-requests", icon: Building2 },
     ],
   },
   {
-    title: "Direct Bookings",
+    title: "Recording",
     items: [
-      { title: "Booking Inquiries", href: "/booking-inquiries", icon: Ticket },
-      { title: "Portal Users", href: "/portal-users", icon: UserCheck },
-      { title: "Flight Requests", href: "/flight-requests", icon: PlaneTakeoff },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
-      { title: "Hotels", href: "/hotels", icon: Hotel },
-      { title: "Vendors", href: "/vendors", icon: Store },
-      { title: "Transport", href: "/transport", icon: Car },
-      { title: "Flights", href: "/flights", icon: Plane },
-      { title: "Cancellations & Refunds", href: "/flights/cancellations", icon: XCircle },
-      { title: "BSP Report", href: "/flights/bsp-report", icon: Banknote },
-      { title: "Staff Ticket Log", href: "/flights/staff-log", icon: ClipboardList },
-      { title: "Passenger Documents", href: "/flights/passengers", icon: FileSearch },
-      { title: "Visa", href: "/visa", icon: BookOpen },
+      { title: "Hotel Invoice (DN)", href: "/hotel-invoices/new", icon: Hotel },
+      { title: "Receipt Voucher", href: "/accounting/vouchers/new?type=RV", icon: Receipt },
+      { title: "Payment Voucher", href: "/accounting/vouchers/new?type=PV", icon: CreditCard },
+      { title: "Journal Voucher", href: "/accounting/vouchers/new?type=JV", icon: FileStack },
+      { title: "Cash Voucher", href: "/accounting/vouchers/new?type=CV", icon: Banknote },
     ],
   },
   {
@@ -95,17 +78,42 @@ const navGroups = [
     items: [
       { title: "Accounting", href: "/accounting", icon: Calculator },
       { title: "Invoices", href: "/accounting/invoices", icon: Receipt },
-      { title: "Expenses", href: "/accounting/expenses", icon: CreditCard },
       { title: "Hotel Invoices DN", href: "/hotel-invoices", icon: Hotel },
+      { title: "Expenses", href: "/accounting/expenses", icon: CreditCard },
       { title: "Vouchers", href: "/accounting/vouchers", icon: FileStack },
       { title: "General Journal", href: "/general-journal", icon: Landmark },
       { title: "Account Ledger", href: "/accounting/ledger", icon: BookOpen },
       { title: "Trial Balance", href: "/accounting/trial-balance", icon: Scale },
-      { title: "Reports", href: "/accounting/reports", icon: FileBarChart },
       { title: "P&L Statement", href: "/accounting/pnl", icon: TrendingUp },
       { title: "Balance Sheet", href: "/accounting/balance-sheet", icon: BarChart3 },
       { title: "Financial Years", href: "/accounting/financial-years", icon: CalendarRange },
       { title: "Currency", href: "/currency-settings", icon: ArrowRightLeft },
+    ],
+  },
+  {
+    title: "Reports",
+    items: [
+      { title: "Accounting Reports", href: "/accounting/reports", icon: FileBarChart },
+      { title: "BSP Report", href: "/flights/bsp-report", icon: Banknote },
+      { title: "Staff Ticket Log", href: "/flights/staff-log", icon: ClipboardList },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { title: "Flights", href: "/flights", icon: Plane },
+      { title: "Transport", href: "/transport", icon: Car },
+      { title: "Visa", href: "/visa", icon: BookOpen },
+      { title: "Passenger Documents", href: "/flights/passengers", icon: FileSearch },
+      { title: "Cancellations & Refunds", href: "/flights/cancellations", icon: XCircle },
+    ],
+  },
+  {
+    title: "Portal",
+    items: [
+      { title: "Portal Users", href: "/portal-users", icon: UserCheck },
+      { title: "Booking Inquiries", href: "/booking-inquiries", icon: Ticket },
+      { title: "Flight Requests", href: "/flight-requests", icon: PlaneTakeoff },
     ],
   },
   {
@@ -117,10 +125,17 @@ const navGroups = [
     ],
   },
   {
+    title: "Files",
+    items: [
+      { title: "Hotels", href: "/hotels", icon: Hotel },
+      { title: "Vendors", href: "/vendors", icon: Store },
+      { title: "Documents", href: "/documents", icon: Files },
+    ],
+  },
+  {
     title: "Admin",
     items: [
       { title: "Users", href: "/users", icon: ShieldCheck },
-      { title: "Documents", href: "/documents", icon: Files },
       { title: "GDS Settings", href: "/gds-settings", icon: Settings2 },
       { title: "AI Settings", href: "/ai-settings", icon: Bot },
       { title: "Local Airlines", href: "/local-airline-settings", icon: Plane },
