@@ -37,6 +37,8 @@ import {
   ClipboardList,
   FileSearch,
   Banknote,
+  Zap,
+  ScrollText,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -140,6 +142,8 @@ const navGroups = [
       { title: "AI Settings", href: "/ai-settings", icon: Bot },
       { title: "Local Airlines", href: "/local-airline-settings", icon: Plane },
       { title: "Website Settings", href: "/website-settings", icon: Globe },
+      { title: "Automation Engine", href: "/automation-settings", icon: Zap },
+      { title: "Automation Logs", href: "/automation-logs", icon: ScrollText },
     ],
   },
 ];

@@ -1,0 +1,365 @@
+Build Phase 8 — Automation & Scheduled Alerts.
+
+Build mode only.
+
+Do not redesign existing modules.
+Extend the existing system only.
+
+Goal:
+Turn the ERP into an office that runs itself by automating repetitive work using the existing scheduler and WhatsApp service.
+
+========================================
+1. Automation Engine
+========================================
+
+Create a centralized automation engine.
+
+Each automation should have:
+
+- Name
+- Enabled/Disabled
+- Schedule
+- Last Run
+- Next Run
+- Success Count
+- Failure Count
+- Status
+- Logs
+
+Everything configurable from Admin.
+
+========================================
+2. Automation Logs
+========================================
+
+Create automation_logs table.
+
+Fields:
+
+id
+automationType
+entityType
+entityId
+triggeredAt
+recipient
+messagePreview
+status
+errorMessage
+executionTime
+createdAt
+
+Every automation execution must be logged.
+
+========================================
+3. Payment Reminder Automation
+========================================
+
+Run every day.
+
+Automatically detect invoices overdue:
+
+1 day
+
+2 days
+
+7 days
+
+14 days
+
+30 days
+
+Send WhatsApp reminders using existing WhatsApp service.
+
+Never send duplicate reminders on the same day.
+
+========================================
+4. Hotel Check-in Reminder
+========================================
+
+Every morning.
+
+Find hotel bookings checking in tomorrow.
+
+Send customer reminder.
+
+Notify operations dashboard.
+
+========================================
+5. Hotel Vendor Follow-up
+========================================
+
+Every 4 hours.
+
+If Hotel Request status:
+
+Sent to Vendor
+
+and no quotation received
+
+Automatically send follow-up WhatsApp.
+
+Log event.
+
+========================================
+6. Flight Reminder
+========================================
+
+24 hours before departure.
+
+Notify customer.
+
+Include:
+
+PNR
+
+Flight
+
+Departure
+
+Terminal
+
+Baggage reminder
+
+========================================
+7. Passport Expiry Alerts
+========================================
+
+Weekly.
+
+Find passports expiring within:
+
+90 days
+
+60 days
+
+30 days
+
+Notify assigned salesperson.
+
+Notify management dashboard.
+
+========================================
+8. Visa Expiry Alerts
+========================================
+
+Weekly.
+
+Find visas expiring within:
+
+30 days
+
+15 days
+
+7 days
+
+Notify client.
+
+========================================
+9. Daily Management Summary
+========================================
+
+Every morning.
+
+Generate summary:
+
+Today's departures
+
+Today's arrivals
+
+Pending hotel confirmations
+
+Pending refunds
+
+Pending approvals
+
+Outstanding receivables
+
+Outstanding payables
+
+Cash position
+
+Journal entries yesterday
+
+WhatsApp unread
+
+Send to management WhatsApp.
+
+========================================
+10. Pending Approval Alerts
+========================================
+
+Every 2 hours.
+
+Notify management for:
+
+Draft vouchers
+
+Pending invoices
+
+Pending refunds
+
+Pending registrations
+
+Pending hotel approvals
+
+========================================
+11. Message Templates
+========================================
+
+Create editable template system.
+
+Templates:
+
+Payment Reminder
+
+Hotel Confirmation
+
+Hotel Reminder
+
+Flight Reminder
+
+Visa Reminder
+
+Passport Reminder
+
+Vendor Follow-up
+
+Management Summary
+
+Refund Approved
+
+Refund Paid
+
+Stored in Website Settings.
+
+Editable.
+
+========================================
+12. Automation Settings
+========================================
+
+Website Settings →
+
+New Automation tab.
+
+Each automation has:
+
+Enable toggle
+
+Cron frequency
+
+Message template
+
+Test button
+
+Last execution
+
+Next execution
+
+========================================
+13. Dashboard Widgets
+========================================
+
+Management dashboard:
+
+Automations running
+
+Failed automations
+
+Today's reminders
+
+Today's follow-ups
+
+Scheduler health
+
+Operations dashboard:
+
+Tomorrow check-ins
+
+Flight reminders
+
+Vendor follow-ups
+
+Accounts dashboard:
+
+Payment reminders sent
+
+Outstanding invoices
+
+CRM dashboard:
+
+Follow-ups due
+
+Expiring passports
+
+========================================
+14. Manual Run
+========================================
+
+Each automation has:
+
+Run Now button.
+
+No restart required.
+
+========================================
+15. Safety
+========================================
+
+Prevent duplicate sends.
+
+Database locking.
+
+Retry failed jobs.
+
+Exponential backoff.
+
+Log every retry.
+
+========================================
+16. Testing
+========================================
+
+Run complete smoke tests.
+
+Verify:
+
+Payment reminders
+
+Hotel reminders
+
+Flight reminders
+
+Vendor follow-up
+
+Passport expiry
+
+Visa expiry
+
+Management summary
+
+Automation logs
+
+Enable/Disable
+
+Run Now
+
+Typecheck backend
+
+Typecheck ERP
+
+Typecheck frontend
+
+Fix all issues before completion.
+
+Do NOT push to GitHub until I approve.
+
+Return:
+
+• Files changed
+• Database changes
+• APIs added
+• Scheduler jobs added
+• Website Settings additions
+• Test results
+• Remaining limitations

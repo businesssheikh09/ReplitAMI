@@ -40,6 +40,18 @@ const DEFAULTS: Record<string, string> = {
   print_footer: "",
   signature_name: "",
   signature_title: "Reservation Officer",
+  // ── Message Templates (Automation) ────────────────────────────────────────
+  template_payment_reminder: "",
+  template_hotel_reminder: "",
+  template_hotel_confirmation: "",
+  template_flight_reminder: "",
+  template_visa_reminder: "",
+  template_passport_reminder: "",
+  template_vendor_followup: "",
+  template_management_summary: "",
+  template_refund_approved: "",
+  template_refund_paid: "",
+  template_pending_approvals: "",
 };
 
 function rowsToConfig(rows: { key: string; value: string }[]) {
@@ -79,6 +91,18 @@ function rowsToConfig(rows: { key: string; value: string }[]) {
     print_footer: map.print_footer,
     signature_name: map.signature_name,
     signature_title: map.signature_title,
+    // ── Message Templates ──────────────────────────────────────────────────
+    template_payment_reminder: map.template_payment_reminder,
+    template_hotel_reminder: map.template_hotel_reminder,
+    template_hotel_confirmation: map.template_hotel_confirmation,
+    template_flight_reminder: map.template_flight_reminder,
+    template_visa_reminder: map.template_visa_reminder,
+    template_passport_reminder: map.template_passport_reminder,
+    template_vendor_followup: map.template_vendor_followup,
+    template_management_summary: map.template_management_summary,
+    template_refund_approved: map.template_refund_approved,
+    template_refund_paid: map.template_refund_paid,
+    template_pending_approvals: map.template_pending_approvals,
   };
 }
 
@@ -123,6 +147,18 @@ router.put("/website-config", requireAuth, async (req, res) => {
     print_footer: "print_footer",
     signature_name: "signature_name",
     signature_title: "signature_title",
+    // ── Message Templates ──────────────────────────────────────────────────
+    template_payment_reminder: "template_payment_reminder",
+    template_hotel_reminder: "template_hotel_reminder",
+    template_hotel_confirmation: "template_hotel_confirmation",
+    template_flight_reminder: "template_flight_reminder",
+    template_visa_reminder: "template_visa_reminder",
+    template_passport_reminder: "template_passport_reminder",
+    template_vendor_followup: "template_vendor_followup",
+    template_management_summary: "template_management_summary",
+    template_refund_approved: "template_refund_approved",
+    template_refund_paid: "template_refund_paid",
+    template_pending_approvals: "template_pending_approvals",
   };
 
   for (const [camel, dbKey] of Object.entries(keyMap)) {

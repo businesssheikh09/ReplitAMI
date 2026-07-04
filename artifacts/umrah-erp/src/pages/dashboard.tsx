@@ -7,7 +7,8 @@ import {
   Users, Store, BookOpen, Scale, ClipboardCheck, BarChart3, FileBarChart,
   BookOpenText, Plane, RefreshCw, MessageSquare, UserCheck, Banknote,
   ArrowRightLeft, TrendingUp, Clock, AlertCircle, CheckCircle2, FileText,
-  Activity, DollarSign, Wallet, LogIn, LogOut, Ticket, PhoneCall,
+  Activity, DollarSign, Wallet, LogIn, LogOut, Ticket, PhoneCall, Zap,
+  XCircle, Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGetDashboardStats } from "@workspace/api-client-react";
@@ -221,6 +222,19 @@ export default function Dashboard() {
   const isSales      = ["sales", "management", "admin"].includes(role ?? "");
   const isAdmin      = ["management", "admin"].includes(role ?? "");
 
+  const { data: autoSummary } = useQuery<{
+    enabled: number;
+    running: number;
+    failed: number;
+    todaySent: number;
+    total: number;
+  }>({
+    queryKey: ["automations-summary"],
+    queryFn: () => fetch("/api/automations-summary", { headers }).then((r) => r.json()),
+    enabled: !!token && isAdmin,
+    refetchInterval: 60_000,
+  });
+
   return (
     <div className="space-y-5">
       {/* ── Header ── */}
@@ -310,6 +324,19 @@ export default function Dashboard() {
                 <StatWidget icon={UserCheck}     label="Portal Pending"     value={ops.portalPending}     href="/portal-users"    color="bg-sky-700"   alert />
                 <StatWidget icon={Users}         label="Staff"              value="Manage"                href="/users"           color="bg-slate-600" />
                 <StatWidget icon={FileBarChart}  label="Reports"            value="View"                  href="/reports"         color="bg-orange-600" />
+              </div>
+            </div>
+          )}
+
+          {/* Automation row (admin only) */}
+          {isAdmin && autoSummary && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-600 mb-2">Automation Engine</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatWidget icon={Zap}      label="Active Automations"  value={`${autoSummary.enabled}/${autoSummary.total}`} href="/automation-settings" color="bg-teal-700" />
+                <StatWidget icon={Send}     label="Sent Today"          value={autoSummary.todaySent}  href="/automation-logs"     color="bg-blue-700" />
+                <StatWidget icon={XCircle}  label="Failed"              value={autoSummary.failed}     href="/automation-logs"     color="bg-red-700" alert />
+                <StatWidget icon={CheckCircle2} label="Automation Logs" value="View"                  href="/automation-logs"     color="bg-violet-700" />
               </div>
             </div>
           )}

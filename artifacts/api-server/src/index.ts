@@ -6,6 +6,7 @@ import { startScheduler } from "./services/scheduler";
 import { startBotScheduler } from "./services/bot-scheduler";
 import { startInventorySweep } from "./services/inventory-sweep";
 import { startHoldExpiry } from "./services/hold-expiry";
+import { startAutomationScheduler } from "./services/automation-scheduler";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -43,4 +44,5 @@ app.listen(port, async (err) => {
   startBotScheduler();
   startInventorySweep();
   startHoldExpiry();
+  startAutomationScheduler();
 });

@@ -51,6 +51,8 @@ import FlightCancellationsPage from "@/pages/flight-cancellations";
 import BspReportPage from "@/pages/bsp-report";
 import StaffTicketLogPage from "@/pages/staff-ticket-log";
 import PassengerDocumentsPage from "@/pages/passenger-documents-page";
+import AutomationSettingsPage from "@/pages/automation-settings";
+import AutomationLogsPage from "@/pages/automation-logs";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -171,6 +173,10 @@ function Router() {
         <ProtectedRoute path="/ai-settings" component={AiSettingsPage} />
         <ProtectedRoute path="/local-airline-settings" component={LocalAirlineSettingsPage} />
         <ProtectedRoute path="/reports" component={ReportsPage} />
+
+        {/* Automation */}
+        <ProtectedRoute path="/automation-settings" component={AutomationSettingsPage} />
+        <ProtectedRoute path="/automation-logs" component={AutomationLogsPage} />
 
         <Route component={NotFound} />
       </Switch>

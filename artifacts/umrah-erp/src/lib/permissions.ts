@@ -53,6 +53,9 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/flights/staff-log": NOT_ACCOUNTS,
   "/flights/passengers": SENSITIVE_DOCS,
   "/flights/local-airlines": ADMIN_MGMT,
+  "/automation-settings": ADMIN_MGMT,
+  "/automation-logs": ADMIN_MGMT,
+  "/reports": ADMIN_MGMT,
 };
 
 export function canAccess(role: string | undefined, route: string): boolean {
@@ -146,6 +149,9 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/flights/staff-log": NOT_ACCOUNTS,
   "/flights/passengers": SENSITIVE_DOCS,
   "/flights/local-airlines": ADMIN_MGMT,
+  "/automation-settings": ADMIN_MGMT,
+  "/automation-logs": ADMIN_MGMT,
+  "/reports": ADMIN_MGMT,
 };
 
 export const ROLE_LABELS: Record<string, string> = {
