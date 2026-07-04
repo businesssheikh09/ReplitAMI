@@ -40,7 +40,7 @@ router.post("/transport", requireAuth, async (req, res) => {
       driverName: req.body.driverName,
       driverPhone: req.body.driverPhone,
       status: "pending",
-      amount: req.body.amount.toString(),
+      amount: (req.body.amount ?? 0).toString(),
       currency: req.body.currency || "USD",
       vendorId: req.body.vendorId || null,
       notes: req.body.notes,

@@ -4,3 +4,4 @@
 - [OCR Stub Pattern](ocr-stub.md) — scanDocument() checks AI_INTEGRATIONS_OPENAI_API_KEY; AI Settings ERP page stores key in process.env (session) with Replit Secrets note
 - [Print Branding System](print-branding.md) — useBranding() hook + PrintLayout component; branding keys are snake_case in websiteConfigTable key-value store; no DB migration needed to add new keys
 - [Forced password-change enforcement](force-change-password.md) — must_change_password enforced in requireAuth (403 + allowlist), never UI-only; login still issues a full token
+- [API Create Operation Patterns](api-create-patterns.md) — amount.toString() guard, async generateRef(), FK undefined→Drizzle-default crash, voucher format, portal types

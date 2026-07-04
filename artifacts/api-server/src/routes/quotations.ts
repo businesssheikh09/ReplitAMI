@@ -6,10 +6,13 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-let refCounter = 1000;
-function generateRef() {
-  refCounter++;
-  return `QT-${new Date().getFullYear()}-${String(refCounter).padStart(4, "0")}`;
+async function generateRef(): Promise<string> {
+  const existing = await db.select({ ref: quotationsTable.referenceNo }).from(quotationsTable);
+  const nums = existing
+    .map(q => parseInt(q.ref.split("-").pop() || "0"))
+    .filter(n => !isNaN(n));
+  const next = nums.length ? Math.max(...nums) + 1 : 1001;
+  return `QT-${new Date().getFullYear()}-${String(next).padStart(4, "0")}`;
 }
 
 router.get("/quotations", requireAuth, async (req, res) => {
@@ -46,7 +49,7 @@ router.post("/quotations", requireAuth, async (req, res) => {
   try {
     const [quotation] = await db.insert(quotationsTable).values({
       clientId: req.body.clientId,
-      referenceNo: generateRef(),
+      referenceNo: await generateRef(),
       title: req.body.title,
       status: "draft",
       totalAmount: "0",

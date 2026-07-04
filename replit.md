@@ -1,6 +1,6 @@
-# [Project name]
+# Al Musafir International — Umrah Travel ERP
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Full-stack Umrah travel agency platform: ERP for staff (clients, quotations, hotels, flights, visa, transport, accounting, WhatsApp automation) + public website with flight booking + customer portal.
 
 ## Run & Operate
 
@@ -22,7 +22,13 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/routes/` — all API route handlers (one file per domain)
+- `artifacts/umrah-erp/src/pages/` — all ERP page components (50+ pages)
+- `artifacts/frontend/src/pages/` — public website + portal pages
+- `lib/db/src/schema/` — Drizzle table definitions (source of truth for DB shape)
+- `artifacts/api-server/src/routes/vouchers.ts` — double-entry voucher system (RV/PV/JV/CV types, lines[] required)
+- `artifacts/api-server/src/routes/portal.ts` — portal user auth (type: "party"|"dc", emailOrPhone login)
+- `artifacts/api-server/src/routes/portal-customer.ts` — portal-authenticated customer endpoints
 
 ## Architecture decisions
 
@@ -45,6 +51,11 @@ Al Musafir International — an Umrah travel agency ERP. Staff (roles: managemen
 - ERP endpoints must use `requireAuth`; only intentionally public routes stay open. Verify with an unauth request expecting 401.
 - api-server runs via a build+start workflow using esbuild (transpile-only), so it runs despite ~33 pre-existing `string|string[]` typecheck errors in route handlers. Do not add new ones — use `parseInt(String(req.params.id))`.
 - After changing DB schema, run `pnpm --filter @workspace/db run push` (dev only).
+- Voucher creation requires: `type` ("RV"|"PV"|"JV"|"CV"), `date`, `narration`, and `lines[]` with at least 2 balanced entries (DR=CR). Not a simple debit/credit field API.
+- Quotation ref numbers (`generateRef()`) are now async and query max existing ref from DB — required since the in-memory counter resets on every server restart.
+- Numeric fields like `amount` in transport/flight routes use `(req.body.amount ?? 0).toString()` guard to avoid `.toString()` crash on undefined.
+- Portal user type must be `"party"` or `"dc"` (not `"customer"`). Login uses `emailOrPhone` field, not `email`. New party accounts start as `"pending_approval"`.
+- `/portal/dashboard` requires portal session token (Bearer from portal login), not ERP staff token — returns 401 with staff token by design.
 
 ## Pointers
 

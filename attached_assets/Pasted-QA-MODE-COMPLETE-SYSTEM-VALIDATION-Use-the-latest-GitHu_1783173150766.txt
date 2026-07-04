@@ -1,0 +1,637 @@
+QA MODE — COMPLETE SYSTEM VALIDATION
+
+Use the latest GitHub main branch as the source of truth.
+
+Read the ENTIRE repository before testing.
+
+Do NOT skip any module.
+
+Do NOT skip any route.
+
+Do NOT skip any page.
+
+Do NOT skip any API.
+
+Do NOT skip any database workflow.
+
+--------------------------------------------------
+GENERAL RULES
+--------------------------------------------------
+
+• Fix every bug immediately when discovered.
+• Retest after every fix.
+• Continue until no Critical or High severity bugs remain.
+• Do NOT push to GitHub until I approve.
+
+--------------------------------------------------
+SOURCE CODE VALIDATION
+--------------------------------------------------
+
+Validate:
+
+Frontend
+
+ERP
+
+Portal
+
+Backend
+
+Database
+
+API
+
+Schedulers
+
+WhatsApp
+
+OCR
+
+Object Storage
+
+Reports
+
+Automation
+
+Accounting
+
+Flights
+
+Hotels
+
+Transport
+
+Visa
+
+CRM
+
+Users
+
+Portal Users
+
+Permissions
+
+Media Library
+
+Website Settings
+
+AI Settings
+
+Company Branding
+
+Print Templates
+
+Documentation
+
+Environment
+
+Migrations
+
+Drizzle Schema
+
+OpenAPI
+
+Generated clients
+
+--------------------------------------------------
+UI TESTING
+--------------------------------------------------
+
+Test every:
+
+Page
+
+Tab
+
+Button
+
+Dropdown
+
+Search
+
+Filter
+
+Date Picker
+
+Table
+
+Modal
+
+Dialog
+
+Drawer
+
+Print Button
+
+CSV Export
+
+Import
+
+Upload
+
+Delete
+
+Edit
+
+Create
+
+Pagination
+
+Sorting
+
+Responsive Layout
+
+Scrolling
+
+Breadcrumb
+
+Sidebar
+
+Top Navigation
+
+Quick Links
+
+Role Navigation
+
+--------------------------------------------------
+SCROLL TESTING
+
+Scroll every page completely.
+
+Verify:
+
+No overlapping components
+
+No broken spacing
+
+No hidden controls
+
+No infinite loading
+
+No layout shift
+
+Footer appears correctly
+
+--------------------------------------------------
+AUTHENTICATION
+
+Test:
+
+Admin
+
+Management
+
+Accounts
+
+Sales
+
+Operations
+
+Hotel
+
+Flight
+
+CRM
+
+WhatsApp
+
+Portal User
+
+Blocked User
+
+Pending User
+
+Unauthorized User
+
+Verify every permission.
+
+--------------------------------------------------
+ACCOUNTING
+
+Verify:
+
+Chart of Accounts
+
+Voucher Engine
+
+Receipt Voucher
+
+Payment Voucher
+
+Journal Voucher
+
+Contra Voucher
+
+Journal Posting
+
+Ledger
+
+Foreign Currency Ledger
+
+Fortnight Ledger
+
+Trial Balance
+
+P&L
+
+Balance Sheet
+
+Financial Years
+
+Opening Balances
+
+Reports
+
+Cash Book
+
+Receipt Book
+
+Payment Book
+
+Journal Book
+
+Party Statement
+
+Vendor Statement
+
+Party Summary
+
+Vendor Summary
+
+Search Voucher
+
+Booking Validation
+
+Journal Entries
+
+Journal Balancing
+
+Print Layouts
+
+--------------------------------------------------
+HOTELS
+
+Verify:
+
+Hotels
+
+Hotel Requests
+
+Vendor Mapping
+
+Vendor Comparison
+
+Workflow
+
+Invoice Generation
+
+Journal Posting
+
+Customer Notification
+
+Request History
+
+Send to Vendor
+
+--------------------------------------------------
+HOTEL WORKFLOW
+
+Execute one complete workflow using:
+
+Hotel:
+Waqf Uthman
+
+Vendor Group:
+Jazeera Taiba Group
+
+Verify:
+
+Hotel Request
+
+WhatsApp Query
+
+Vendor Selection
+
+Hotel Invoice
+
+Journal Posting
+
+Customer Confirmation
+
+History
+
+Audit Trail
+
+--------------------------------------------------
+FLIGHTS
+
+Verify:
+
+Search
+
+Booking
+
+Quotation
+
+Issue Ticket
+
+Cancellation
+
+Refund
+
+Refund Approval
+
+Refund Payment
+
+Passenger Documents
+
+OCR
+
+Local OCR
+
+MRZ
+
+BSP Report
+
+Commission
+
+Staff Log
+
+Passenger Documents
+
+--------------------------------------------------
+TRANSPORT
+
+Verify:
+
+Bookings
+
+Invoices
+
+Journal Posting
+
+Reports
+
+--------------------------------------------------
+VISA
+
+Verify:
+
+Applications
+
+Documents
+
+Status
+
+Expiry
+
+--------------------------------------------------
+CRM
+
+Verify:
+
+Clients
+
+Pipeline
+
+Call Logs
+
+Sales Targets
+
+Follow Ups
+
+WhatsApp Linking
+
+Lost Reasons
+
+--------------------------------------------------
+PORTAL
+
+Verify:
+
+Dashboard
+
+Bookings
+
+Invoices
+
+Statements
+
+Hotel Voucher
+
+Flight Ticket
+
+Visa
+
+Transport
+
+Documents
+
+Payments
+
+Profile
+
+Download Centre
+
+Password Change
+
+--------------------------------------------------
+REPORTS
+
+Generate every report.
+
+Verify:
+
+Filters
+
+Totals
+
+Running Balance
+
+Sorting
+
+CSV
+
+Print
+
+Logo
+
+Header
+
+Footer
+
+Date Range
+
+Empty Results
+
+Large Results
+
+--------------------------------------------------
+AUTOMATION
+
+Verify:
+
+Payment Reminder
+
+Vendor Follow-up
+
+Check-in Reminder
+
+Flight Reminder
+
+Passport Expiry
+
+Visa Expiry
+
+Management Summary
+
+Pending Approval Alerts
+
+Automation Logs
+
+Automation Settings
+
+Run Now
+
+Enable
+
+Disable
+
+--------------------------------------------------
+OCR
+
+Test:
+
+Passport
+
+CNIC
+
+AI OCR
+
+Local OCR
+
+Manual OCR
+
+MRZ Validation
+
+Low Confidence Review
+
+Manual Correction
+
+--------------------------------------------------
+COMPANY BRANDING
+
+Verify logo appears on:
+
+Invoices
+
+Hotel Voucher
+
+Reports
+
+Statements
+
+Receipts
+
+Payment Voucher
+
+Receipt Voucher
+
+Journal Voucher
+
+Portal Downloads
+
+Print Views
+
+--------------------------------------------------
+DATASET
+
+Create QA records only.
+
+Prefix everything with:
+
+QA-
+
+Do NOT modify existing customer data.
+
+Create approximately:
+
+10–20 Parties
+
+10–20 Vendors
+
+10–20 Hotels
+
+10–20 Hotel Requests
+
+10–20 Hotel Invoices
+
+10–20 Flights
+
+10–20 CRM Clients
+
+10–20 Vouchers
+
+10–20 Journal Entries
+
+10–20 Receipts
+
+10–20 Payments
+
+--------------------------------------------------
+SERVER VALIDATION
+
+Restart backend.
+
+Restart frontend.
+
+Verify:
+
+No crashes
+
+No duplicate sequences
+
+No broken migrations
+
+No missing routes
+
+No broken imports
+
+No runtime exceptions
+
+--------------------------------------------------
+TYPECHECK
+
+Run:
+
+Frontend Typecheck
+
+ERP Typecheck
+
+Backend Typecheck
+
+OpenAPI Generation
+
+Database Validation
+
+--------------------------------------------------
+FINAL REPORT
+
+Produce:
+
+1. Critical Bugs
+2. High Severity Bugs
+3. Medium Bugs
+4. Minor Bugs
+5. UX Issues
+6. Performance Issues
+7. Security Issues
+8. Data Integrity Issues
+9. Bugs Fixed
+10. Remaining Bugs
+11. Recommendations
+12. Production Readiness Score (0–100)
+13. Commercial Readiness Score (0–100)
+14. Enterprise Readiness Score (0–100)
+
+Do NOT push anything to GitHub until I approve.

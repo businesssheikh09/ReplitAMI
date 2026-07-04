@@ -35,6 +35,7 @@ router.get("/visa-applications", requireAuth, async (req, res) => {
 
 router.post("/visa-applications", requireAuth, async (req, res) => {
   try {
+    if (!req.body.clientId) return res.status(400).json({ error: "clientId is required" });
     const [application] = await db.insert(visaApplicationsTable).values({
       clientId: req.body.clientId,
       passportNumber: req.body.passportNumber,

@@ -65,7 +65,7 @@ router.post("/flight-quotations", requireAuth, async (req, res) => {
         flightNumber: req.body.flightNumber,
         pnr: req.body.pnr ?? null,
         status: "draft",
-        amount: req.body.amount.toString(),
+        amount: (req.body.amount ?? 0).toString(),
         currency: req.body.currency || "USD",
         notes: req.body.notes,
         airlineCommission: req.body.airlineCommission ? req.body.airlineCommission.toString() : null,
