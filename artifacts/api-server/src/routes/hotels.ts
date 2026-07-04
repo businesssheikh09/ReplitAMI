@@ -732,6 +732,15 @@ router.get("/vendors", async (req, res) => {
 
 router.post("/vendors", requireAuth, async (req, res) => {
   try {
+    const required = ["name", "type", "contactName", "email", "phone", "country"] as const;
+    const missing = required.filter((f) => {
+      const v = req.body[f];
+      return v === undefined || v === null || String(v).trim() === "";
+    });
+    if (missing.length) {
+      return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
+    }
+
     const [vendor] = await db
       .insert(vendorsTable)
       .values({
