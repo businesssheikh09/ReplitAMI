@@ -17,7 +17,7 @@ async function generateInvoiceNumber(): Promise<string> {
   return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
-router.get("/invoices", async (req, res) => {
+router.get("/invoices", requireAuth, async (req, res) => {
   try {
     const { type, clientId, status } = req.query as Record<string, string>;
     let invoices = await db.select().from(invoicesTable);
@@ -44,7 +44,7 @@ router.get("/invoices", async (req, res) => {
   }
 });
 
-router.post("/invoices", async (req, res) => {
+router.post("/invoices", requireAuth, async (req, res) => {
   try {
     const [invoice] = await db.insert(invoicesTable).values({
       invoiceNumber: await generateInvoiceNumber(),
@@ -84,7 +84,7 @@ router.post("/invoices", async (req, res) => {
   }
 });
 
-router.get("/invoices/:id", async (req, res) => {
+router.get("/invoices/:id", requireAuth, async (req, res) => {
   try {
     const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, parseInt(req.params.id)));
     if (!invoice) return res.status(404).json({ error: "Invoice not found" });
@@ -106,7 +106,7 @@ router.get("/invoices/:id", async (req, res) => {
   }
 });
 
-router.patch("/invoices/:id", async (req, res) => {
+router.patch("/invoices/:id", requireAuth, async (req, res) => {
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["status", "notes"];
@@ -128,7 +128,7 @@ router.patch("/invoices/:id", async (req, res) => {
   }
 });
 
-router.post("/invoices/:id/payments", async (req, res) => {
+router.post("/invoices/:id/payments", requireAuth, async (req, res) => {
   try {
     const invoiceId = parseInt(req.params.id);
     const [payment] = await db.insert(paymentsTable).values({
@@ -169,7 +169,7 @@ router.post("/invoices/:id/payments", async (req, res) => {
 
 // ── Chart of Accounts ─────────────────────────────────────────────────────────
 
-router.get("/accounting/accounts", async (req, res) => {
+router.get("/accounting/accounts", requireAuth, async (req, res) => {
   try {
     const accounts = await db.select().from(chartOfAccountsTable).orderBy(chartOfAccountsTable.code);
     return res.json(accounts);
@@ -181,7 +181,7 @@ router.get("/accounting/accounts", async (req, res) => {
 
 // ── General Journal ───────────────────────────────────────────────────────────
 
-router.get("/accounting/journal", async (req, res) => {
+router.get("/accounting/journal", requireAuth, async (req, res) => {
   try {
     const { sourceType, limit: limitQ, offset: offsetQ } = req.query as Record<string, string>;
     const limitN = Math.min(parseInt(limitQ ?? "500"), 1000);
@@ -215,7 +215,7 @@ router.get("/accounting/journal", async (req, res) => {
   }
 });
 
-router.post("/accounting/journal", async (req, res) => {
+router.post("/accounting/journal", requireAuth, async (req, res) => {
   try {
     const { debitAccountId, creditAccountId, amount, description, date, currency } = req.body;
     if (!debitAccountId || !creditAccountId || !amount || !description) {
@@ -262,7 +262,7 @@ router.post("/accounting/journal", async (req, res) => {
   }
 });
 
-router.get("/expenses", async (req, res) => {
+router.get("/expenses", requireAuth, async (req, res) => {
   try {
     const { category, from, to } = req.query as Record<string, string>;
     let expenses = await db.select().from(expensesTable);
@@ -283,7 +283,7 @@ router.get("/expenses", async (req, res) => {
   }
 });
 
-router.post("/expenses", async (req, res) => {
+router.post("/expenses", requireAuth, async (req, res) => {
   try {
     const [expense] = await db.insert(expensesTable).values({
       title: req.body.title,
@@ -307,7 +307,7 @@ router.post("/expenses", async (req, res) => {
 });
 
 // Documents
-router.get("/documents", async (req, res) => {
+router.get("/documents", requireAuth, async (req, res) => {
   try {
     const { type, clientId } = req.query as Record<string, string>;
     let docs = await db.select().from(documentsTable);
@@ -325,7 +325,7 @@ router.get("/documents", async (req, res) => {
   }
 });
 
-router.post("/documents/generate", async (req, res) => {
+router.post("/documents/generate", requireAuth, async (req, res) => {
   try {
     const [doc] = await db.insert(documentsTable).values({
       type: req.body.type,
@@ -342,7 +342,7 @@ router.post("/documents/generate", async (req, res) => {
 
 // ── Account Ledger ────────────────────────────────────────────────────────────
 
-router.get("/accounting/ledger", requireAuth, async (req, res) => {
+router.get("/accounting/ledger",requireAuth, async (req, res) => {
   try {
     const { accountId, from, to } = req.query as Record<string, string>;
     if (!accountId) return res.status(400).json({ error: "accountId query param required" });
@@ -411,7 +411,7 @@ router.get("/accounting/ledger", requireAuth, async (req, res) => {
 
 // ── Trial Balance ─────────────────────────────────────────────────────────────
 
-router.get("/accounting/trial-balance", requireAuth, async (req, res) => {
+router.get("/accounting/trial-balance",requireAuth, async (req, res) => {
   try {
     const { from, to } = req.query as Record<string, string>;
 

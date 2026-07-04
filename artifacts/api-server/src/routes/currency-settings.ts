@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { currencySettingsTable, currencyDailyRatesTable, currencyTransactionsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
@@ -37,7 +38,7 @@ function serializeTx(t: typeof currencyTransactionsTable.$inferSelect) {
 
 // ── Home Currency Settings ────────────────────────────────────────────────────
 
-router.get("/currency/settings", async (req, res) => {
+router.get("/currency/settings", requireAuth, async (req, res) => {
   try {
     const rows = await db.select().from(currencySettingsTable).limit(1);
     if (rows.length === 0) {
@@ -51,7 +52,7 @@ router.get("/currency/settings", async (req, res) => {
   }
 });
 
-router.put("/currency/settings", async (req, res) => {
+router.put("/currency/settings", requireAuth, async (req, res) => {
   try {
     const { homeCurrency } = req.body;
     if (!homeCurrency) return res.status(400).json({ error: "homeCurrency required" });
@@ -73,7 +74,7 @@ router.put("/currency/settings", async (req, res) => {
 
 // ── Daily Rates ───────────────────────────────────────────────────────────────
 
-router.get("/currency/daily-rates", async (req, res) => {
+router.get("/currency/daily-rates", requireAuth, async (req, res) => {
   try {
     const { date } = req.query as Record<string, string>;
     let rows = await db.select().from(currencyDailyRatesTable).orderBy(desc(currencyDailyRatesTable.date));
@@ -85,7 +86,7 @@ router.get("/currency/daily-rates", async (req, res) => {
   }
 });
 
-router.post("/currency/daily-rates", async (req, res) => {
+router.post("/currency/daily-rates", requireAuth, async (req, res) => {
   try {
     const { currency, date, vendorRate, guestRate, clientRate, notes } = req.body;
     if (!currency || !date || vendorRate == null || guestRate == null || clientRate == null) {
@@ -122,7 +123,7 @@ router.post("/currency/daily-rates", async (req, res) => {
   }
 });
 
-router.put("/currency/daily-rates/:id", async (req, res) => {
+router.put("/currency/daily-rates/:id", requireAuth, async (req, res) => {
   try {
     const { vendorRate, guestRate, clientRate, notes } = req.body;
     const [row] = await db.update(currencyDailyRatesTable)
@@ -143,7 +144,7 @@ router.put("/currency/daily-rates/:id", async (req, res) => {
   }
 });
 
-router.delete("/currency/daily-rates/:id", async (req, res) => {
+router.delete("/currency/daily-rates/:id", requireAuth, async (req, res) => {
   try {
     await db.delete(currencyDailyRatesTable).where(eq(currencyDailyRatesTable.id, parseInt(req.params.id)));
     return res.json({ ok: true });
@@ -155,7 +156,7 @@ router.delete("/currency/daily-rates/:id", async (req, res) => {
 
 // ── Currency Transactions ─────────────────────────────────────────────────────
 
-router.get("/currency/transactions", async (req, res) => {
+router.get("/currency/transactions", requireAuth, async (req, res) => {
   try {
     const rows = await db.select().from(currencyTransactionsTable).orderBy(desc(currencyTransactionsTable.date));
     return res.json(rows.map(serializeTx));
@@ -165,7 +166,7 @@ router.get("/currency/transactions", async (req, res) => {
   }
 });
 
-router.post("/currency/transactions", async (req, res) => {
+router.post("/currency/transactions", requireAuth, async (req, res) => {
   try {
     const { currency, amount, vendorRate, clientRate, rateTier, date, notes } = req.body;
     if (!currency || amount == null || vendorRate == null || clientRate == null || !date) {
@@ -206,7 +207,7 @@ router.post("/currency/transactions", async (req, res) => {
   }
 });
 
-router.delete("/currency/transactions/:id", async (req, res) => {
+router.delete("/currency/transactions/:id", requireAuth, async (req, res) => {
   try {
     await db.delete(currencyTransactionsTable).where(eq(currencyTransactionsTable.id, parseInt(req.params.id)));
     return res.json({ ok: true });
@@ -218,7 +219,7 @@ router.delete("/currency/transactions/:id", async (req, res) => {
 
 // ── Profit Report ─────────────────────────────────────────────────────────────
 
-router.get("/currency/profit-report", async (req, res) => {
+router.get("/currency/profit-report", requireAuth, async (req, res) => {
   try {
     const rows = await db.select().from(currencyTransactionsTable).orderBy(desc(currencyTransactionsTable.date));
     const byCurrency: Record<string, { currency: string; totalAmount: number; totalVendorCost: number; totalClientRevenue: number; totalProfit: number; count: number }> = {};

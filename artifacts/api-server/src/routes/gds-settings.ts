@@ -6,7 +6,7 @@ import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
-router.get("/gds-settings", async (req, res) => {
+router.get("/gds-settings", requireAuth, async (req, res) => {
   try {
     const settings = await db.select().from(gdsSettingsTable);
     return res.json(settings.map(s => ({
@@ -20,7 +20,7 @@ router.get("/gds-settings", async (req, res) => {
   }
 });
 
-router.get("/gds-settings/:provider", async (req, res) => {
+router.get("/gds-settings/:provider", requireAuth, async (req, res) => {
   try {
     const [setting] = await db.select().from(gdsSettingsTable)
       .where(eq(gdsSettingsTable.provider, req.params.provider));
@@ -36,7 +36,7 @@ router.get("/gds-settings/:provider", async (req, res) => {
   }
 });
 
-router.put("/gds-settings/:provider", requireAuth, async (req, res) => {
+router.put("/gds-settings/:provider",requireAuth, async (req, res) => {
   try {
     const provider = req.params.provider as string;
     const [existing] = await db.select().from(gdsSettingsTable)
@@ -76,7 +76,7 @@ router.put("/gds-settings/:provider", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/gds-settings/:provider/test", requireAuth, async (req, res) => {
+router.post("/gds-settings/:provider/test",requireAuth, async (req, res) => {
   try {
     const provider = req.params.provider as string;
     const [setting] = await db.select().from(gdsSettingsTable)

@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { clientsTable, clientNotesTable, followUpsTable, usersTable, quotationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
 
-router.get("/clients", async (req, res) => {
+router.get("/clients", requireAuth, async (req, res) => {
   try {
     const { search, status, country, assignedTo } = req.query as Record<string, string>;
     let clients = await db.select().from(clientsTable);
@@ -41,7 +42,7 @@ router.get("/clients", async (req, res) => {
   }
 });
 
-router.post("/clients", async (req, res) => {
+router.post("/clients", requireAuth, async (req, res) => {
   try {
     const [client] = await db.insert(clientsTable).values({
       name: req.body.name,
@@ -60,7 +61,7 @@ router.post("/clients", async (req, res) => {
   }
 });
 
-router.get("/clients/:id", async (req, res) => {
+router.get("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, id));
@@ -105,7 +106,7 @@ router.get("/clients/:id", async (req, res) => {
   }
 });
 
-router.patch("/clients/:id", async (req, res) => {
+router.patch("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -120,7 +121,7 @@ router.patch("/clients/:id", async (req, res) => {
   }
 });
 
-router.delete("/clients/:id", async (req, res) => {
+router.delete("/clients/:id", requireAuth, async (req, res) => {
   try {
     await db.delete(clientsTable).where(eq(clientsTable.id, parseInt(req.params.id)));
     return res.json({ message: "Client deleted" });
@@ -130,7 +131,7 @@ router.delete("/clients/:id", async (req, res) => {
   }
 });
 
-router.get("/clients/:id/notes", async (req, res) => {
+router.get("/clients/:id/notes", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const notes = await db.select().from(clientNotesTable).where(eq(clientNotesTable.clientId, id));
@@ -143,7 +144,7 @@ router.get("/clients/:id/notes", async (req, res) => {
   }
 });
 
-router.post("/clients/:id/notes", async (req, res) => {
+router.post("/clients/:id/notes", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [note] = await db.insert(clientNotesTable).values({
@@ -158,7 +159,7 @@ router.post("/clients/:id/notes", async (req, res) => {
   }
 });
 
-router.get("/clients/:id/followups", async (req, res) => {
+router.get("/clients/:id/followups", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [followUps, client, users] = await Promise.all([
@@ -179,7 +180,7 @@ router.get("/clients/:id/followups", async (req, res) => {
   }
 });
 
-router.post("/clients/:id/followups", async (req, res) => {
+router.post("/clients/:id/followups", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [followUp] = await db.insert(followUpsTable).values({
@@ -203,7 +204,7 @@ router.post("/clients/:id/followups", async (req, res) => {
   }
 });
 
-router.get("/followups", async (req, res) => {
+router.get("/followups", requireAuth, async (req, res) => {
   try {
     const { assignedTo, dueBefore } = req.query as Record<string, string>;
     let followUps = await db.select().from(followUpsTable);

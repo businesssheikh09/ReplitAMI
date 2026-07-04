@@ -10,6 +10,7 @@ export interface AuthUser {
   isActive: boolean;
   canIssueTickets: boolean;
   ticketingPin?: string | null;
+  mustChangePassword?: boolean;
   createdAt: string;
   updatedAt?: string;
 }

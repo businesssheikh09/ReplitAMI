@@ -10,7 +10,15 @@ export interface AuthenticatedUser {
   isActive: boolean;
   canIssueTickets: boolean;
   ticketingPin: string | null;
+  mustChangePassword: boolean;
 }
+
+// Endpoints a user with a pending forced password change may still reach.
+const MUST_CHANGE_ALLOWLIST = [
+  "/api/auth/change-password",
+  "/api/auth/logout",
+  "/api/auth/me",
+];
 
 declare global {
   namespace Express {
@@ -36,6 +44,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     isActive: usersTable.isActive,
     canIssueTickets: usersTable.canIssueTickets,
     ticketingPin: usersTable.ticketingPin,
+    mustChangePassword: usersTable.mustChangePassword,
   }).from(usersTable).where(eq(usersTable.sessionToken, token)).limit(1);
 
   if (!user || !user.isActive) {
@@ -43,6 +52,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return;
   }
   req.user = user;
+
+  // Force a pending password change: block every endpoint except the
+  // allowlisted auth endpoints until the user sets a new password.
+  if (user.mustChangePassword) {
+    const path = req.originalUrl.split("?")[0];
+    if (!MUST_CHANGE_ALLOWLIST.includes(path)) {
+      res.status(403).json({ error: "Password change required", mustChangePassword: true });
+      return;
+    }
+  }
+
   next();
 }
 

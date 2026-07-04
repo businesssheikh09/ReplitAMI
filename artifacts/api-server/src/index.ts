@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDepartmentAccounts } from "./lib/seed-departments";
+import { migratePlaintextPasswords } from "./lib/security";
 import { initWhatsApp } from "./services/whatsapp";
 import { startScheduler } from "./services/scheduler";
 import { startBotScheduler } from "./services/bot-scheduler";
@@ -32,6 +33,7 @@ app.listen(port, async (err) => {
 
   logger.info({ port }, "Server listening");
   await seedDepartmentAccounts();
+  await migratePlaintextPasswords();
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const sessionDir = path.join(__dirname, "..", "whatsapp-session");

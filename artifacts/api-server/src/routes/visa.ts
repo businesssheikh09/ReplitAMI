@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { visaApplicationsTable, clientsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
 
-router.get("/visa-applications", async (req, res) => {
+router.get("/visa-applications", requireAuth, async (req, res) => {
   try {
     const { status, clientId, assignedTo } = req.query as Record<string, string>;
     let applications = await db.select().from(visaApplicationsTable);
@@ -32,7 +33,7 @@ router.get("/visa-applications", async (req, res) => {
   }
 });
 
-router.post("/visa-applications", async (req, res) => {
+router.post("/visa-applications", requireAuth, async (req, res) => {
   try {
     const [application] = await db.insert(visaApplicationsTable).values({
       clientId: req.body.clientId,
@@ -58,7 +59,7 @@ router.post("/visa-applications", async (req, res) => {
   }
 });
 
-router.get("/visa-applications/:id", async (req, res) => {
+router.get("/visa-applications/:id", requireAuth, async (req, res) => {
   try {
     const [application] = await db.select().from(visaApplicationsTable).where(eq(visaApplicationsTable.id, parseInt(req.params.id)));
     if (!application) return res.status(404).json({ error: "Visa application not found" });
@@ -82,7 +83,7 @@ router.get("/visa-applications/:id", async (req, res) => {
   }
 });
 
-router.patch("/visa-applications/:id", async (req, res) => {
+router.patch("/visa-applications/:id", requireAuth, async (req, res) => {
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["status", "assignedTo", "rejectionReason", "notes"];

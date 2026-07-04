@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { quotationsTable, quotationItemsTable, clientsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -11,7 +12,7 @@ function generateRef() {
   return `QT-${new Date().getFullYear()}-${String(refCounter).padStart(4, "0")}`;
 }
 
-router.get("/quotations", async (req, res) => {
+router.get("/quotations", requireAuth, async (req, res) => {
   try {
     const { clientId, status, search } = req.query as Record<string, string>;
     let quotations = await db.select().from(quotationsTable);
@@ -41,7 +42,7 @@ router.get("/quotations", async (req, res) => {
   }
 });
 
-router.post("/quotations", async (req, res) => {
+router.post("/quotations", requireAuth, async (req, res) => {
   try {
     const [quotation] = await db.insert(quotationsTable).values({
       clientId: req.body.clientId,
@@ -70,7 +71,7 @@ router.post("/quotations", async (req, res) => {
   }
 });
 
-router.get("/quotations/:id", async (req, res) => {
+router.get("/quotations/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [quotation] = await db.select().from(quotationsTable).where(eq(quotationsTable.id, id));
@@ -101,7 +102,7 @@ router.get("/quotations/:id", async (req, res) => {
   }
 });
 
-router.patch("/quotations/:id", async (req, res) => {
+router.patch("/quotations/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -124,7 +125,7 @@ router.patch("/quotations/:id", async (req, res) => {
   }
 });
 
-router.delete("/quotations/:id", async (req, res) => {
+router.delete("/quotations/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     await db.delete(quotationItemsTable).where(eq(quotationItemsTable.quotationId, id));
@@ -136,7 +137,7 @@ router.delete("/quotations/:id", async (req, res) => {
   }
 });
 
-router.post("/quotations/:id/items", async (req, res) => {
+router.post("/quotations/:id/items", requireAuth, async (req, res) => {
   try {
     const quotationId = parseInt(req.params.id);
     const unitPrice = req.body.unitPrice;
@@ -168,7 +169,7 @@ router.post("/quotations/:id/items", async (req, res) => {
   }
 });
 
-router.patch("/quotations/:id/items/:itemId", async (req, res) => {
+router.patch("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
   try {
     const itemId = parseInt(req.params.itemId);
     const quotationId = parseInt(req.params.id);
@@ -200,7 +201,7 @@ router.patch("/quotations/:id/items/:itemId", async (req, res) => {
   }
 });
 
-router.delete("/quotations/:id/items/:itemId", async (req, res) => {
+router.delete("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
   try {
     const itemId = parseInt(req.params.itemId);
     const quotationId = parseInt(req.params.id);
@@ -215,7 +216,7 @@ router.delete("/quotations/:id/items/:itemId", async (req, res) => {
   }
 });
 
-router.post("/quotations/:id/send", async (req, res) => {
+router.post("/quotations/:id/send", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [quotation] = await db.update(quotationsTable).set({ status: "sent", updatedAt: new Date() }).where(eq(quotationsTable.id, id)).returning();

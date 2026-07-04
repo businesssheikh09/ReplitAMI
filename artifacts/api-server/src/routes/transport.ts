@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { transportBookingsTable, clientsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
 
-router.get("/transport", async (req, res) => {
+router.get("/transport", requireAuth, async (req, res) => {
   try {
     const { type, clientId, status } = req.query as Record<string, string>;
     let bookings = await db.select().from(transportBookingsTable);
@@ -26,7 +27,7 @@ router.get("/transport", async (req, res) => {
   }
 });
 
-router.post("/transport", async (req, res) => {
+router.post("/transport", requireAuth, async (req, res) => {
   try {
     const [booking] = await db.insert(transportBookingsTable).values({
       clientId: req.body.clientId,
@@ -57,7 +58,7 @@ router.post("/transport", async (req, res) => {
   }
 });
 
-router.get("/transport/:id", async (req, res) => {
+router.get("/transport/:id", requireAuth, async (req, res) => {
   try {
     const [booking] = await db.select().from(transportBookingsTable).where(eq(transportBookingsTable.id, parseInt(req.params.id)));
     if (!booking) return res.status(404).json({ error: "Transport booking not found" });
@@ -74,7 +75,7 @@ router.get("/transport/:id", async (req, res) => {
   }
 });
 
-router.patch("/transport/:id", async (req, res) => {
+router.patch("/transport/:id", requireAuth, async (req, res) => {
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["status", "driverName", "driverPhone", "notes"];
@@ -94,7 +95,7 @@ router.patch("/transport/:id", async (req, res) => {
   }
 });
 
-router.delete("/transport/:id", async (req, res) => {
+router.delete("/transport/:id", requireAuth, async (req, res) => {
   try {
     await db.delete(transportBookingsTable).where(eq(transportBookingsTable.id, parseInt(req.params.id)));
     return res.json({ message: "Transport booking deleted" });

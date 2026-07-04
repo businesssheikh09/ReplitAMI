@@ -12,7 +12,7 @@ import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
 
-router.get("/dashboard/stats", async (req, res) => {
+router.get("/dashboard/stats", requireAuth, async (req, res) => {
   try {
     const [
       clients, quotations, invoices, visas, followUps, transport, expenses
@@ -75,7 +75,7 @@ router.get("/dashboard/stats", async (req, res) => {
   }
 });
 
-router.get("/dashboard/recent-activity", async (req, res) => {
+router.get("/dashboard/recent-activity", requireAuth, async (req, res) => {
   try {
     const limit = parseInt((req.query.limit as string) || "20");
     const activities = await db.select().from(activityLogsTable);
@@ -95,7 +95,7 @@ router.get("/dashboard/recent-activity", async (req, res) => {
   }
 });
 
-router.get("/dashboard/revenue-chart", async (req, res) => {
+router.get("/dashboard/revenue-chart", requireAuth, async (req, res) => {
   try {
     const months = parseInt((req.query.months as string) || "6");
     const invoices = await db.select().from(invoicesTable);
@@ -127,7 +127,7 @@ router.get("/dashboard/revenue-chart", async (req, res) => {
   }
 });
 
-router.get("/dashboard/staff-performance", async (req, res) => {
+router.get("/dashboard/staff-performance", requireAuth, async (req, res) => {
   try {
     const [users, quotations] = await Promise.all([
       db.select().from(usersTable),
@@ -161,7 +161,7 @@ router.get("/dashboard/staff-performance", async (req, res) => {
 
 // ── Operational Summary (role-based widgets) ──────────────────────────────────
 
-router.get("/dashboard/operational", requireAuth, async (req, res) => {
+router.get("/dashboard/operational",requireAuth, async (req, res) => {
   try {
     const todayStr = new Date().toISOString().split("T")[0];
     const todayStart = new Date(todayStr + "T00:00:00.000Z");

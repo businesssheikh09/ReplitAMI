@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { hotelInvoicesTable, clientsTable, vendorsTable, usersTable, hotelsTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
@@ -60,7 +61,7 @@ async function buildLookup() {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-router.get("/invoices/hotel/next-dn", async (req, res) => {
+router.get("/invoices/hotel/next-dn", requireAuth, async (req, res) => {
   try {
     const nextDn = await getNextDnNumber();
     return res.json({ dnNumber: nextDn });
@@ -70,7 +71,7 @@ router.get("/invoices/hotel/next-dn", async (req, res) => {
   }
 });
 
-router.get("/invoices/hotel", async (req, res) => {
+router.get("/invoices/hotel", requireAuth, async (req, res) => {
   try {
     const rows = await db.select().from(hotelInvoicesTable).orderBy(desc(hotelInvoicesTable.id));
     const lookup = await buildLookup();
@@ -81,7 +82,7 @@ router.get("/invoices/hotel", async (req, res) => {
   }
 });
 
-router.get("/invoices/hotel/:id", async (req, res) => {
+router.get("/invoices/hotel/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [inv] = await db.select().from(hotelInvoicesTable).where(eq(hotelInvoicesTable.id, id));
@@ -94,7 +95,7 @@ router.get("/invoices/hotel/:id", async (req, res) => {
   }
 });
 
-router.post("/invoices/hotel", async (req, res) => {
+router.post("/invoices/hotel", requireAuth, async (req, res) => {
   try {
     const body = req.body;
     const dnNumber = body.dnNumber || (await getNextDnNumber());
@@ -148,7 +149,7 @@ router.post("/invoices/hotel", async (req, res) => {
   }
 });
 
-router.put("/invoices/hotel/:id", async (req, res) => {
+router.put("/invoices/hotel/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const body = req.body;

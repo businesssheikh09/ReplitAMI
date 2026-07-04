@@ -75,7 +75,7 @@ function quoteOut(q: typeof vendorQuotesTable.$inferSelect, vendorName?: string)
 
 // ── Hotels CRUD ───────────────────────────────────────────────────────────────
 
-router.get("/hotels", async (req, res) => {
+router.get("/hotels", requireAuth, async (req, res) => {
   try {
     const { city, stars, search } = req.query as Record<string, string>;
     let hotels = await db.select().from(hotelsTable);
@@ -92,7 +92,7 @@ router.get("/hotels", async (req, res) => {
   }
 });
 
-router.post("/hotels", requireAuth, async (req, res) => {
+router.post("/hotels",requireAuth, async (req, res) => {
   try {
     const [hotel] = await db
       .insert(hotelsTable)
@@ -120,7 +120,7 @@ router.post("/hotels", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/hotels/:id", async (req, res) => {
+router.get("/hotels/:id", requireAuth, async (req, res) => {
   try {
     const id = pid(req.params.id);
     const [hotel] = await db.select().from(hotelsTable).where(eq(hotelsTable.id, id));
@@ -149,7 +149,7 @@ router.get("/hotels/:id", async (req, res) => {
   }
 });
 
-router.patch("/hotels/:id", requireAuth, async (req, res) => {
+router.patch("/hotels/:id",requireAuth, async (req, res) => {
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = [
@@ -171,7 +171,7 @@ router.patch("/hotels/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/hotels/:id", requireAuth, async (req, res) => {
+router.delete("/hotels/:id",requireAuth, async (req, res) => {
   try {
     await db.delete(hotelsTable).where(eq(hotelsTable.id, pid(req.params.id)));
     return res.json({ message: "Hotel deleted" });
@@ -183,7 +183,7 @@ router.delete("/hotels/:id", requireAuth, async (req, res) => {
 
 // ── Hotel Vendors ─────────────────────────────────────────────────────────────
 
-router.get("/hotels/:id/vendors", async (req, res) => {
+router.get("/hotels/:id/vendors", requireAuth, async (req, res) => {
   try {
     const hotelId = pid(req.params.id);
     const rows = await db
@@ -200,7 +200,7 @@ router.get("/hotels/:id/vendors", async (req, res) => {
   }
 });
 
-router.post("/hotels/:id/vendors", requireAuth, async (req, res) => {
+router.post("/hotels/:id/vendors",requireAuth, async (req, res) => {
   try {
     const hotelId = pid(req.params.id);
     const [row] = await db
@@ -221,7 +221,7 @@ router.post("/hotels/:id/vendors", requireAuth, async (req, res) => {
   }
 });
 
-router.patch("/hotels/:id/vendors/:hvId", requireAuth, async (req, res) => {
+router.patch("/hotels/:id/vendors/:hvId",requireAuth, async (req, res) => {
   try {
     const hvId = pid(req.params.hvId);
     const updates: Record<string, unknown> = {};
@@ -237,7 +237,7 @@ router.patch("/hotels/:id/vendors/:hvId", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/hotels/:id/vendors/:hvId", requireAuth, async (req, res) => {
+router.delete("/hotels/:id/vendors/:hvId",requireAuth, async (req, res) => {
   try {
     await db.delete(hotelVendorsTable).where(eq(hotelVendorsTable.id, pid(req.params.hvId)));
     return res.json({ message: "Removed" });
@@ -249,7 +249,7 @@ router.delete("/hotels/:id/vendors/:hvId", requireAuth, async (req, res) => {
 
 // ── Hotel Requests ────────────────────────────────────────────────────────────
 
-router.get("/hotel-requests", async (req, res) => {
+router.get("/hotel-requests", requireAuth, async (req, res) => {
   try {
     const { status, clientId } = req.query as Record<string, string>;
     let requests = await db.select().from(hotelRequestsTable).orderBy(desc(hotelRequestsTable.createdAt));
@@ -266,7 +266,7 @@ router.get("/hotel-requests", async (req, res) => {
   }
 });
 
-router.post("/hotel-requests", requireAuth, async (req, res) => {
+router.post("/hotel-requests",requireAuth, async (req, res) => {
   try {
     const [request] = await db
       .insert(hotelRequestsTable)
@@ -314,7 +314,7 @@ router.post("/hotel-requests", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/hotel-requests/:id", async (req, res) => {
+router.get("/hotel-requests/:id", requireAuth, async (req, res) => {
   try {
     const id = pid(req.params.id);
     const [request] = await db.select().from(hotelRequestsTable).where(eq(hotelRequestsTable.id, id));
@@ -343,7 +343,7 @@ router.get("/hotel-requests/:id", async (req, res) => {
   }
 });
 
-router.patch("/hotel-requests/:id", requireAuth, async (req, res) => {
+router.patch("/hotel-requests/:id",requireAuth, async (req, res) => {
   try {
     const id = pid(req.params.id);
     const [existing] = await db.select().from(hotelRequestsTable).where(eq(hotelRequestsTable.id, id));
@@ -376,7 +376,7 @@ router.patch("/hotel-requests/:id", requireAuth, async (req, res) => {
 
 // ── Request Events ────────────────────────────────────────────────────────────
 
-router.get("/hotel-requests/:id/events", requireAuth, async (req, res) => {
+router.get("/hotel-requests/:id/events",requireAuth, async (req, res) => {
   try {
     const events = await db
       .select()
@@ -390,7 +390,7 @@ router.get("/hotel-requests/:id/events", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/hotel-requests/:id/events", requireAuth, async (req, res) => {
+router.post("/hotel-requests/:id/events",requireAuth, async (req, res) => {
   try {
     const [event] = await db
       .insert(hotelRequestEventsTable)
@@ -413,7 +413,7 @@ router.post("/hotel-requests/:id/events", requireAuth, async (req, res) => {
 
 // ── Send to Vendor ────────────────────────────────────────────────────────────
 
-router.post("/hotel-requests/:id/send-to-vendor", requireAuth, async (req, res) => {
+router.post("/hotel-requests/:id/send-to-vendor",requireAuth, async (req, res) => {
   try {
     const id = pid(req.params.id);
     const [request] = await db.select().from(hotelRequestsTable).where(eq(hotelRequestsTable.id, id));
@@ -473,7 +473,7 @@ router.post("/hotel-requests/:id/send-to-vendor", requireAuth, async (req, res) 
 
 // ── Vendor Quotes ─────────────────────────────────────────────────────────────
 
-router.post("/hotel-requests/:id/quotes", requireAuth, async (req, res) => {
+router.post("/hotel-requests/:id/quotes",requireAuth, async (req, res) => {
   try {
     const requestId = pid(req.params.id);
     const pricePerRoom = Math.round(parseFloat(req.body.pricePerRoom) * 100);
@@ -526,7 +526,7 @@ router.post("/hotel-requests/:id/quotes", requireAuth, async (req, res) => {
   }
 });
 
-router.patch("/hotel-requests/:id/quotes/:quoteId", requireAuth, async (req, res) => {
+router.patch("/hotel-requests/:id/quotes/:quoteId",requireAuth, async (req, res) => {
   try {
     const quoteId = pid(req.params.quoteId);
     const updates: Record<string, unknown> = {};
@@ -544,7 +544,7 @@ router.patch("/hotel-requests/:id/quotes/:quoteId", requireAuth, async (req, res
   }
 });
 
-router.patch("/hotel-requests/:id/quotes/:quoteId/select", requireAuth, async (req, res) => {
+router.patch("/hotel-requests/:id/quotes/:quoteId/select",requireAuth, async (req, res) => {
   try {
     const requestId = pid(req.params.id);
     const quoteId = pid(req.params.quoteId);
@@ -647,7 +647,7 @@ router.patch("/hotel-requests/:id/quotes/:quoteId/select", requireAuth, async (r
 
 // ── Customer Notification ─────────────────────────────────────────────────────
 
-router.post("/hotel-requests/:id/notify-client", requireAuth, async (req, res) => {
+router.post("/hotel-requests/:id/notify-client",requireAuth, async (req, res) => {
   try {
     const id = pid(req.params.id);
     const [[request], clients] = await Promise.all([
@@ -714,7 +714,7 @@ router.post("/hotel-requests/:id/notify-client", requireAuth, async (req, res) =
 
 // ── Vendors CRUD ──────────────────────────────────────────────────────────────
 
-router.get("/vendors", async (req, res) => {
+router.get("/vendors", requireAuth, async (req, res) => {
   try {
     const { type, search } = req.query as Record<string, string>;
     let vendors = await db.select().from(vendorsTable);
@@ -730,7 +730,7 @@ router.get("/vendors", async (req, res) => {
   }
 });
 
-router.post("/vendors", requireAuth, async (req, res) => {
+router.post("/vendors",requireAuth, async (req, res) => {
   try {
     const required = ["name", "type", "contactName", "email", "phone", "country"] as const;
     const missing = required.filter((f) => {
@@ -759,7 +759,7 @@ router.post("/vendors", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/vendors/:id", async (req, res) => {
+router.get("/vendors/:id", requireAuth, async (req, res) => {
   try {
     const [vendor] = await db.select().from(vendorsTable).where(eq(vendorsTable.id, pid(req.params.id)));
     if (!vendor) return res.status(404).json({ error: "Vendor not found" });
@@ -770,7 +770,7 @@ router.get("/vendors/:id", async (req, res) => {
   }
 });
 
-router.patch("/vendors/:id", requireAuth, async (req, res) => {
+router.patch("/vendors/:id",requireAuth, async (req, res) => {
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["name", "type", "contactName", "email", "phone", "country", "isActive"];
@@ -785,7 +785,7 @@ router.patch("/vendors/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/vendors/:id", requireAuth, async (req, res) => {
+router.delete("/vendors/:id",requireAuth, async (req, res) => {
   try {
     await db.delete(vendorsTable).where(eq(vendorsTable.id, pid(req.params.id)));
     return res.json({ message: "Vendor deleted" });

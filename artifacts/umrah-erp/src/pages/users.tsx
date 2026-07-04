@@ -24,7 +24,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, token } = useAuth();
   const isManagement = currentUser?.role === "management" || currentUser?.role === "admin";
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -33,6 +33,10 @@ export default function UsersPage() {
   const [pinUser, setPinUser] = useState<any>(null);
   const [newPin, setNewPin] = useState("");
   const [canIssue, setCanIssue] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetUser, setResetUser] = useState<any>(null);
+  const [tempPassword, setTempPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "sales", phone: "", canIssueTickets: false, ticketingPin: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -47,6 +51,38 @@ export default function UsersPage() {
     setNewPin("");
     setCanIssue(u.canIssueTickets || false);
     setPinOpen(true);
+  };
+
+  const openResetDialog = (u: any) => {
+    setResetUser(u);
+    setTempPassword("");
+    setResetOpen(true);
+  };
+
+  const submitReset = async () => {
+    if (!resetUser) return;
+    if (tempPassword.length < 6) {
+      toast({ title: "Password too short", description: "Use at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/users/${resetUser.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ temporaryPassword: tempPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to reset password");
+      }
+      setResetOpen(false);
+      toast({ title: `Password reset for ${resetUser.name}`, description: "They must set a new password on next login." });
+    } catch (e: any) {
+      toast({ title: "Reset failed", description: e.message, variant: "destructive" });
+    } finally {
+      setResetting(false);
+    }
   };
 
   const savePinSettings = () => {
@@ -169,7 +205,13 @@ export default function UsersPage() {
                         : <span className="flex items-center gap-1 text-red-600 text-sm"><UserX className="h-3 w-3" />Inactive</span>}
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs text-muted-foreground">••••••</span>
+                      {isManagement ? (
+                        <Button size="sm" variant="outline" className="text-xs h-7" title="Reset password" onClick={() => openResetDialog(u)}>
+                          <KeyRound className="h-3 w-3 mr-1" />Reset
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">••••••</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {u.canIssueTickets ? (
@@ -248,6 +290,36 @@ export default function UsersPage() {
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setPinOpen(false)}>Cancel</Button>
             <Button onClick={savePinSettings} disabled={updateUser.isPending}>Save Settings</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-blue-600" />
+              Reset Password — {resetUser?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
+              Set a temporary password. The user will be required to choose a new password on their next login.
+            </div>
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <Input
+                type="password"
+                value={tempPassword}
+                onChange={e => setTempPassword(e.target.value)}
+                placeholder="At least 6 characters"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setResetOpen(false)}>Cancel</Button>
+            <Button onClick={submitReset} disabled={resetting}>{resetting ? "Resetting..." : "Reset Password"}</Button>
           </div>
         </DialogContent>
       </Dialog>

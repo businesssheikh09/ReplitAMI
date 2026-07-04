@@ -1,11 +1,13 @@
 import { Router } from "express";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { hashPassword, writeAuthAudit } from "../lib/security.js";
 
 const router = Router();
 
-router.get("/users", async (req, res) => {
+router.get("/users", requireAuth, async (req, res) => {
   try {
     const { role, search } = req.query as Record<string, string>;
     let users = await db.select().from(usersTable);
@@ -24,14 +26,15 @@ router.get("/users", async (req, res) => {
   }
 });
 
-router.post("/users", async (req, res) => {
+router.post("/users", requireAuth, async (req, res) => {
   try {
     const { name, email, password, role, phone, canIssueTickets, ticketingPin } = req.body;
     const [user] = await db.insert(usersTable).values({
-      name, email, passwordHash: password || "admin123", role: role || "sales", phone,
+      name, email, passwordHash: await hashPassword(password || "admin123"), role: role || "sales", phone,
       canIssueTickets: canIssueTickets || false,
       ticketingPin: ticketingPin || null,
     }).returning();
+    await writeAuthAudit({ event: "user_created", userId: user.id, email: user.email, performedBy: req.user!.id, req });
     const { passwordHash: _, ticketingPin: __, ...safeUser } = user;
     return res.status(201).json({ ...safeUser, hasTicketingPin: !!__ });
   } catch (err) {
@@ -40,7 +43,27 @@ router.post("/users", async (req, res) => {
   }
 });
 
-router.get("/users/:id", async (req, res) => {
+router.post("/users/:id/reset-password", requireAuth, requireRole("management"), async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id));
+    const { temporaryPassword } = req.body;
+    if (!temporaryPassword || typeof temporaryPassword !== "string" || temporaryPassword.length < 6) {
+      return res.status(400).json({ error: "temporaryPassword must be at least 6 characters" });
+    }
+    const [user] = await db.update(usersTable)
+      .set({ passwordHash: await hashPassword(temporaryPassword), mustChangePassword: true, updatedAt: new Date() })
+      .where(eq(usersTable.id, id))
+      .returning();
+    if (!user) return res.status(404).json({ error: "User not found" });
+    await writeAuthAudit({ event: "password_reset", userId: user.id, email: user.email, performedBy: req.user!.id, req });
+    return res.json({ message: "Password reset. User must change password on next login." });
+  } catch (err) {
+    req.log.error({ err }, "Reset password error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/users/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
@@ -53,7 +76,7 @@ router.get("/users/:id", async (req, res) => {
   }
 });
 
-router.patch("/users/:id", async (req, res) => {
+router.patch("/users/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { name, email, role, phone, isActive, canIssueTickets, ticketingPin } = req.body;
@@ -75,7 +98,7 @@ router.patch("/users/:id", async (req, res) => {
   }
 });
 
-router.delete("/users/:id", async (req, res) => {
+router.delete("/users/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     await db.delete(usersTable).where(eq(usersTable.id, id));

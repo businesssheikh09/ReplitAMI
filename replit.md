@@ -26,19 +26,25 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Passwords are stored as bcrypt hashes (`users.password_hash`, `$2b$`). `verifyPassword()` (`artifacts/api-server/src/lib/security.ts`) accepts a bcrypt hash, and falls back to plaintext comparison only for un-migrated rows during the migration window.
+- `migratePlaintextPasswords()` runs on server startup (after seed, in `index.ts`) and is idempotent — it only re-hashes rows where `isBcryptHash()` is false.
+- Forced password change (`users.must_change_password`) is enforced **server-side** in `requireAuth`: a user with the flag set is blocked (403 `{mustChangePassword:true}`) from every endpoint except an allowlist (`/api/auth/change-password`, `/api/auth/logout`, `/api/auth/me`). The ERP login UI mirrors this by gating navigation. Never rely on the UI alone.
+- Security events are recorded in `auth_audit_log` (`event` column: `login_success`, `login_failed`, `password_change`, `password_reset`, `user_created`) via `writeAuthAudit()`.
+- Custom auth endpoints (change-password, reset-password) are called from the ERP via direct `fetch("/api/...", {Authorization: Bearer})`, NOT via generated OpenAPI hooks, to avoid changing the API contract/spec.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Al Musafir International — an Umrah travel agency ERP. Staff (roles: management, sales, accounts, operations) manage clients, quotations, hotels, flights, visas, transport, accounting, and WhatsApp automation. A public website + customer portal (in `artifacts/frontend`) exposes packages and portal features. Access to ERP endpoints requires authentication; a few routes are public (`/currency/rates`, `/public/hotels`, `/website-config`).
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Do NOT push to GitHub until the user explicitly approves.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- ERP endpoints must use `requireAuth`; only intentionally public routes stay open. Verify with an unauth request expecting 401.
+- api-server runs via a build+start workflow using esbuild (transpile-only), so it runs despite ~33 pre-existing `string|string[]` typecheck errors in route handlers. Do not add new ones — use `parseInt(String(req.params.id))`.
+- After changing DB schema, run `pnpm --filter @workspace/db run push` (dev only).
 
 ## Pointers
 
