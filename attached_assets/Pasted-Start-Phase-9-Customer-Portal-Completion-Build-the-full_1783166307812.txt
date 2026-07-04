@@ -1,0 +1,49 @@
+Start Phase 9 — Customer Portal Completion.
+
+Build the full customer self-service portal now. Use the current GitHub/main state as source of truth. Do not disturb existing ERP, accounting, hotel, flight, WhatsApp, OCR, reports, automation, or branding work.
+
+Deliver:
+1. Portal dashboard with upcoming bookings, outstanding balance, recent payments, document status, and quick actions.
+2. Portal bookings page showing hotel, flight, visa, and transport bookings with status badges.
+3. Portal invoices page with printable invoice view and outstanding amount.
+4. Portal statement page using party ledger/running balance, with CSV export.
+5. Hotel vouchers page with printable voucher/confirmation format using the global company logo/settings.
+6. Flight tickets page showing issued tickets, PNR, passenger names, route, fare, and document status.
+7. Visa status page showing application status and expected processing notes.
+8. Transport page showing scheduled pickups/transfers.
+9. Documents page for passport/CNIC upload, OCR status, extracted fields, approval status.
+10. Payments page for payment proof upload and payment history timeline.
+11. Profile page to edit name, phone, email, company details, and change password.
+12. Download Centre for invoices, receipts, hotel vouchers, and flight tickets.
+
+Backend:
+- Add authenticated portal routes using existing portal auth middleware:
+  GET /api/portal/dashboard
+  GET /api/portal/bookings
+  GET /api/portal/invoices
+  GET /api/portal/statement
+  GET /api/portal/hotel-vouchers
+  GET /api/portal/flight-tickets
+  GET /api/portal/visa-status
+  GET /api/portal/transport
+  GET /api/portal/payments
+  PATCH /api/portal/me
+  POST /api/portal/change-password
+- Reuse existing DB tables and schemas where possible.
+- Return only data belonging to the logged-in portal user.
+- Never expose password hashes or internal staff-only fields.
+
+Frontend:
+- Add portal pages under the public frontend app.
+- All portal pages must redirect to /portal-login if unauthenticated.
+- Portal header must show customer name, logout button, and navigation.
+- All print/download views must use company branding/logo from Website Settings.
+- Use real data only, no mocks.
+
+Validation:
+- Run DB push/codegen if needed.
+- Run API, frontend, and ERP typechecks.
+- Run smoke tests for every new portal API route.
+- Verify unauthenticated portal routes redirect/block correctly.
+- Verify user A cannot access user B data.
+- Fix all issues before final summary.
