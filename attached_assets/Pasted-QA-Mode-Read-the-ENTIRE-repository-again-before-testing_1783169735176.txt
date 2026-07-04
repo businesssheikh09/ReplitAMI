@@ -1,0 +1,339 @@
+QA Mode.
+
+Read the ENTIRE repository again before testing.
+
+Test EVERYTHING.
+
+No shortcuts.
+
+No mocks.
+
+Use real database.
+
+Use existing data.
+
+Create additional test records where required.
+
+Test every page.
+
+Test every button.
+
+Test every menu.
+
+Test every dropdown.
+
+Test every modal.
+
+Test every popup.
+
+Test every dialog.
+
+Test every table.
+
+Test every search.
+
+Test every filter.
+
+Test every print.
+
+Test every export.
+
+Test every upload.
+
+Test every delete.
+
+Test every edit.
+
+Test every create.
+
+Test scrolling.
+
+Test pagination.
+
+Test responsive layouts.
+
+Test keyboard navigation.
+
+Test permissions.
+
+Test route guards.
+
+Test authentication.
+
+Test authorization.
+
+Test dashboard.
+
+Test ERP.
+
+Test Website.
+
+Test Portal.
+
+Test API.
+
+Test Database.
+
+Test WhatsApp.
+
+Test OCR.
+
+Test Automation.
+
+Test Scheduler.
+
+Test Accounting.
+
+Test Reports.
+
+Test Hotel.
+
+Test Flight.
+
+Test Visa.
+
+Test Transport.
+
+Test CRM.
+
+Test Media Library.
+
+Test AI Settings.
+
+Test Website Settings.
+
+Test Users.
+
+Test Portal Users.
+
+Test Vendors.
+
+Test Hotels.
+
+Test Files.
+
+Test Chart of Accounts.
+
+Test Voucher Engine.
+
+Test Trial Balance.
+
+Test Ledger.
+
+Test Financial Years.
+
+Test P&L.
+
+Test Balance Sheet.
+
+Test Party Statement.
+
+Test Vendor Statement.
+
+Test Party Summary.
+
+Test Vendor Summary.
+
+Test Cash Book.
+
+Test Receipt Book.
+
+Test Payment Book.
+
+Test Journal Book.
+
+Test Booking Validation.
+
+Test Hotel Check-in Report.
+
+Test Room Occupancy.
+
+Test Foreign Currency Ledger.
+
+Test Fortnight Ledger.
+
+Test BSP Reports.
+
+Test Refund workflow.
+
+Test Cancellation workflow.
+
+Test Passenger Documents.
+
+Test OCR.
+
+Test Local OCR.
+
+Test MRZ.
+
+Test Company Logo printing.
+
+Test every print layout.
+
+Test invoice printing.
+
+Test hotel voucher printing.
+
+Test portal printing.
+
+Test PDF generation.
+
+Test CSV exports.
+
+Create at least:
+
+20 Parties
+
+20 Vendors
+
+20 Hotels
+
+20 Flight Requests
+
+20 Hotel Requests
+
+20 Invoices
+
+20 Hotel Invoices
+
+20 Vouchers
+
+20 Receipts
+
+20 Payments
+
+20 Journal Entries
+
+20 CRM Clients
+
+20 Follow-ups
+
+20 Call Logs
+
+20 Portal Accounts
+
+20 Passenger Documents
+
+Run complete accounting cycle.
+
+Run hotel procurement cycle.
+
+Run flight booking cycle.
+
+Run transport cycle.
+
+Run visa cycle.
+
+Run CRM cycle.
+
+Run portal cycle.
+
+For hotel procurement:
+
+Use:
+
+Hotel:
+Waqf Uthman
+
+Vendor Group:
+Jazeera Taiba Group
+
+Verify:
+
+Hotel Request
+
+Send to Vendor
+
+WhatsApp message generation
+
+Vendor comparison
+
+Approval
+
+Hotel Invoice
+
+Journal Posting
+
+Customer notification
+
+Verify journal balances after every workflow.
+
+Verify trial balance remains balanced.
+
+Verify financial statements.
+
+Verify dashboard KPIs.
+
+Verify automation jobs.
+
+Verify scheduler.
+
+Verify object storage.
+
+Verify OCR extraction.
+
+Verify local OCR.
+
+Verify AI OCR.
+
+Verify permissions.
+
+Verify logging.
+
+Verify audit trails.
+
+Verify error handling.
+
+Verify empty states.
+
+Verify loading states.
+
+Verify duplicate prevention.
+
+Verify server restart.
+
+Verify database consistency.
+
+Run backend typecheck.
+
+Run ERP typecheck.
+
+Run frontend typecheck.
+
+Run smoke tests.
+
+Run integration tests.
+
+Run end-to-end tests.
+
+Automatically fix every bug found.
+
+Repeat testing until no critical or major issues remain.
+
+Return a final report containing:
+
+Critical Issues
+
+Major Issues
+
+Minor Issues
+
+Performance Issues
+
+Security Issues
+
+UX Issues
+
+Data Integrity Issues
+
+Bugs Fixed
+
+Remaining Bugs
+
+Recommended Improvements
+
+Deployment Readiness Score (/100)
+
+Production Readiness Score (/100)
+
+Do not push anything to GitHub until I approve.
