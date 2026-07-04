@@ -86,7 +86,7 @@ router.post("/invoices", requireAuth, async (req, res) => {
 
 router.get("/invoices/:id", requireAuth, async (req, res) => {
   try {
-    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, parseInt(req.params.id)));
+    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, parseInt(String(req.params.id))));
     if (!invoice) return res.status(404).json({ error: "Invoice not found" });
     const clients = await db.select().from(clientsTable);
     const vendors = await db.select().from(vendorsTable);
@@ -112,7 +112,7 @@ router.patch("/invoices/:id", requireAuth, async (req, res) => {
     const fields = ["status", "notes"];
     fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
     if (req.body.dueDate) updates.dueDate = new Date(req.body.dueDate);
-    const [invoice] = await db.update(invoicesTable).set(updates).where(eq(invoicesTable.id, parseInt(req.params.id))).returning();
+    const [invoice] = await db.update(invoicesTable).set(updates).where(eq(invoicesTable.id, parseInt(String(req.params.id)))).returning();
     if (!invoice) return res.status(404).json({ error: "Invoice not found" });
     return res.json({
       ...invoice,
@@ -130,7 +130,7 @@ router.patch("/invoices/:id", requireAuth, async (req, res) => {
 
 router.post("/invoices/:id/payments", requireAuth, async (req, res) => {
   try {
-    const invoiceId = parseInt(req.params.id);
+    const invoiceId = parseInt(String(req.params.id));
     const [payment] = await db.insert(paymentsTable).values({
       invoiceId,
       amount: req.body.amount.toString(),

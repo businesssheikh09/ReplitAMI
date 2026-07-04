@@ -23,7 +23,7 @@ router.get("/gds-settings", requireAuth, async (req, res) => {
 router.get("/gds-settings/:provider", requireAuth, async (req, res) => {
   try {
     const [setting] = await db.select().from(gdsSettingsTable)
-      .where(eq(gdsSettingsTable.provider, req.params.provider));
+      .where(eq(gdsSettingsTable.provider, String(req.params.provider)));
     if (!setting) return res.json(null);
     return res.json({
       ...setting,

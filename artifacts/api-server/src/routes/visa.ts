@@ -61,7 +61,7 @@ router.post("/visa-applications", requireAuth, async (req, res) => {
 
 router.get("/visa-applications/:id", requireAuth, async (req, res) => {
   try {
-    const [application] = await db.select().from(visaApplicationsTable).where(eq(visaApplicationsTable.id, parseInt(req.params.id)));
+    const [application] = await db.select().from(visaApplicationsTable).where(eq(visaApplicationsTable.id, parseInt(String(req.params.id))));
     if (!application) return res.status(404).json({ error: "Visa application not found" });
     const [clients, users] = await Promise.all([
       db.select().from(clientsTable),
@@ -90,7 +90,7 @@ router.patch("/visa-applications/:id", requireAuth, async (req, res) => {
     fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
     if (req.body.submittedAt) updates.submittedAt = new Date(req.body.submittedAt);
     if (req.body.approvedAt) updates.approvedAt = new Date(req.body.approvedAt);
-    const [application] = await db.update(visaApplicationsTable).set(updates).where(eq(visaApplicationsTable.id, parseInt(req.params.id))).returning();
+    const [application] = await db.update(visaApplicationsTable).set(updates).where(eq(visaApplicationsTable.id, parseInt(String(req.params.id)))).returning();
     if (!application) return res.status(404).json({ error: "Visa application not found" });
     return res.json({
       ...application,

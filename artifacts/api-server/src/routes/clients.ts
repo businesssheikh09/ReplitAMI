@@ -63,7 +63,7 @@ router.post("/clients", requireAuth, async (req, res) => {
 
 router.get("/clients/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, id));
     if (!client) return res.status(404).json({ error: "Client not found" });
 
@@ -108,7 +108,7 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
 
 router.patch("/clients/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["name", "email", "phone", "whatsapp", "country", "city", "leadStatus", "assignedTo"];
     fields.forEach(f => { if (req.body[f] !== undefined) updates[f === "leadStatus" ? "leadStatus" : f] = req.body[f]; });
@@ -123,7 +123,7 @@ router.patch("/clients/:id", requireAuth, async (req, res) => {
 
 router.delete("/clients/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(clientsTable).where(eq(clientsTable.id, parseInt(req.params.id)));
+    await db.delete(clientsTable).where(eq(clientsTable.id, parseInt(String(req.params.id))));
     return res.json({ message: "Client deleted" });
   } catch (err) {
     req.log.error({ err }, "Delete client error");
@@ -133,7 +133,7 @@ router.delete("/clients/:id", requireAuth, async (req, res) => {
 
 router.get("/clients/:id/notes", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const notes = await db.select().from(clientNotesTable).where(eq(clientNotesTable.clientId, id));
     const users = await db.select().from(usersTable);
     const userMap = new Map(users.map(u => [u.id, u.name]));
@@ -146,7 +146,7 @@ router.get("/clients/:id/notes", requireAuth, async (req, res) => {
 
 router.post("/clients/:id/notes", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [note] = await db.insert(clientNotesTable).values({
       clientId: id,
       content: req.body.content,
@@ -161,7 +161,7 @@ router.post("/clients/:id/notes", requireAuth, async (req, res) => {
 
 router.get("/clients/:id/followups", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [followUps, client, users] = await Promise.all([
       db.select().from(followUpsTable).where(eq(followUpsTable.clientId, id)),
       db.select().from(clientsTable).where(eq(clientsTable.id, id)),
@@ -182,7 +182,7 @@ router.get("/clients/:id/followups", requireAuth, async (req, res) => {
 
 router.post("/clients/:id/followups", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [followUp] = await db.insert(followUpsTable).values({
       clientId: id,
       dueDate: new Date(req.body.dueDate),

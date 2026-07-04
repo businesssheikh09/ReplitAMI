@@ -84,7 +84,7 @@ router.get("/invoices/hotel", requireAuth, async (req, res) => {
 
 router.get("/invoices/hotel/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [inv] = await db.select().from(hotelInvoicesTable).where(eq(hotelInvoicesTable.id, id));
     if (!inv) return res.status(404).json({ error: "Not found" });
     const lookup = await buildLookup();
@@ -151,7 +151,7 @@ router.post("/invoices/hotel", requireAuth, async (req, res) => {
 
 router.put("/invoices/hotel/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const body = req.body;
 
     const [row] = await db.update(hotelInvoicesTable).set({

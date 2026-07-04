@@ -73,7 +73,7 @@ router.post("/quotations", requireAuth, async (req, res) => {
 
 router.get("/quotations/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [quotation] = await db.select().from(quotationsTable).where(eq(quotationsTable.id, id));
     if (!quotation) return res.status(404).json({ error: "Quotation not found" });
     const [items, clients, users] = await Promise.all([
@@ -104,7 +104,7 @@ router.get("/quotations/:id", requireAuth, async (req, res) => {
 
 router.patch("/quotations/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["title", "status", "currency", "termsAndConditions", "notes"];
     fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
@@ -127,7 +127,7 @@ router.patch("/quotations/:id", requireAuth, async (req, res) => {
 
 router.delete("/quotations/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     await db.delete(quotationItemsTable).where(eq(quotationItemsTable.quotationId, id));
     await db.delete(quotationsTable).where(eq(quotationsTable.id, id));
     return res.json({ message: "Quotation deleted" });
@@ -139,7 +139,7 @@ router.delete("/quotations/:id", requireAuth, async (req, res) => {
 
 router.post("/quotations/:id/items", requireAuth, async (req, res) => {
   try {
-    const quotationId = parseInt(req.params.id);
+    const quotationId = parseInt(String(req.params.id));
     const unitPrice = req.body.unitPrice;
     const quantity = req.body.quantity || 1;
     const totalPrice = unitPrice * quantity;
@@ -171,8 +171,8 @@ router.post("/quotations/:id/items", requireAuth, async (req, res) => {
 
 router.patch("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
   try {
-    const itemId = parseInt(req.params.itemId);
-    const quotationId = parseInt(req.params.id);
+    const itemId = parseInt(String(req.params.itemId));
+    const quotationId = parseInt(String(req.params.id));
     const updates: Record<string, unknown> = {};
     if (req.body.serviceType) updates.serviceType = req.body.serviceType;
     if (req.body.description) updates.description = req.body.description;
@@ -203,8 +203,8 @@ router.patch("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
 
 router.delete("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
   try {
-    const itemId = parseInt(req.params.itemId);
-    const quotationId = parseInt(req.params.id);
+    const itemId = parseInt(String(req.params.itemId));
+    const quotationId = parseInt(String(req.params.id));
     await db.delete(quotationItemsTable).where(eq(quotationItemsTable.id, itemId));
     const allItems = await db.select().from(quotationItemsTable).where(eq(quotationItemsTable.quotationId, quotationId));
     const newTotal = allItems.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0);
@@ -218,7 +218,7 @@ router.delete("/quotations/:id/items/:itemId", requireAuth, async (req, res) => 
 
 router.post("/quotations/:id/send", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [quotation] = await db.update(quotationsTable).set({ status: "sent", updatedAt: new Date() }).where(eq(quotationsTable.id, id)).returning();
     if (!quotation) return res.status(404).json({ error: "Quotation not found" });
     return res.json({

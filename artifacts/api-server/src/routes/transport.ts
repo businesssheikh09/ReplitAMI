@@ -60,7 +60,7 @@ router.post("/transport", requireAuth, async (req, res) => {
 
 router.get("/transport/:id", requireAuth, async (req, res) => {
   try {
-    const [booking] = await db.select().from(transportBookingsTable).where(eq(transportBookingsTable.id, parseInt(req.params.id)));
+    const [booking] = await db.select().from(transportBookingsTable).where(eq(transportBookingsTable.id, parseInt(String(req.params.id))));
     if (!booking) return res.status(404).json({ error: "Transport booking not found" });
     const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, booking.clientId));
     return res.json({
@@ -81,7 +81,7 @@ router.patch("/transport/:id", requireAuth, async (req, res) => {
     const fields = ["status", "driverName", "driverPhone", "notes"];
     fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
     if (req.body.amount !== undefined) updates.amount = req.body.amount.toString();
-    const [booking] = await db.update(transportBookingsTable).set(updates).where(eq(transportBookingsTable.id, parseInt(req.params.id))).returning();
+    const [booking] = await db.update(transportBookingsTable).set(updates).where(eq(transportBookingsTable.id, parseInt(String(req.params.id)))).returning();
     if (!booking) return res.status(404).json({ error: "Transport booking not found" });
     return res.json({
       ...booking,
@@ -97,7 +97,7 @@ router.patch("/transport/:id", requireAuth, async (req, res) => {
 
 router.delete("/transport/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(transportBookingsTable).where(eq(transportBookingsTable.id, parseInt(req.params.id)));
+    await db.delete(transportBookingsTable).where(eq(transportBookingsTable.id, parseInt(String(req.params.id))));
     return res.json({ message: "Transport booking deleted" });
   } catch (err) {
     req.log.error({ err }, "Delete transport error");

@@ -134,7 +134,7 @@ router.put("/currency/daily-rates/:id", requireAuth, async (req, res) => {
         notes: notes || null,
         updatedAt: new Date(),
       })
-      .where(eq(currencyDailyRatesTable.id, parseInt(req.params.id)))
+      .where(eq(currencyDailyRatesTable.id, parseInt(String(req.params.id))))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     return res.json(serializeRate(row));
@@ -146,7 +146,7 @@ router.put("/currency/daily-rates/:id", requireAuth, async (req, res) => {
 
 router.delete("/currency/daily-rates/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(currencyDailyRatesTable).where(eq(currencyDailyRatesTable.id, parseInt(req.params.id)));
+    await db.delete(currencyDailyRatesTable).where(eq(currencyDailyRatesTable.id, parseInt(String(req.params.id))));
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Delete daily rate error");
@@ -209,7 +209,7 @@ router.post("/currency/transactions", requireAuth, async (req, res) => {
 
 router.delete("/currency/transactions/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(currencyTransactionsTable).where(eq(currencyTransactionsTable.id, parseInt(req.params.id)));
+    await db.delete(currencyTransactionsTable).where(eq(currencyTransactionsTable.id, parseInt(String(req.params.id))));
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Delete currency transaction error");

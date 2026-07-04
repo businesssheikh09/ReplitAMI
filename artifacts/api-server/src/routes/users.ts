@@ -65,7 +65,7 @@ router.post("/users/:id/reset-password", requireAuth, requireRole("management"),
 
 router.get("/users/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
     if (!user) return res.status(404).json({ error: "User not found" });
     const { passwordHash: _, ticketingPin: __, ...safeUser } = user;
@@ -78,7 +78,7 @@ router.get("/users/:id", requireAuth, async (req, res) => {
 
 router.patch("/users/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     const { name, email, role, phone, isActive, canIssueTickets, ticketingPin } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = name;
@@ -100,7 +100,7 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
 
 router.delete("/users/:id", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     await db.delete(usersTable).where(eq(usersTable.id, id));
     return res.json({ message: "User deleted" });
   } catch (err) {
