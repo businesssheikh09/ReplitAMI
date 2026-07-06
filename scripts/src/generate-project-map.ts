@@ -713,31 +713,35 @@ const workflows: { title: string; color: string; steps: string[] }[] = [
   },
 ];
 
-let y8 = 70;
-const wfColW = CW / 2 - 5;
+// Two-column layout: workflows 1-3 left, 4-5 right
+const wfColW = Math.floor((CW - 10) / 2); // ~252 per column with 10pt gutter
+let y8L = 70; // left column y
+let y8R = 70; // right column y
 
 workflows.forEach((wf, wi) => {
-  const col = wi < 3 ? 0 : 1;
-  const xBase = M + col * (wfColW + 10);
-  if (wi === 3) y8 = 70; // reset y for second column — track separately
-  // We'll place them sequentially in a single column flow since 5 workflows fit vertically
+  const isRight = wi >= 3;
+  const xBase = isRight ? M + wfColW + 10 : M;
+  const colW = wfColW;
+  const yRef = isRight ? y8R : y8L;
 
-  drawBox(xBase, y8, CW, 20, wf.color, undefined, 4);
-  doc.fontSize(9).font("Helvetica-Bold").fillColor(C.white)
-    .text(wf.title, xBase + 6, y8 + 6, { width: CW - 12, lineBreak: false });
-  y8 += 24;
+  drawBox(xBase, yRef, colW, 20, wf.color, undefined, 4);
+  doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.white)
+    .text(wf.title, xBase + 6, yRef + 6, { width: colW - 12, lineBreak: false });
+  let curY = yRef + 24;
 
   wf.steps.forEach((step, si) => {
-    const stepX = xBase + 8;
-    const numW = 16;
-    doc.roundedRect(stepX, y8, numW, 12, 2).fill(wf.color);
+    const numW = 14;
+    doc.roundedRect(xBase + 6, curY, numW, 12, 2).fill(wf.color);
     doc.fontSize(7).font("Helvetica-Bold").fillColor(C.white)
-      .text(String(si + 1), stepX, y8 + 2, { width: numW, align: "center", lineBreak: false });
-    doc.fontSize(8).font("Helvetica").fillColor(C.text)
-      .text(step, stepX + numW + 4, y8, { width: CW - 40, lineBreak: false });
-    y8 += 14;
+      .text(String(si + 1), xBase + 6, curY + 2, { width: numW, align: "center", lineBreak: false });
+    doc.fontSize(7.5).font("Helvetica").fillColor(C.text)
+      .text(step, xBase + numW + 10, curY, { width: colW - numW - 20, lineBreak: false });
+    curY += 14;
   });
-  y8 += 8;
+  curY += 8;
+
+  if (isRight) y8R = curY;
+  else y8L = curY;
 });
 
 footer("Key Operational Workflows");
