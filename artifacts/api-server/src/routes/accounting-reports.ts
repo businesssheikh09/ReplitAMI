@@ -12,7 +12,7 @@ import {
   transportBookingsTable,
   currencyTransactionsTable,
 } from "@workspace/db";
-import { eq, desc, gte, lte, and, sql, or, asc } from "drizzle-orm";
+import { eq, desc, gte, lte, and, sql, or, asc, inArray, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
@@ -30,60 +30,85 @@ function dateFilter(field: any, from?: string, to?: string) {
   return filters;
 }
 
+// ── Shared: get voucher amounts per voucher-id ────────────────────────────────
+
+async function getVoucherAmounts(voucherIds: number[]): Promise<Map<number, number>> {
+  if (voucherIds.length === 0) return new Map();
+  const lineRows = await db
+    .select({ voucherId: voucherLinesTable.voucherId, debitAmount: voucherLinesTable.debitAmount })
+    .from(voucherLinesTable)
+    .where(inArray(voucherLinesTable.voucherId, voucherIds));
+  const totByV = new Map<number, number>();
+  for (const l of lineRows) {
+    totByV.set(l.voucherId, (totByV.get(l.voucherId) ?? 0) + parseFloat(l.debitAmount));
+  }
+  return totByV;
+}
+
 // ── Party Statement ───────────────────────────────────────────────────────────
-// Shows all journal entries that touched the PARTY account for a specific client
 
 router.get("/accounting/reports/party-statement", requireAuth, async (req, res) => {
   try {
-    const { partyId, from, to } = req.query as Record<string, string>;
+    const { partyId, from, to, dateType } = req.query as Record<string, string>;
 
-    // Get PARTY account id
-    const [partyAcct] = await db
-      .select({ id: chartOfAccountsTable.id })
-      .from(chartOfAccountsTable)
-      .where(eq(chartOfAccountsTable.code, "PARTY"));
+    if (!partyId) {
+      return res.json({ party: null, hotelBookings: [], vouchers: [], summary: { totalSales: 0, netVouchers: 0, closingBalance: 0, isAdvance: false } });
+    }
 
-    if (!partyAcct) return res.json({ entries: [], totalDebit: 0, totalCredit: 0, balance: 0 });
+    const pid = parseInt(String(partyId));
 
-    let entries = await db
-      .select()
-      .from(generalJournalTable)
-      .where(
-        or(
-          eq(generalJournalTable.debitAccountId, partyAcct.id),
-          eq(generalJournalTable.creditAccountId, partyAcct.id),
-        )!,
-      )
-      .orderBy(asc(generalJournalTable.date));
+    const [party] = await db
+      .select({ id: clientsTable.id, name: clientsTable.name, phone: clientsTable.phone, email: clientsTable.email, city: clientsTable.city, country: clientsTable.country })
+      .from(clientsTable)
+      .where(eq(clientsTable.id, pid));
 
-    if (from) entries = entries.filter((e) => e.date >= new Date(from));
-    if (to) { const t = new Date(to); t.setHours(23,59,59,999); entries = entries.filter((e) => e.date <= t); }
-    if (partyId) entries = entries.filter((e) => e.sourceId === parseInt(partyId));
+    // Hotel bookings filtered by invoiceDate or checkIn
+    const useCheckIn = dateType === "checkin";
+    const hotelConds: ReturnType<typeof eq>[] = [eq(hotelInvoicesTable.partyId, pid) as ReturnType<typeof eq>];
+    if (from) hotelConds.push((useCheckIn ? gte(hotelInvoicesTable.checkIn, from) : gte(hotelInvoicesTable.invoiceDate, from)) as ReturnType<typeof eq>);
+    if (to) hotelConds.push((useCheckIn ? lte(hotelInvoicesTable.checkIn, to) : lte(hotelInvoicesTable.invoiceDate, to)) as ReturnType<typeof eq>);
 
-    const accounts = await db.select().from(chartOfAccountsTable);
-    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+    const hotelBookings = await db.select({
+      id: hotelInvoicesTable.id,
+      dnNumber: hotelInvoicesTable.dnNumber,
+      invoiceDate: hotelInvoicesTable.invoiceDate,
+      passengerName: hotelInvoicesTable.passengerName,
+      nationality: hotelInvoicesTable.nationality,
+      noOfPax: hotelInvoicesTable.noOfPax,
+      hotelName: hotelInvoicesTable.hotelName,
+      roomType: hotelInvoicesTable.roomType,
+      roomNumber: hotelInvoicesTable.roomNumber,
+      cnfNumber: hotelInvoicesTable.cnfNumber,
+      checkIn: hotelInvoicesTable.checkIn,
+      checkOut: hotelInvoicesTable.checkOut,
+      noOfNights: hotelInvoicesTable.noOfNights,
+      noOfRooms: hotelInvoicesTable.noOfRooms,
+      receivableSar: hotelInvoicesTable.receivableSar,
+      status: hotelInvoicesTable.status,
+    })
+      .from(hotelInvoicesTable)
+      .where(and(...hotelConds))
+      .orderBy(asc(hotelInvoicesTable.invoiceDate));
 
-    let runningBalance = 0;
-    const enriched = entries.map((e) => {
-      const amt = parseFloat(e.amount);
-      const isDebit = e.debitAccountId === partyAcct.id;
-      if (isDebit) runningBalance += amt; else runningBalance -= amt;
-      return {
-        ...e,
-        amount: amt,
-        date: e.date instanceof Date ? e.date.toISOString() : e.date,
-        createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
-        debitAccount: acctMap.get(e.debitAccountId) ?? null,
-        creditAccount: acctMap.get(e.creditAccountId) ?? null,
-        side: isDebit ? "DR" : "CR",
-        runningBalance,
-      };
+    // Vouchers (all types) linked to this party
+    const vConds: ReturnType<typeof eq>[] = [eq(vouchersTable.partyId, pid) as ReturnType<typeof eq>];
+    if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
+    if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
+
+    const rawVouchers = await db.select().from(vouchersTable).where(and(...vConds)).orderBy(asc(vouchersTable.date));
+    const amtMap = await getVoucherAmounts(rawVouchers.map((v) => v.id));
+    const vouchers = rawVouchers.map((v) => ({ ...v, amount: amtMap.get(v.id) ?? 0 }));
+
+    const totalSales = hotelBookings.reduce((s, h) => s + parseFloat(h.receivableSar ?? "0"), 0);
+    const netVouchers = vouchers.reduce((s, v) => s + v.amount, 0);
+    const closingBalance = totalSales - netVouchers;
+
+    return res.json({
+      party: party ?? null,
+      hotelBookings,
+      vouchers,
+      summary: { totalSales, netVouchers, closingBalance, isAdvance: closingBalance < 0 },
     });
-
-    const totalDebit = enriched.filter((e) => e.side === "DR").reduce((s, e) => s + e.amount, 0);
-    const totalCredit = enriched.filter((e) => e.side === "CR").reduce((s, e) => s + e.amount, 0);
-
-    return res.json({ entries: enriched, totalDebit, totalCredit, balance: runningBalance });
   } catch (err) {
     req.log.error({ err }, "Party statement error");
     return res.status(500).json({ error: "Internal server error" });
@@ -94,52 +119,100 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
 
 router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res) => {
   try {
-    const { from, to } = req.query as Record<string, string>;
+    const { vendorId, from, to, dateType, showPartyName } = req.query as Record<string, string>;
 
-    const [vendorAcct] = await db
-      .select({ id: chartOfAccountsTable.id })
-      .from(chartOfAccountsTable)
-      .where(eq(chartOfAccountsTable.code, "VENDOR"));
+    if (!vendorId) {
+      return res.json({ vendor: null, hotelBookings: [], transportBookings: [], vouchers: [], summary: { totalPurchase: 0, netVouchers: 0, closingBalance: 0 } });
+    }
 
-    if (!vendorAcct) return res.json({ entries: [], totalDebit: 0, totalCredit: 0, balance: 0 });
+    const vid = parseInt(String(vendorId));
 
-    let entries = await db
-      .select()
-      .from(generalJournalTable)
-      .where(
-        or(
-          eq(generalJournalTable.debitAccountId, vendorAcct.id),
-          eq(generalJournalTable.creditAccountId, vendorAcct.id),
-        )!,
-      )
-      .orderBy(asc(generalJournalTable.date));
+    const [vendor] = await db
+      .select({ id: vendorsTable.id, name: vendorsTable.name, phone: vendorsTable.phone, email: vendorsTable.email, country: vendorsTable.country })
+      .from(vendorsTable)
+      .where(eq(vendorsTable.id, vid));
 
-    if (from) entries = entries.filter((e) => e.date >= new Date(from));
-    if (to) { const t = new Date(to); t.setHours(23,59,59,999); entries = entries.filter((e) => e.date <= t); }
+    const useCheckIn = dateType === "checkin";
+    const hotelConds: ReturnType<typeof eq>[] = [eq(hotelInvoicesTable.vendorId, vid) as ReturnType<typeof eq>];
+    if (from) hotelConds.push((useCheckIn ? gte(hotelInvoicesTable.checkIn, from) : gte(hotelInvoicesTable.invoiceDate, from)) as ReturnType<typeof eq>);
+    if (to) hotelConds.push((useCheckIn ? lte(hotelInvoicesTable.checkIn, to) : lte(hotelInvoicesTable.invoiceDate, to)) as ReturnType<typeof eq>);
 
-    const accounts = await db.select().from(chartOfAccountsTable);
-    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+    // Hotel bookings — optionally join clients for party name
+    const hotelRows = await db.select({
+      id: hotelInvoicesTable.id,
+      dnNumber: hotelInvoicesTable.dnNumber,
+      invoiceDate: hotelInvoicesTable.invoiceDate,
+      passengerName: hotelInvoicesTable.passengerName,
+      nationality: hotelInvoicesTable.nationality,
+      noOfPax: hotelInvoicesTable.noOfPax,
+      hotelName: hotelInvoicesTable.hotelName,
+      roomType: hotelInvoicesTable.roomType,
+      roomNumber: hotelInvoicesTable.roomNumber,
+      cnfNumber: hotelInvoicesTable.cnfNumber,
+      checkIn: hotelInvoicesTable.checkIn,
+      checkOut: hotelInvoicesTable.checkOut,
+      noOfNights: hotelInvoicesTable.noOfNights,
+      noOfRooms: hotelInvoicesTable.noOfRooms,
+      payableSar: hotelInvoicesTable.payableSar,
+      status: hotelInvoicesTable.status,
+      partyId: hotelInvoicesTable.partyId,
+      partyName: clientsTable.name,
+    })
+      .from(hotelInvoicesTable)
+      .leftJoin(clientsTable, eq(hotelInvoicesTable.partyId, clientsTable.id))
+      .where(and(...hotelConds))
+      .orderBy(asc(hotelInvoicesTable.invoiceDate));
 
-    let runningBalance = 0;
-    const enriched = entries.map((e) => {
-      const amt = parseFloat(e.amount);
-      const isCredit = e.creditAccountId === vendorAcct.id;
-      if (isCredit) runningBalance += amt; else runningBalance -= amt;
-      return {
-        ...e,
-        amount: amt,
-        date: e.date instanceof Date ? e.date.toISOString() : e.date,
-        createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
-        debitAccount: acctMap.get(e.debitAccountId) ?? null,
-        creditAccount: acctMap.get(e.creditAccountId) ?? null,
-        side: isCredit ? "CR" : "DR",
-        runningBalance,
-      };
+    // Transport bookings for this vendor
+    const transConds: ReturnType<typeof eq>[] = [eq(transportBookingsTable.vendorId, vid) as ReturnType<typeof eq>];
+    if (from) transConds.push(gte(transportBookingsTable.date, new Date(from)) as ReturnType<typeof eq>);
+    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); transConds.push(lte(transportBookingsTable.date, t) as ReturnType<typeof eq>); }
+
+    const transportBookings = await db.select({
+      id: transportBookingsTable.id,
+      date: transportBookingsTable.date,
+      type: transportBookingsTable.type,
+      vehicleType: transportBookingsTable.vehicleType,
+      pickupLocation: transportBookingsTable.pickupLocation,
+      dropoffLocation: transportBookingsTable.dropoffLocation,
+      passengers: transportBookingsTable.passengers,
+      amount: transportBookingsTable.amount,
+      currency: transportBookingsTable.currency,
+      status: transportBookingsTable.status,
+      clientId: transportBookingsTable.clientId,
+      partyName: clientsTable.name,
+    })
+      .from(transportBookingsTable)
+      .leftJoin(clientsTable, eq(transportBookingsTable.clientId, clientsTable.id))
+      .where(and(...transConds))
+      .orderBy(asc(transportBookingsTable.date));
+
+    // Vouchers linked to this vendor
+    const vConds: ReturnType<typeof eq>[] = [eq(vouchersTable.vendorId, vid) as ReturnType<typeof eq>];
+    if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
+    if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
+
+    const rawVouchers = await db.select().from(vouchersTable).where(and(...vConds)).orderBy(asc(vouchersTable.date));
+    const amtMap = await getVoucherAmounts(rawVouchers.map((v) => v.id));
+    const vouchers = rawVouchers.map((v) => ({ ...v, amount: amtMap.get(v.id) ?? 0 }));
+
+    const totalHotelPurchase = hotelRows.reduce((s, h) => s + parseFloat(h.payableSar ?? "0"), 0);
+    const totalTransportPurchase = transportBookings.reduce((s, t) => s + parseFloat(t.amount), 0);
+    const totalPurchase = totalHotelPurchase + totalTransportPurchase;
+    const netVouchers = vouchers.reduce((s, v) => s + v.amount, 0);
+    const closingBalance = totalPurchase - netVouchers;
+
+    const showParty = showPartyName === "true";
+    const hotelBookings = showParty ? hotelRows : hotelRows.map(({ partyName: _p, partyId: _pi, ...rest }) => rest);
+
+    return res.json({
+      vendor: vendor ?? null,
+      hotelBookings,
+      transportBookings,
+      vouchers,
+      showPartyName: showParty,
+      summary: { totalPurchase, totalHotelPurchase, totalTransportPurchase, netVouchers, closingBalance },
     });
-
-    const totalDebit = enriched.filter((e) => e.side === "DR").reduce((s, e) => s + e.amount, 0);
-    const totalCredit = enriched.filter((e) => e.side === "CR").reduce((s, e) => s + e.amount, 0);
-    return res.json({ entries: enriched, totalDebit, totalCredit, balance: runningBalance });
   } catch (err) {
     req.log.error({ err }, "Vendor statement error");
     return res.status(500).json({ error: "Internal server error" });
@@ -150,45 +223,75 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
 
 router.get("/accounting/reports/party-summary", requireAuth, async (req, res) => {
   try {
-    const { from, to } = req.query as Record<string, string>;
+    const { from, to, filter } = req.query as Record<string, string>;
 
-    const [partyAcct] = await db
-      .select({ id: chartOfAccountsTable.id })
-      .from(chartOfAccountsTable)
-      .where(eq(chartOfAccountsTable.code, "PARTY"));
+    // All clients
+    const clients = await db.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable).orderBy(asc(clientsTable.name));
 
-    if (!partyAcct) return res.json({ rows: [], totalDr: 0, totalCr: 0 });
+    // Hotel invoice totals by partyId
+    const hotelConds: ReturnType<typeof eq>[] = [isNotNull(hotelInvoicesTable.partyId) as ReturnType<typeof eq>];
+    if (from) hotelConds.push(gte(hotelInvoicesTable.invoiceDate, from) as ReturnType<typeof eq>);
+    if (to) hotelConds.push(lte(hotelInvoicesTable.invoiceDate, to) as ReturnType<typeof eq>);
 
-    let entries = await db
-      .select()
-      .from(generalJournalTable)
-      .where(
-        or(
-          eq(generalJournalTable.debitAccountId, partyAcct.id),
-          eq(generalJournalTable.creditAccountId, partyAcct.id),
-        )!,
-      );
+    const hotelRows = await db.select({
+      partyId: hotelInvoicesTable.partyId,
+      receivableSar: hotelInvoicesTable.receivableSar,
+      noOfPax: hotelInvoicesTable.noOfPax,
+    }).from(hotelInvoicesTable).where(and(...hotelConds));
 
-    if (from) entries = entries.filter((e) => e.date >= new Date(from));
-    if (to) { const t = new Date(to); t.setHours(23,59,59,999); entries = entries.filter((e) => e.date <= t); }
-
-    // Group by sourceType
-    const grouped: Record<string, { dr: number; cr: number; count: number }> = {};
-    for (const e of entries) {
-      const key = e.sourceType ?? "other";
-      if (!grouped[key]) grouped[key] = { dr: 0, cr: 0, count: 0 };
-      const amt = parseFloat(e.amount);
-      if (e.debitAccountId === partyAcct.id) grouped[key].dr += amt;
-      else grouped[key].cr += amt;
-      grouped[key].count++;
+    const hotelByParty = new Map<number, { totalSar: number; paxCount: number }>();
+    for (const h of hotelRows) {
+      const pid = h.partyId!;
+      const cur = hotelByParty.get(pid) ?? { totalSar: 0, paxCount: 0 };
+      cur.totalSar += parseFloat(h.receivableSar ?? "0");
+      cur.paxCount += h.noOfPax ?? 0;
+      hotelByParty.set(pid, cur);
     }
 
-    const rows = Object.entries(grouped).map(([sourceType, v]) => ({
-      sourceType, ...v, net: v.dr - v.cr,
-    }));
-    const totalDr = rows.reduce((s, r) => s + r.dr, 0);
-    const totalCr = rows.reduce((s, r) => s + r.cr, 0);
-    return res.json({ rows, totalDr, totalCr, net: totalDr - totalCr });
+    // RV voucher amounts by partyId
+    const vConds: ReturnType<typeof eq>[] = [
+      eq(vouchersTable.type, "RV") as ReturnType<typeof eq>,
+      isNotNull(vouchersTable.partyId) as ReturnType<typeof eq>,
+    ];
+    if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
+    if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
+
+    const rvVouchers = await db.select({ id: vouchersTable.id, partyId: vouchersTable.partyId }).from(vouchersTable).where(and(...vConds));
+    const amtMap = await getVoucherAmounts(rvVouchers.map((v) => v.id));
+
+    const receivedByParty = new Map<number, number>();
+    for (const v of rvVouchers) {
+      const pid = v.partyId!;
+      receivedByParty.set(pid, (receivedByParty.get(pid) ?? 0) + (amtMap.get(v.id) ?? 0));
+    }
+
+    // Build rows for all clients that have any hotel invoices (or all clients if filter = "all")
+    const showAll = filter === "all" || !filter;
+    let rows = clients
+      .map((c, i) => {
+        const hotel = hotelByParty.get(c.id);
+        const netAmount = hotel?.totalSar ?? 0;
+        const paxCount = hotel?.paxCount ?? 0;
+        const amountReceived = receivedByParty.get(c.id) ?? 0;
+        const outstanding = netAmount - amountReceived;
+        return { serial: i + 1, partyId: c.id, partyName: c.name, paxCount, opening: 0, netAmount, amountReceived, outstanding };
+      })
+      .filter((r) => {
+        if (showAll) return r.netAmount > 0 || r.amountReceived > 0;
+        if (filter === "outstanding") return r.outstanding > 0;
+        if (filter === "negative") return r.outstanding < 0;
+        return r.netAmount > 0 || r.amountReceived > 0;
+      })
+      .map((r, i) => ({ ...r, serial: i + 1 }));
+
+    const totals = {
+      paxCount: rows.reduce((s, r) => s + r.paxCount, 0),
+      netAmount: rows.reduce((s, r) => s + r.netAmount, 0),
+      amountReceived: rows.reduce((s, r) => s + r.amountReceived, 0),
+      outstanding: rows.reduce((s, r) => s + r.outstanding, 0),
+    };
+
+    return res.json({ rows, totals });
   } catch (err) {
     req.log.error({ err }, "Party summary error");
     return res.status(500).json({ error: "Internal server error" });
@@ -199,44 +302,66 @@ router.get("/accounting/reports/party-summary", requireAuth, async (req, res) =>
 
 router.get("/accounting/reports/vendor-summary", requireAuth, async (req, res) => {
   try {
-    const { from, to } = req.query as Record<string, string>;
+    const { from, to, filter } = req.query as Record<string, string>;
 
-    const [vendorAcct] = await db
-      .select({ id: chartOfAccountsTable.id })
-      .from(chartOfAccountsTable)
-      .where(eq(chartOfAccountsTable.code, "VENDOR"));
+    const vendors = await db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable).orderBy(asc(vendorsTable.name));
 
-    if (!vendorAcct) return res.json({ rows: [], totalDr: 0, totalCr: 0 });
+    // Hotel payable totals by vendorId
+    const hotelConds: ReturnType<typeof eq>[] = [isNotNull(hotelInvoicesTable.vendorId) as ReturnType<typeof eq>];
+    if (from) hotelConds.push(gte(hotelInvoicesTable.invoiceDate, from) as ReturnType<typeof eq>);
+    if (to) hotelConds.push(lte(hotelInvoicesTable.invoiceDate, to) as ReturnType<typeof eq>);
 
-    let entries = await db
-      .select()
-      .from(generalJournalTable)
-      .where(
-        or(
-          eq(generalJournalTable.debitAccountId, vendorAcct.id),
-          eq(generalJournalTable.creditAccountId, vendorAcct.id),
-        )!,
-      );
+    const hotelRows = await db.select({
+      vendorId: hotelInvoicesTable.vendorId,
+      payableSar: hotelInvoicesTable.payableSar,
+    }).from(hotelInvoicesTable).where(and(...hotelConds));
 
-    if (from) entries = entries.filter((e) => e.date >= new Date(from));
-    if (to) { const t = new Date(to); t.setHours(23,59,59,999); entries = entries.filter((e) => e.date <= t); }
-
-    const grouped: Record<string, { dr: number; cr: number; count: number }> = {};
-    for (const e of entries) {
-      const key = e.sourceType ?? "other";
-      if (!grouped[key]) grouped[key] = { dr: 0, cr: 0, count: 0 };
-      const amt = parseFloat(e.amount);
-      if (e.debitAccountId === vendorAcct.id) grouped[key].dr += amt;
-      else grouped[key].cr += amt;
-      grouped[key].count++;
+    const hotelByVendor = new Map<number, number>();
+    for (const h of hotelRows) {
+      const vid = h.vendorId!;
+      hotelByVendor.set(vid, (hotelByVendor.get(vid) ?? 0) + parseFloat(h.payableSar ?? "0"));
     }
 
-    const rows = Object.entries(grouped).map(([sourceType, v]) => ({
-      sourceType, ...v, net: v.cr - v.dr,
-    }));
-    const totalDr = rows.reduce((s, r) => s + r.dr, 0);
-    const totalCr = rows.reduce((s, r) => s + r.cr, 0);
-    return res.json({ rows, totalDr, totalCr, net: totalCr - totalDr });
+    // PV voucher amounts by vendorId
+    const vConds: ReturnType<typeof eq>[] = [
+      eq(vouchersTable.type, "PV") as ReturnType<typeof eq>,
+      isNotNull(vouchersTable.vendorId) as ReturnType<typeof eq>,
+    ];
+    if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
+    if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
+
+    const pvVouchers = await db.select({ id: vouchersTable.id, vendorId: vouchersTable.vendorId }).from(vouchersTable).where(and(...vConds));
+    const amtMap = await getVoucherAmounts(pvVouchers.map((v) => v.id));
+
+    const paidByVendor = new Map<number, number>();
+    for (const v of pvVouchers) {
+      const vid = v.vendorId!;
+      paidByVendor.set(vid, (paidByVendor.get(vid) ?? 0) + (amtMap.get(v.id) ?? 0));
+    }
+
+    const showAll = filter === "all" || !filter;
+    let rows = vendors
+      .map((v, i) => {
+        const netAmount = hotelByVendor.get(v.id) ?? 0;
+        const amountPaid = paidByVendor.get(v.id) ?? 0;
+        const outstanding = netAmount - amountPaid;
+        return { serial: i + 1, vendorId: v.id, vendorName: v.name, opening: 0, netAmount, amountPaid, outstanding };
+      })
+      .filter((r) => {
+        if (showAll) return r.netAmount > 0 || r.amountPaid > 0;
+        if (filter === "outstanding") return r.outstanding > 0;
+        if (filter === "negative") return r.outstanding < 0;
+        return r.netAmount > 0 || r.amountPaid > 0;
+      })
+      .map((r, i) => ({ ...r, serial: i + 1 }));
+
+    const totals = {
+      netAmount: rows.reduce((s, r) => s + r.netAmount, 0),
+      amountPaid: rows.reduce((s, r) => s + r.amountPaid, 0),
+      outstanding: rows.reduce((s, r) => s + r.outstanding, 0),
+    };
+
+    return res.json({ rows, totals });
   } catch (err) {
     req.log.error({ err }, "Vendor summary error");
     return res.status(500).json({ error: "Internal server error" });

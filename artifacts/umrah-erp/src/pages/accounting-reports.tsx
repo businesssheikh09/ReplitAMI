@@ -181,9 +181,84 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
     </div>
   );
 
-  if (active === "party-statement") return <>{dateRange}{clientPicker}</>;
-  if (active === "vendor-statement") return <>{dateRange}{vendorPicker}</>;
-  if (active === "party-summary" || active === "vendor-summary") return <>{dateRange}</>;
+  if (active === "party-statement") return (
+    <>
+      {dateRange}
+      {clientPicker}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Date Type</label>
+        <Select value={f("dateType") || "booking"} onValueChange={(v) => setFilter("dateType", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="booking">Booking Date</SelectItem>
+            <SelectItem value="checkin">Check-In Date</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
+  if (active === "vendor-statement") return (
+    <>
+      {dateRange}
+      {vendorPicker}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Date Type</label>
+        <Select value={f("dateType") || "booking"} onValueChange={(v) => setFilter("dateType", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="booking">Booking Date</SelectItem>
+            <SelectItem value="checkin">Check-In Date</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Show Party</label>
+        <Select value={f("showPartyName") || "false"} onValueChange={(v) => setFilter("showPartyName", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-20"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="false">No</SelectItem>
+            <SelectItem value="true">Yes</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
+  if (active === "party-summary") return (
+    <>
+      {dateRange}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Show</label>
+        <Select value={f("filter") || "all"} onValueChange={(v) => setFilter("filter", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Parties</SelectItem>
+            <SelectItem value="outstanding">Outstanding</SelectItem>
+            <SelectItem value="negative">Negative (Advance)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
+  if (active === "vendor-summary") return (
+    <>
+      {dateRange}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Show</label>
+        <Select value={f("filter") || "all"} onValueChange={(v) => setFilter("filter", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Vendors</SelectItem>
+            <SelectItem value="outstanding">Outstanding</SelectItem>
+            <SelectItem value="negative">Negative (Advance)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
   if (active === "cash-book" || active === "receipt-book" || active === "payment-book" || active === "journal-book") return <>{dateRange}</>;
 
   if (active === "voucher-search") return (
@@ -358,85 +433,417 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
 
 // ─── Report Renderers ─────────────────────────────────────────────────────────
 
-function renderReport(active: ReportType, data: Record<string, unknown>) {
+function renderReport(
+  active: ReportType,
+  data: Record<string, unknown>,
+  onNavigate?: (report: ReportType, filters: Record<string, string>) => void,
+) {
   const rows: Record<string, unknown>[] = (data.entries ?? data.rows ?? []) as Record<string, unknown>[];
+
+  // ── Party Statement ─────────────────────────────────────────
+  if (active === "party-statement") {
+    const party = data.party as Record<string, unknown> | null;
+    const hotelBookings = (data.hotelBookings ?? []) as Record<string, unknown>[];
+    const vouchers = (data.vouchers ?? []) as Record<string, unknown>[];
+    const summary = (data.summary ?? {}) as { totalSales: number; netVouchers: number; closingBalance: number; isAdvance: boolean };
+
+    if (!party) {
+      return <div className="text-center py-12 text-muted-foreground">Select a party and click Generate</div>;
+    }
+
+    return (
+      <div className="space-y-6 p-4">
+        <div className="text-center border-b pb-3">
+          <h2 className="text-lg font-bold">STATEMENT OF ACCOUNT</h2>
+          <p className="font-semibold text-base mt-1">{String(party.name)}</p>
+          {!!(party.city || party.country) && <p className="text-sm text-muted-foreground">{[String(party.city ?? ""), String(party.country ?? "")].filter(Boolean).join(", ")}</p>}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide bg-muted px-3 py-1.5 mb-0">HOTEL BOOKINGS</h3>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-xs">
+                <TableHead>Date</TableHead>
+                <TableHead>DN-No.</TableHead>
+                <TableHead>Nationality</TableHead>
+                <TableHead className="text-right">PAX</TableHead>
+                <TableHead>Guest</TableHead>
+                <TableHead>Hotel</TableHead>
+                <TableHead>Room#</TableHead>
+                <TableHead>Room Type</TableHead>
+                <TableHead>C.In</TableHead>
+                <TableHead>C.Out</TableHead>
+                <TableHead className="text-right">N#</TableHead>
+                <TableHead className="text-right">Per Night</TableHead>
+                <TableHead className="text-right">Amount (SAR)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {hotelBookings.length === 0 ? (
+                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground text-sm py-4">No hotel bookings</TableCell></TableRow>
+              ) : hotelBookings.map((h, i) => {
+                const nights = (h.noOfNights as number) ?? 1;
+                const rooms = (h.noOfRooms as number) ?? 1;
+                const total = parseFloat(String(h.receivableSar ?? "0"));
+                const perNight = nights > 0 && rooms > 0 ? total / nights / rooms : 0;
+                return (
+                  <TableRow key={i} className="text-xs">
+                    <TableCell>{String(h.invoiceDate ?? "—")}</TableCell>
+                    <TableCell className="font-mono">{String(h.dnNumber)}</TableCell>
+                    <TableCell>{String(h.nationality ?? "—")}</TableCell>
+                    <TableCell className="text-right">{String(h.noOfPax ?? 1)}</TableCell>
+                    <TableCell>{String(h.passengerName ?? "—")}</TableCell>
+                    <TableCell>{String(h.hotelName ?? "—")}</TableCell>
+                    <TableCell>{String(h.roomNumber ?? "—")}</TableCell>
+                    <TableCell>{String(h.roomType ?? "—")}</TableCell>
+                    <TableCell>{String(h.checkIn ?? "—")}</TableCell>
+                    <TableCell>{String(h.checkOut ?? "—")}</TableCell>
+                    <TableCell className="text-right">{String(nights)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(perNight)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{fmt(total)}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <div className="flex justify-end px-4 py-2 border-t bg-muted/40">
+            <span className="text-sm font-bold">TOTAL &nbsp; SAR {fmt(summary.totalSales)}</span>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide bg-muted px-3 py-1.5 mb-0">RV / PV / JV</h3>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-xs">
+                <TableHead>Date</TableHead>
+                <TableHead>V/No</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Narration</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount (SAR)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vouchers.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-4">No vouchers</TableCell></TableRow>
+              ) : vouchers.map((v, i) => (
+                <TableRow key={i} className="text-xs">
+                  <TableCell>{String(v.date ?? "—")}</TableCell>
+                  <TableCell className="font-mono">{String(v.voucherNumber ?? "—")}</TableCell>
+                  <TableCell><Badge className="text-xs font-mono px-1 py-0">{String(v.type)}</Badge></TableCell>
+                  <TableCell className="max-w-xs truncate">{String(v.narration ?? "—")}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(v.status)}</Badge></TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">{fmt(v.amount as number)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="flex justify-end px-4 py-2 border-t bg-muted/40">
+            <span className="text-sm font-bold">TOTAL &nbsp; SAR {fmt(summary.netVouchers)}</span>
+          </div>
+        </div>
+
+        <div className="border rounded-lg p-4 max-w-sm ml-auto">
+          <h3 className="text-sm font-bold uppercase mb-3">SUMMARY</h3>
+          <table className="w-full text-sm">
+            <tbody>
+              <tr><td className="py-0.5 text-muted-foreground">Opening Balance</td><td className="text-right tabular-nums">SAR {fmt(0)}</td></tr>
+              <tr><td className="py-0.5">Total Sales</td><td className="text-right tabular-nums text-blue-700 font-medium">SAR {fmt(summary.totalSales)}</td></tr>
+              <tr><td className="py-0.5 text-muted-foreground">Net Vouchers (Paid)</td><td className="text-right tabular-nums text-green-700">SAR {fmt(summary.netVouchers)}</td></tr>
+              <tr className="border-t font-bold">
+                <td className="pt-2">Closing Balance {summary.isAdvance ? "(Advance)" : ""}</td>
+                <td className={`pt-2 text-right tabular-nums ${summary.closingBalance < 0 ? "text-red-600" : "text-green-700"}`}>SAR {fmt(Math.abs(summary.closingBalance))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Vendor Statement ─────────────────────────────────────────
+  if (active === "vendor-statement") {
+    const vendor = data.vendor as Record<string, unknown> | null;
+    const hotelBookings = (data.hotelBookings ?? []) as Record<string, unknown>[];
+    const transportBookings = (data.transportBookings ?? []) as Record<string, unknown>[];
+    const vouchers = (data.vouchers ?? []) as Record<string, unknown>[];
+    const summary = (data.summary ?? {}) as { totalPurchase: number; totalHotelPurchase: number; totalTransportPurchase: number; netVouchers: number; closingBalance: number };
+    const showParty = data.showPartyName as boolean;
+
+    if (!vendor) {
+      return <div className="text-center py-12 text-muted-foreground">Select a vendor and click Generate</div>;
+    }
+
+    return (
+      <div className="space-y-6 p-4">
+        <div className="text-center border-b pb-3">
+          <h2 className="text-lg font-bold">VENDOR — STATEMENT OF ACCOUNT</h2>
+          <p className="font-semibold text-base mt-1">{String(vendor.name)}</p>
+          {!!vendor.country && <p className="text-sm text-muted-foreground">{String(vendor.country)}</p>}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide bg-muted px-3 py-1.5 mb-0">HOTEL BOOKINGS</h3>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-xs">
+                <TableHead>Date</TableHead>
+                <TableHead>DN-No.</TableHead>
+                {showParty && <TableHead>Party</TableHead>}
+                <TableHead>Guest</TableHead>
+                <TableHead>Hotel</TableHead>
+                <TableHead>CNF#</TableHead>
+                <TableHead>Room#</TableHead>
+                <TableHead>Room Type</TableHead>
+                <TableHead>C.In</TableHead>
+                <TableHead>C.Out</TableHead>
+                <TableHead className="text-right">N#</TableHead>
+                <TableHead className="text-right">Per Night</TableHead>
+                <TableHead className="text-right">Amount (SAR)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {hotelBookings.length === 0 ? (
+                <TableRow><TableCell colSpan={showParty ? 13 : 12} className="text-center text-muted-foreground text-sm py-4">No hotel bookings</TableCell></TableRow>
+              ) : hotelBookings.map((h, i) => {
+                const nights = (h.noOfNights as number) ?? 1;
+                const rooms = (h.noOfRooms as number) ?? 1;
+                const total = parseFloat(String(h.payableSar ?? "0"));
+                const perNight = nights > 0 && rooms > 0 ? total / nights / rooms : 0;
+                return (
+                  <TableRow key={i} className="text-xs">
+                    <TableCell>{String(h.invoiceDate ?? "—")}</TableCell>
+                    <TableCell className="font-mono">{String(h.dnNumber)}</TableCell>
+                    {showParty && <TableCell>{String(h.partyName ?? "—")}</TableCell>}
+                    <TableCell>{String(h.passengerName ?? "—")}</TableCell>
+                    <TableCell>{String(h.hotelName ?? "—")}</TableCell>
+                    <TableCell className="font-mono">{String(h.cnfNumber ?? "—")}</TableCell>
+                    <TableCell>{String(h.roomNumber ?? "—")}</TableCell>
+                    <TableCell>{String(h.roomType ?? "—")}</TableCell>
+                    <TableCell>{String(h.checkIn ?? "—")}</TableCell>
+                    <TableCell>{String(h.checkOut ?? "—")}</TableCell>
+                    <TableCell className="text-right">{String(nights)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(perNight)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{fmt(total)}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <div className="flex justify-end px-4 py-2 border-t bg-muted/40">
+            <span className="text-sm font-bold">TOTAL &nbsp; SAR {fmt(summary.totalHotelPurchase)}</span>
+          </div>
+        </div>
+
+        {transportBookings.length > 0 && (
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide bg-muted px-3 py-1.5 mb-0">TRANSPORT BOOKINGS</h3>
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs">
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Party</TableHead>
+                  <TableHead>Pickup</TableHead>
+                  <TableHead>Dropoff</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead className="text-right">PAX</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transportBookings.map((t, i) => (
+                  <TableRow key={i} className="text-xs">
+                    <TableCell>{String(t.date ?? "—").slice(0, 10)}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(t.type)}</Badge></TableCell>
+                    <TableCell>{String(t.partyName ?? "—")}</TableCell>
+                    <TableCell className="max-w-32 truncate">{String(t.pickupLocation ?? "—")}</TableCell>
+                    <TableCell className="max-w-32 truncate">{String(t.dropoffLocation ?? "—")}</TableCell>
+                    <TableCell>{String(t.vehicleType ?? "—")}</TableCell>
+                    <TableCell className="text-right">{String(t.passengers ?? 1)}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(t.status)}</Badge></TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{fmt(parseFloat(String(t.amount ?? "0")))}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="flex justify-end px-4 py-2 border-t bg-muted/40">
+              <span className="text-sm font-bold">TOTAL &nbsp; {fmt(summary.totalTransportPurchase)}</span>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide bg-muted px-3 py-1.5 mb-0">RV / PV / JV</h3>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-xs">
+                <TableHead>Date</TableHead>
+                <TableHead>V/No</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Narration</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount (SAR)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vouchers.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-4">No vouchers</TableCell></TableRow>
+              ) : vouchers.map((v, i) => (
+                <TableRow key={i} className="text-xs">
+                  <TableCell>{String(v.date ?? "—")}</TableCell>
+                  <TableCell className="font-mono">{String(v.voucherNumber ?? "—")}</TableCell>
+                  <TableCell><Badge className="text-xs font-mono px-1 py-0">{String(v.type)}</Badge></TableCell>
+                  <TableCell className="max-w-xs truncate">{String(v.narration ?? "—")}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(v.status)}</Badge></TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">{fmt(v.amount as number)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="flex justify-end px-4 py-2 border-t bg-muted/40">
+            <span className="text-sm font-bold">TOTAL &nbsp; SAR {fmt(summary.netVouchers)}</span>
+          </div>
+        </div>
+
+        <div className="border rounded-lg p-4 max-w-sm ml-auto">
+          <h3 className="text-sm font-bold uppercase mb-3">SUMMARY</h3>
+          <table className="w-full text-sm">
+            <tbody>
+              <tr><td className="py-0.5 text-muted-foreground">Opening Balance</td><td className="text-right tabular-nums">SAR {fmt(0)}</td></tr>
+              <tr><td className="py-0.5">Total Purchase</td><td className="text-right tabular-nums text-orange-700 font-medium">SAR {fmt(summary.totalPurchase)}</td></tr>
+              <tr><td className="py-0.5 text-muted-foreground">Net Vouchers (Paid)</td><td className="text-right tabular-nums text-green-700">SAR {fmt(summary.netVouchers)}</td></tr>
+              <tr className="border-t font-bold">
+                <td className="pt-2">Closing Balance</td>
+                <td className={`pt-2 text-right tabular-nums ${summary.closingBalance < 0 ? "text-red-600" : "text-green-700"}`}>SAR {fmt(Math.abs(summary.closingBalance))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Party Summary ─────────────────────────────────────────────
+  if (active === "party-summary") {
+    const summaryRows = (data.rows ?? []) as Array<{ serial: number; partyId: number; partyName: string; paxCount: number; opening: number; netAmount: number; amountReceived: number; outstanding: number }>;
+    const totals = (data.totals ?? {}) as { paxCount: number; netAmount: number; amountReceived: number; outstanding: number };
+
+    if (summaryRows.length === 0) {
+      return <div className="text-center py-12 text-muted-foreground">No party data for this period</div>;
+    }
+
+    return (
+      <div className="p-4">
+        <h2 className="text-base font-bold uppercase mb-4 text-center">SUNDRY DEBTORS SUMMARY</h2>
+        <Table>
+          <TableHeader>
+            <TableRow className="text-xs bg-muted/50">
+              <TableHead className="w-10">S#</TableHead>
+              <TableHead>PARTY</TableHead>
+              <TableHead className="text-right">P#</TableHead>
+              <TableHead className="text-right">OPENING</TableHead>
+              <TableHead className="text-right">NET AMOUNT</TableHead>
+              <TableHead className="text-right">AMOUNT RECEIVED</TableHead>
+              <TableHead className="text-right">OUTSTANDING (SAR)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {summaryRows.map((r) => (
+              <TableRow key={r.partyId} className="text-sm">
+                <TableCell className="text-muted-foreground">{r.serial}</TableCell>
+                <TableCell>
+                  <button
+                    className="text-primary hover:underline font-medium text-left"
+                    onClick={() => onNavigate?.("party-statement", { partyId: String(r.partyId) })}
+                  >
+                    {r.partyName}
+                  </button>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{r.paxCount}</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">{fmt(0)}</TableCell>
+                <TableCell className="text-right tabular-nums text-blue-700">{fmt(r.netAmount)}</TableCell>
+                <TableCell className="text-right tabular-nums text-green-700">{fmt(r.amountReceived)}</TableCell>
+                <TableCell className={`text-right tabular-nums font-medium ${r.outstanding < 0 ? "text-red-600" : r.outstanding === 0 ? "text-muted-foreground" : ""}`}>{fmt(r.outstanding)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <tfoot>
+            <tr className="border-t-2 font-bold text-sm bg-muted/50">
+              <td className="px-4 py-2" colSpan={2}>TOTAL</td>
+              <td className="px-4 py-2 text-right tabular-nums">{totals.paxCount}</td>
+              <td className="px-4 py-2 text-right tabular-nums">{fmt(0)}</td>
+              <td className="px-4 py-2 text-right tabular-nums text-blue-700">{fmt(totals.netAmount)}</td>
+              <td className="px-4 py-2 text-right tabular-nums text-green-700">{fmt(totals.amountReceived)}</td>
+              <td className={`px-4 py-2 text-right tabular-nums ${totals.outstanding < 0 ? "text-red-600" : ""}`}>{fmt(totals.outstanding)}</td>
+            </tr>
+          </tfoot>
+        </Table>
+      </div>
+    );
+  }
+
+  // ── Vendor Summary ─────────────────────────────────────────────
+  if (active === "vendor-summary") {
+    const summaryRows = (data.rows ?? []) as Array<{ serial: number; vendorId: number; vendorName: string; opening: number; netAmount: number; amountPaid: number; outstanding: number }>;
+    const totals = (data.totals ?? {}) as { netAmount: number; amountPaid: number; outstanding: number };
+
+    if (summaryRows.length === 0) {
+      return <div className="text-center py-12 text-muted-foreground">No vendor data for this period</div>;
+    }
+
+    return (
+      <div className="p-4">
+        <h2 className="text-base font-bold uppercase mb-4 text-center">SUNDRY CREDITORS SUMMARY</h2>
+        <Table>
+          <TableHeader>
+            <TableRow className="text-xs bg-muted/50">
+              <TableHead className="w-10">S#</TableHead>
+              <TableHead>VENDOR</TableHead>
+              <TableHead className="text-right">OPENING</TableHead>
+              <TableHead className="text-right">NET AMOUNT</TableHead>
+              <TableHead className="text-right">AMOUNT PAID</TableHead>
+              <TableHead className="text-right">OUTSTANDING (SAR)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {summaryRows.map((r) => (
+              <TableRow key={r.vendorId} className="text-sm">
+                <TableCell className="text-muted-foreground">{r.serial}</TableCell>
+                <TableCell>
+                  <button
+                    className="text-primary hover:underline font-medium text-left"
+                    onClick={() => onNavigate?.("vendor-statement", { vendorId: String(r.vendorId) })}
+                  >
+                    {r.vendorName}
+                  </button>
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">{fmt(0)}</TableCell>
+                <TableCell className="text-right tabular-nums text-orange-700">{fmt(r.netAmount)}</TableCell>
+                <TableCell className="text-right tabular-nums text-green-700">{fmt(r.amountPaid)}</TableCell>
+                <TableCell className={`text-right tabular-nums font-medium ${r.outstanding < 0 ? "text-red-600" : r.outstanding === 0 ? "text-muted-foreground" : ""}`}>{fmt(r.outstanding)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <tfoot>
+            <tr className="border-t-2 font-bold text-sm bg-muted/50">
+              <td className="px-4 py-2" colSpan={2}>TOTAL</td>
+              <td className="px-4 py-2 text-right tabular-nums">{fmt(0)}</td>
+              <td className="px-4 py-2 text-right tabular-nums text-orange-700">{fmt(totals.netAmount)}</td>
+              <td className="px-4 py-2 text-right tabular-nums text-green-700">{fmt(totals.amountPaid)}</td>
+              <td className={`px-4 py-2 text-right tabular-nums ${totals.outstanding < 0 ? "text-red-600" : ""}`}>{fmt(totals.outstanding)}</td>
+            </tr>
+          </tfoot>
+        </Table>
+      </div>
+    );
+  }
 
   if (rows.length === 0 && active !== "booking-validation") {
     return <div className="text-center py-12 text-muted-foreground">No data for this period</div>;
-  }
-
-  // ── Party / Vendor Statement ─────────────────────────────────
-  if (active === "party-statement" || active === "vendor-statement") {
-    return (
-      <>
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total DR</p><p className="text-lg font-bold text-green-700">{fmt(data.totalDebit as number)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total CR</p><p className="text-lg font-bold text-red-600">{fmt(data.totalCredit as number)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Balance</p><p className={`text-lg font-bold ${(data.balance as number) >= 0 ? "text-green-700" : "text-red-600"}`}>{fmt(data.balance as number)}</p></CardContent></Card>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Entry #</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">DR</TableHead>
-              <TableHead className="text-right">CR</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((e, i) => (
-              <TableRow key={i}>
-                <TableCell className="text-sm">{String(e.date ?? "").slice(0, 10)}</TableCell>
-                <TableCell className="font-mono text-xs">{String(e.entryNumber ?? "—")}</TableCell>
-                <TableCell className="text-sm max-w-xs truncate">{String(e.description ?? "—")}</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{String(e.sourceType ?? "manual")}</Badge></TableCell>
-                <TableCell className="text-right tabular-nums text-sm text-green-700">{e.side === "DR" ? fmt(e.amount as number) : "—"}</TableCell>
-                <TableCell className="text-right tabular-nums text-sm text-red-600">{e.side === "CR" ? fmt(e.amount as number) : "—"}</TableCell>
-                <TableCell className={`text-right tabular-nums text-sm font-medium ${(e.runningBalance as number) < 0 ? "text-red-600" : ""}`}>{fmt(e.runningBalance as number)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </>
-    );
-  }
-
-  // ── Party / Vendor Summary ─────────────────────────────────
-  if (active === "party-summary" || active === "vendor-summary") {
-    return (
-      <>
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total DR</p><p className="text-lg font-bold">{fmt(data.totalDr as number)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total CR</p><p className="text-lg font-bold">{fmt(data.totalCr as number)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Net</p><p className={`text-lg font-bold ${(data.net as number) >= 0 ? "text-green-700" : "text-red-600"}`}>{fmt(data.net as number)}</p></CardContent></Card>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Source Type</TableHead>
-              <TableHead className="text-right">Count</TableHead>
-              <TableHead className="text-right">Total DR</TableHead>
-              <TableHead className="text-right">Total CR</TableHead>
-              <TableHead className="text-right">Net</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-medium capitalize">{String(r.sourceType).replace(/_/g, " ")}</TableCell>
-                <TableCell className="text-right">{String(r.count)}</TableCell>
-                <TableCell className="text-right tabular-nums text-green-700">{fmt(r.dr as number)}</TableCell>
-                <TableCell className="text-right tabular-nums text-red-600">{fmt(r.cr as number)}</TableCell>
-                <TableCell className={`text-right tabular-nums font-medium ${(r.net as number) >= 0 ? "text-green-700" : "text-red-600"}`}>{fmt(r.net as number)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </>
-    );
   }
 
   // ── Cash Book ─────────────────────────────────────────────
@@ -1016,7 +1423,12 @@ export default function AccountingReportsPage() {
 
   const currentDef = REPORTS.find((r) => r.id === active)!;
   const rows = data ? ((data.entries ?? data.rows ?? []) as unknown[]) : [];
-  const hasData = !!data && rows.length > 0;
+  const hasData = !!data && (
+    rows.length > 0 ||
+    (active === "party-statement" && !!(data as Record<string, unknown>).party) ||
+    (active === "vendor-statement" && !!(data as Record<string, unknown>).vendor) ||
+    ((active === "party-summary" || active === "vendor-summary") && ((data as Record<string, unknown>).rows as unknown[] ?? []).length > 0)
+  );
 
   return (
     <>
@@ -1117,12 +1529,16 @@ export default function AccountingReportsPage() {
                 ) : error ? (
                   <div className="text-center py-8 text-red-600 text-sm">{(error as Error).message}</div>
                 ) : (
-                  renderReport(active, data as Record<string, unknown>)
+                  renderReport(active, data as Record<string, unknown>, (report, newFilters) => {
+                    setActive(report);
+                    setFilters(newFilters);
+                    setApplied({ ...newFilters, _run: String(Date.now()) });
+                  })
                 )}
               </CardContent>
             </Card>
 
-            {hasData && (
+            {hasData && rows.length > 0 && (
               <p className="text-xs text-muted-foreground no-print">
                 {rows.length} record(s) returned
               </p>
