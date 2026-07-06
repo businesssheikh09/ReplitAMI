@@ -15,7 +15,7 @@ const HOTEL_VIEWS   = ["City View", "Haram View", "Pool View", "Garden View", "S
 const BED_TYPES     = ["DBL", "SGL", "TPL", "QUAD", "KNG", "TWN"];
 const INCOME_HEADS  = ["Hotel Income", "Commission", "Service Fee", "Other"];
 const NATIONALITIES = ["Pakistani", "British", "Saudi", "UAE", "American", "Indian", "Other"];
-const STATUSES      = ["draft", "confirmed", "cancelled", "invoiced"];
+const STATUSES      = ["tentative", "confirmed", "cancelled", "invoiced"];
 
 function calcNights(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
@@ -57,7 +57,7 @@ const EMPTY_FORM = {
   payablePkr: "",
   incomeHead: "Hotel Income",
   salesmanId: "",
-  status: "draft",
+  status: "tentative",
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -170,7 +170,7 @@ export default function HotelInvoiceFormPage() {
         payablePkr: existing.payablePkr != null ? String(existing.payablePkr) : "",
         incomeHead: existing.incomeHead || "Hotel Income",
         salesmanId: existing.salesmanId ? String(existing.salesmanId) : "",
-        status: existing.status || "draft",
+        status: existing.status || "tentative",
       });
     }
   }, [existing, isEdit]);

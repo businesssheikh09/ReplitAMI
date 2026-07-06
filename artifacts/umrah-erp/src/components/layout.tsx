@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -39,6 +40,8 @@ import {
   Banknote,
   Zap,
   ScrollText,
+  Bell,
+  X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -221,6 +224,263 @@ function useDraftQuotationsCount() {
   });
 }
 
+/* ── Notification centre ───────────────────────────────────────────────────── */
+
+type NotificationItem = {
+  key: string;
+  category: string;
+  label: string;
+  sublabel: string;
+  href: string;
+  urgency: "urgent" | "warning" | "info";
+};
+
+function useNotifications() {
+  const { isAuthenticated, token } = useAuth();
+  const enabled = isAuthenticated && !!token;
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const { data: hotelInvoices = [] } = useQuery<any[]>({
+    queryKey: ["hotel-invoices-notify", token],
+    queryFn: () =>
+      fetch("/api/invoices/hotel", { headers }).then((r) => (r.ok ? r.json() : [])),
+    enabled,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: flightRequests = [] } = useQuery<any[]>({
+    queryKey: ["flight-requests-notify", token],
+    queryFn: () =>
+      fetch("/api/flight-requests", { headers }).then((r) => (r.ok ? r.json() : [])),
+    enabled,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: pkgInquiries = [] } = useQuery<any[]>({
+    queryKey: ["pkg-inquiries-notify", token],
+    queryFn: () =>
+      fetch("/api/package-inquiries", { headers }).then((r) => (r.ok ? r.json() : [])),
+    enabled,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: portalPendingUsers = [] } = useQuery<any[]>({
+    queryKey: ["portal-pending-notify", token],
+    queryFn: () =>
+      fetch("/api/portal/users?status=pending_approval", { headers }).then((r) =>
+        r.ok ? r.json() : []
+      ),
+    enabled,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: draftQuotationsList = [] } = useQuery<any[]>({
+    queryKey: ["draft-quotations-notify", token],
+    queryFn: () =>
+      fetch("/api/quotations?status=draft", { headers }).then((r) =>
+        r.ok ? r.json() : []
+      ),
+    enabled,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const in3DaysStr = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+
+  const items: NotificationItem[] = [];
+
+  /* Tentative hotel invoices with option date ≤ today (urgent) or ≤ 3 days (warning) */
+  for (const inv of hotelInvoices as any[]) {
+    if (inv.status !== "tentative") continue;
+    const optDate: string | undefined = inv.optionDate;
+    if (!optDate) continue;
+    if (optDate > in3DaysStr) continue;
+    const urgency: "urgent" | "warning" = optDate <= todayStr ? "urgent" : "warning";
+    const catLabel =
+      urgency === "urgent" ? "⚠ Tentative — Option Expired" : "⏳ Tentative — Option Due Soon";
+    items.push({
+      key: `hotel-${inv.id}`,
+      category: catLabel,
+      label: `${inv.dnNumber} — ${inv.passengerName || inv.partyName || "Guest"}`,
+      sublabel: `${inv.hotelName || "Hotel"} · Option: ${optDate}`,
+      href: `/accounting/hotel-invoice/${inv.id}`,
+      urgency,
+    });
+  }
+
+  /* Package inquiries — pending */
+  for (const inq of pkgInquiries as any[]) {
+    if (inq.status !== "pending") continue;
+    items.push({
+      key: `pkg-${inq.id}`,
+      category: "Package Inquiries",
+      label: inq.name || inq.clientName || "Inquiry",
+      sublabel: inq.packageName || inq.email || "",
+      href: "/quotations/pending",
+      urgency: "info",
+    });
+  }
+
+  /* Flight requests — pending */
+  for (const fr of flightRequests as any[]) {
+    if (fr.status !== "pending") continue;
+    items.push({
+      key: `fr-${fr.id}`,
+      category: "Flight Requests",
+      label: fr.clientName || fr.requestNumber || `Request #${fr.id}`,
+      sublabel: `${fr.origin || ""}${fr.destination ? " → " + fr.destination : ""} · ${fr.departureDate || ""}`.trim().replace(/^·\s*/, ""),
+      href: "/flight-requests",
+      urgency: "info",
+    });
+  }
+
+  /* Portal users awaiting approval */
+  for (const u of portalPendingUsers as any[]) {
+    items.push({
+      key: `portal-${u.id}`,
+      category: "Portal Approvals",
+      label: u.name || u.email || "User",
+      sublabel: u.email || u.phone || "",
+      href: "/portal-users",
+      urgency: "info",
+    });
+  }
+
+  /* Draft quotations */
+  for (const q of draftQuotationsList as any[]) {
+    items.push({
+      key: `qt-${q.id}`,
+      category: "Draft Quotations",
+      label: `${q.referenceNo} — ${q.clientName || "Client"}`,
+      sublabel: q.title || "",
+      href: `/quotations/${q.id}`,
+      urgency: "info",
+    });
+  }
+
+  const hasUrgent = items.some((i) => i.urgency === "urgent");
+  return { items, hasUrgent };
+}
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const { items, hasUrgent } = useNotifications();
+  const total = items.length;
+
+  /* Group by category, preserving insertion order */
+  const groups: Record<string, NotificationItem[]> = {};
+  for (const item of items) {
+    if (!groups[item.category]) groups[item.category] = [];
+    groups[item.category].push(item);
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="relative p-1.5 rounded-md hover:bg-sidebar-accent/50 transition-colors focus:outline-none"
+        title="Notifications"
+        aria-label="Open notifications"
+      >
+        <Bell
+          className={`h-4 w-4 ${hasUrgent ? "text-red-500" : "text-sidebar-foreground/70"}`}
+        />
+        {total > 0 && (
+          <span
+            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 text-white ${
+              hasUrgent ? "bg-red-500" : "bg-slate-500"
+            }`}
+          >
+            {total > 99 ? "99+" : total}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop — closes on outside click */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+
+          {/* Notification panel */}
+          <div className="absolute top-9 left-0 z-50 w-80 max-h-[70vh] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 sticky top-0">
+              <span className="font-semibold text-sm text-gray-800">
+                Alerts &amp; Notifications
+                {total > 0 && (
+                  <span className="ml-2 text-xs font-normal text-gray-400">({total})</span>
+                )}
+              </span>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close notifications"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {total === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-400">
+                ✓ All clear — no pending alerts
+              </div>
+            ) : (
+              <div>
+                {Object.entries(groups).map(([cat, catItems]) => {
+                  const catUrgent = catItems.some((i) => i.urgency === "urgent");
+                  const catWarning = catItems.some((i) => i.urgency === "warning");
+                  return (
+                    <div key={cat}>
+                      <div
+                        className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                          catUrgent
+                            ? "bg-red-50 text-red-700"
+                            : catWarning
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-gray-50 text-gray-500"
+                        }`}
+                      >
+                        {cat}
+                      </div>
+                      {catItems.map((item) => (
+                        <Link key={item.key} href={item.href}>
+                          <span
+                            onClick={() => setOpen(false)}
+                            className={`flex flex-col px-3 py-2 border-b border-gray-100 cursor-pointer hover:bg-gray-50 border-l-2 ${
+                              item.urgency === "urgent"
+                                ? "border-l-red-400"
+                                : item.urgency === "warning"
+                                ? "border-l-amber-400"
+                                : "border-l-blue-200"
+                            }`}
+                          >
+                            <span className="text-sm font-medium text-gray-800 truncate">
+                              {item.label}
+                            </span>
+                            {item.sublabel && (
+                              <span className="text-xs text-gray-500 truncate">
+                                {item.sublabel}
+                              </span>
+                            )}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout, user, token } = useAuth();
@@ -253,8 +513,9 @@ export function Sidebar() {
 
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar border-r border-sidebar-border">
-      <div className="flex h-14 items-center px-4 border-b border-sidebar-border">
+      <div className="flex h-14 items-center justify-between px-4 border-b border-sidebar-border">
         <span className="font-bold text-lg tracking-tight">Umrah ERP</span>
+        <NotificationBell />
       </div>
 
       {user && (
