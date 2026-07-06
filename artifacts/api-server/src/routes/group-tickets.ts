@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, groupTicketsTable } from "@workspace/db";
-import { eq, desc, ilike, and, gte, SQL } from "drizzle-orm";
+import { eq, desc, ilike, and, SQL, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { scrapeAndUpsert } from "../services/scheduler.js";
 import { getStatusPayload, getConnectionStatus, getQRCode, disconnectWhatsApp } from "../services/whatsapp.js";
@@ -11,11 +11,10 @@ const router = Router();
 
 router.get("/public/group-tickets", async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
     const rows = await db
       .select()
       .from(groupTicketsTable)
-      .where(gte(groupTicketsTable.flightDate, today))
+      .where(sql`TO_CHAR(${groupTicketsTable.flightDate}, 'MMDD') >= TO_CHAR(CURRENT_DATE, 'MMDD')`)
       .orderBy(groupTicketsTable.flightDate);
 
     return res.json(
@@ -49,12 +48,12 @@ router.get("/public/group-tickets/:id", async (req, res) => {
 
 router.get("/group-tickets", requireAuth, async (req, res) => {
   try {
-    const { origin, destination, date, fromDate } = req.query as Record<string, string>;
+    const { origin, destination, date, hidePast } = req.query as Record<string, string>;
     const conditions: SQL[] = [];
     if (origin) conditions.push(ilike(groupTicketsTable.origin, origin));
     if (destination) conditions.push(ilike(groupTicketsTable.destination, destination));
     if (date) conditions.push(eq(groupTicketsTable.flightDate, date));
-    if (fromDate) conditions.push(gte(groupTicketsTable.flightDate, fromDate));
+    if (hidePast === "true") conditions.push(sql`TO_CHAR(${groupTicketsTable.flightDate}, 'MMDD') >= TO_CHAR(CURRENT_DATE, 'MMDD')`);
 
     const rows = await db
       .select()

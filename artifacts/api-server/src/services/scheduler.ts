@@ -70,7 +70,7 @@ async function scrapeAndUpsert(): Promise<void> {
 
   let upserted = 0;
   for (const msg of messages) {
-    const parsed = parseGroupTicketMessage(msg.text);
+    const parsed = parseGroupTicketMessage(msg.text, msg.timestamp);
     for (const ticket of parsed) {
       try {
         await db.execute(sql`

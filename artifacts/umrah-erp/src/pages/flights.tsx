@@ -148,7 +148,7 @@ function GroupTicketsTab() {
       const params = new URLSearchParams();
       if (filterOrigin) params.set("origin", filterOrigin.toUpperCase());
       if (filterDest) params.set("destination", filterDest.toUpperCase());
-      if (hidePastTickets) params.set("fromDate", new Date().toISOString().slice(0, 10));
+      if (hidePastTickets) params.set("hidePast", "true");
       const res = await fetch(`/api/group-tickets?${params}`, { headers: authHeaders });
       if (res.ok) {
         setTickets(await res.json());

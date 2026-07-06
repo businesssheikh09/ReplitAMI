@@ -16,20 +16,30 @@ const MONTH_MAP: Record<string, number> = {
   JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
 };
 
-function parseDateCode(code: string): string {
+/**
+ * Parse a date code like "20JUN" into a YYYY-MM-DD string.
+ *
+ * @param code         The raw date token from the WhatsApp message (e.g. "20JUN").
+ * @param msgTimestamp Unix seconds of the message that contained this date.
+ *                     When provided, the year is resolved relative to the message
+ *                     send time rather than the current wall-clock time, so a
+ *                     "20JUN" token in a message sent on 1 Jun 2026 correctly
+ *                     yields 2026-06-20, not 2027-06-20.
+ */
+function parseDateCode(code: string, msgTimestamp?: number): string {
   const m = code.match(/^(\d{1,2})([A-Z]{3})$/i);
   if (!m) return new Date().toISOString().slice(0, 10);
   const day = parseInt(m[1], 10);
   const monthIdx = MONTH_MAP[m[2].toUpperCase()];
   if (monthIdx === undefined) return new Date().toISOString().slice(0, 10);
 
-  const today = new Date();
-  // Compare by calendar date only (midnight), not by current time, to avoid
-  // same-day messages rolling to next year after midnight.
-  today.setHours(0, 0, 0, 0);
-  let year = today.getFullYear();
+  // Use the message timestamp as the reference point when available.
+  // Compare at midnight to avoid same-day messages rolling to the next year.
+  const ref = msgTimestamp ? new Date(msgTimestamp * 1000) : new Date();
+  ref.setHours(0, 0, 0, 0);
+  let year = ref.getFullYear();
   const candidate = new Date(year, monthIdx, day);
-  if (candidate < today) year += 1;
+  if (candidate < ref) year += 1;
   return `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
@@ -39,7 +49,7 @@ function formatTime(t: string): string | null {
   return `${padded.slice(0, 2)}:${padded.slice(2)}`;
 }
 
-export function parseGroupTicketMessage(rawText: string): ParsedTicket[] {
+export function parseGroupTicketMessage(rawText: string, msgTimestamp?: number): ParsedTicket[] {
   const text = rawText.replace(/\*/g, "").replace(/\r\n/g, "\n");
   const results: ParsedTicket[] = [];
 
@@ -60,7 +70,7 @@ export function parseGroupTicketMessage(rawText: string): ParsedTicket[] {
     results.push({
       airlineCode: airlineCode.toUpperCase(),
       flightNumber: `${airlineCode.toUpperCase()}${flightNum}`,
-      flightDate: parseDateCode(dateCode),
+      flightDate: parseDateCode(dateCode, msgTimestamp),
       origin: originRaw.toUpperCase() || defaultOrigin,
       destination: destRaw.toUpperCase() || defaultDest,
       seats: parseInt(seatsStr, 10),
