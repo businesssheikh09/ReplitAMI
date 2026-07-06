@@ -188,21 +188,23 @@ export default function WebsiteSettingsPage() {
     const setState = field === "logo_url" ? setLogoUploading : setPrintLogoUploading;
     setState(true);
     try {
-      const res = await fetch("/api/storage/uploads/request-url", {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/settings/upload-logo", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
       });
-      if (!res.ok) throw new Error("Failed to get upload URL");
-      const { uploadURL, objectPath } = await res.json() as { uploadURL: string; objectPath: string };
-      const putRes = await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      if (!putRes.ok) throw new Error("Upload to storage failed");
-      // objectPath is like /objects/<uuid>; serve via the private objects endpoint (no auth required)
-      const serveUrl = `/api/storage/objects/${objectPath.replace(/^\/objects\//, "")}`;
-      setB(field, serveUrl);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const { url } = await res.json() as { url: string };
+      setB(field, url);
       toast({ title: "Logo uploaded", description: "Click 'Save Branding' to apply." });
-    } catch {
-      toast({ title: "Upload failed", description: "Could not store the logo. Please try again.", variant: "destructive" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not store the logo. Please try again.";
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
     } finally {
       setState(false);
     }

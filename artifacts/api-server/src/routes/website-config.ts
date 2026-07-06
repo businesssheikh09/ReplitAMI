@@ -1,10 +1,65 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
+import multer from "multer";
 import { db } from "@workspace/db";
 import { websiteConfigTable } from "@workspace/db";
 
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 
 const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
+const objectStorageService = new ObjectStorageService();
+
+const LOGO_ALLOWED_TYPES: Record<string, string> = {
+  "image/png":     "png",
+  "image/jpeg":    "jpg",
+  "image/jpg":     "jpg",
+  "image/svg+xml": "svg",
+  "image/webp":    "webp",
+};
+
+/**
+ * POST /api/settings/upload-logo
+ * Management-only. Accepts a multipart image upload, stores it in object
+ * storage under logos/<uuid>.<ext>, returns { url } for persisting.
+ */
+router.post(
+  "/settings/upload-logo",
+  requireAuth,
+  requireRole("management"),
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "No file provided" });
+      return;
+    }
+    const ext = LOGO_ALLOWED_TYPES[req.file.mimetype];
+    if (!ext) {
+      res.status(400).json({ error: "Invalid file type. PNG, JPG, SVG, or WebP required." });
+      return;
+    }
+    try {
+      const uuid = randomUUID();
+      const objectPath = `logos/${uuid}.${ext}`;
+      const localPath = await objectStorageService.uploadBuffer(
+        objectPath,
+        req.file.buffer,
+        req.file.mimetype,
+      );
+      const url = `/api/storage/objects/${localPath.replace(/^\/objects\//, "")}`;
+      res.json({ url });
+    } catch (err) {
+      req.log.error({ err }, "Logo upload failed");
+      res.status(500).json({ error: "Upload failed" });
+    }
+  },
+);
 
 const DEFAULTS: Record<string, string> = {
   site_name: "Noor Al-Haram",
