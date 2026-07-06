@@ -189,25 +189,52 @@ router.patch("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
     const quotationId = parseInt(String(req.params.id));
     const updates: Record<string, unknown> = {};
     if (req.body.serviceType) updates.serviceType = req.body.serviceType;
-    if (req.body.description) updates.description = req.body.description;
-    if (req.body.quantity !== undefined) updates.quantity = req.body.quantity;
-    if (req.body.unitPrice !== undefined) {
-      updates.unitPrice = req.body.unitPrice.toString();
-      const qty = req.body.quantity || 1;
-      updates.totalPrice = (req.body.unitPrice * qty).toString();
-    }
+    if (req.body.description !== undefined) updates.description = req.body.description;
+    if (req.body.currency !== undefined) updates.currency = req.body.currency;
     if (req.body.notes !== undefined) updates.notes = req.body.notes;
+
+    const unitPrice = req.body.unitPrice;
+    const quantity = req.body.quantity;
+    if (unitPrice !== undefined || quantity !== undefined) {
+      const existingArr = await db.select().from(quotationItemsTable).where(eq(quotationItemsTable.id, itemId));
+      const existing = existingArr[0];
+      const newUnitPrice = unitPrice !== undefined ? unitPrice : parseFloat(existing.unitPrice);
+      const newQty = quantity !== undefined ? quantity : existing.quantity;
+      updates.unitPrice = newUnitPrice.toString();
+      updates.quantity = newQty;
+      updates.totalPrice = (newUnitPrice * newQty).toString();
+
+      const unitPriceBase = req.body.unitPriceBase;
+      if (unitPriceBase != null) {
+        updates.totalPriceBase = (unitPriceBase * newQty).toString();
+      } else if (req.body.currency !== undefined) {
+        // Currency changed to base — clear totalPriceBase
+        const quotArr = await db.select().from(quotationsTable).where(eq(quotationsTable.id, quotationId));
+        const quot = quotArr[0];
+        const baseCurr = quot?.currency || "USD";
+        if (req.body.currency === baseCurr) updates.totalPriceBase = null;
+      }
+    } else if (req.body.unitPriceBase != null) {
+      const existingArr = await db.select().from(quotationItemsTable).where(eq(quotationItemsTable.id, itemId));
+      const existing = existingArr[0];
+      updates.totalPriceBase = (req.body.unitPriceBase * existing.quantity).toString();
+    }
+
     const [item] = await db.update(quotationItemsTable).set(updates).where(eq(quotationItemsTable.id, itemId)).returning();
 
-    // Recalculate total
+    // Recalculate quotation total using base-converted values where available
     const allItems = await db.select().from(quotationItemsTable).where(eq(quotationItemsTable.quotationId, quotationId));
-    const newTotal = allItems.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0);
+    const newTotal = allItems.reduce((sum, i) => {
+      const base = i.totalPriceBase != null ? parseFloat(i.totalPriceBase) : parseFloat(i.totalPrice);
+      return sum + base;
+    }, 0);
     await db.update(quotationsTable).set({ totalAmount: newTotal.toString() }).where(eq(quotationsTable.id, quotationId));
 
     return res.json({
       ...item,
       unitPrice: parseFloat(item.unitPrice),
       totalPrice: parseFloat(item.totalPrice),
+      totalPriceBase: item.totalPriceBase != null ? parseFloat(item.totalPriceBase) : null,
     });
   } catch (err) {
     req.log.error({ err }, "Update quotation item error");

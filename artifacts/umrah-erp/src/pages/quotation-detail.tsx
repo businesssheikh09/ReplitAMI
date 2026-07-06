@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetQuotation, useUpdateQuotation, useAddQuotationItem, useDeleteQuotationItem, useSendQuotation, QuotationItemInputServiceType } from "@workspace/api-client-react";
+import { useGetQuotation, useUpdateQuotation, useAddQuotationItem, useDeleteQuotationItem, useSendQuotation, useUpdateQuotationItem, QuotationItemInputServiceType } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,18 @@ export default function QuotationDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", validUntil: "", currency: "USD", discount: "", notes: "", termsAndConditions: "" });
 
+  const [editItemOpen, setEditItemOpen] = useState(false);
+  const [editItemForm, setEditItemForm] = useState<{
+    id: number;
+    serviceType: QuotationItemInputServiceType;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    currency: string;
+    customRate: string;
+    notes: string;
+  }>({ id: 0, serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, currency: "USD", customRate: "", notes: "" });
+
   const { data: quotation, isLoading } = useGetQuotation(Number(id));
   const { data: rates = {} } = useCurrencyRates();
 
@@ -107,6 +119,9 @@ export default function QuotationDetailPage() {
   });
   const updateQuotation = useUpdateQuotation({
     mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Quotation updated" }); setEditOpen(false); } },
+  });
+  const updateItem = useUpdateQuotationItem({
+    mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Item updated" }); setEditItemOpen(false); } },
   });
 
   const q = quotation as any;
@@ -164,6 +179,62 @@ export default function QuotationDetailPage() {
         unitPrice: itemForm.unitPrice,
         currency: itemForm.currency,
         notes: itemForm.notes,
+        unitPriceBase,
+      } as any,
+    });
+  }
+
+  // Auto-populate customRate when editItemForm currency changes
+  useEffect(() => {
+    if (!q || !editItemOpen) return;
+    const base = q.currency || "USD";
+    if (editItemForm.currency === base) {
+      setEditItemForm(p => ({ ...p, customRate: "" }));
+      return;
+    }
+    const autoRate = convertToBase(1, base, editItemForm.currency, rates);
+    if (autoRate != null) {
+      setEditItemForm(p => ({ ...p, customRate: autoRate.toFixed(4) }));
+    }
+  }, [editItemForm.currency, editItemOpen, q?.currency, rates]);
+
+  function openEditItem(item: any) {
+    const base = q?.currency || "USD";
+    const itemCurr = item.currency || base;
+    let customRate = "";
+    if (itemCurr !== base) {
+      const autoRate = convertToBase(1, base, itemCurr, rates);
+      if (autoRate != null) customRate = autoRate.toFixed(4);
+    }
+    setEditItemForm({
+      id: item.id,
+      serviceType: item.serviceType as QuotationItemInputServiceType,
+      description: item.description || "",
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      currency: itemCurr,
+      customRate,
+      notes: item.notes || "",
+    });
+    setEditItemOpen(true);
+  }
+
+  function handleSaveEditItem() {
+    const base = q?.currency || "USD";
+    const isDifferent = editItemForm.currency !== base;
+    const editRateNum = parseFloat(editItemForm.customRate);
+    const editRateValid = !isNaN(editRateNum) && editRateNum > 0;
+    const unitPriceBase = isDifferent && editRateValid ? editItemForm.unitPrice / editRateNum : undefined;
+    updateItem.mutate({
+      id: Number(id),
+      itemId: editItemForm.id,
+      data: {
+        serviceType: editItemForm.serviceType,
+        description: editItemForm.description,
+        quantity: editItemForm.quantity,
+        unitPrice: editItemForm.unitPrice,
+        currency: editItemForm.currency,
+        notes: editItemForm.notes,
         unitPriceBase,
       } as any,
     });
@@ -450,9 +521,14 @@ export default function QuotationDetailPage() {
                       )}
                       <TableCell>
                         {q.status === "draft" && (
-                          <Button size="sm" variant="ghost" onClick={() => deleteItem.mutate({ id: Number(id), itemId: item.id })}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => openEditItem(item)}>
+                              <Edit2 className="h-4 w-4 text-blue-500" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => deleteItem.mutate({ id: Number(id), itemId: item.id })}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -664,6 +740,91 @@ export default function QuotationDetailPage() {
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveEdit} disabled={updateQuotation.isPending}>
               {updateQuotation.isPending ? "Saving…" : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item modal */}
+      <Dialog open={editItemOpen} onOpenChange={setEditItemOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Line Item</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>Service Type</Label>
+              <Select value={editItemForm.serviceType} onValueChange={v => setEditItemForm(p => ({ ...p, serviceType: v as QuotationItemInputServiceType }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SERVICE_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Input value={editItemForm.description} onChange={e => setEditItemForm(p => ({ ...p, description: e.target.value }))} placeholder="Description" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Quantity</Label>
+                <Input type="number" min={1} value={editItemForm.quantity} onChange={e => setEditItemForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>Currency</Label>
+                <Select value={editItemForm.currency} onValueChange={v => setEditItemForm(p => ({ ...p, currency: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Unit Price ({editItemForm.currency})</Label>
+              <Input type="number" min={0} step="0.01" value={editItemForm.unitPrice || ""} onChange={e => setEditItemForm(p => ({ ...p, unitPrice: Number(e.target.value) }))} placeholder="0.00" />
+            </div>
+
+            {/* Conversion rate — shown when currency differs from base */}
+            {editItemForm.currency !== baseCurrency && (
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="text-xs text-amber-800 font-medium">Conversion rate</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-700 whitespace-nowrap">1 {baseCurrency} =</span>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0.0001"
+                    value={editItemForm.customRate}
+                    onChange={e => setEditItemForm(p => ({ ...p, customRate: e.target.value }))}
+                    className="flex-1 h-8 text-sm font-mono bg-white border-amber-300"
+                    placeholder="rate"
+                  />
+                  <span className="text-xs text-amber-700 whitespace-nowrap">{editItemForm.currency}</span>
+                </div>
+                {(() => {
+                  const r = parseFloat(editItemForm.customRate);
+                  const valid = !isNaN(r) && r > 0 && editItemForm.unitPrice > 0;
+                  return valid ? (
+                    <p className="text-xs text-teal-700 font-medium">
+                      {fmt(editItemForm.unitPrice * editItemForm.quantity, editItemForm.currency)}
+                      {" = "}
+                      <strong>{fmt((editItemForm.unitPrice * editItemForm.quantity) / r, baseCurrency)}</strong>
+                      {" (grand total impact)"}
+                    </p>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label>Notes <span className="text-muted-foreground">(optional)</span></Label>
+              <Input value={editItemForm.notes} onChange={e => setEditItemForm(p => ({ ...p, notes: e.target.value }))} placeholder="Internal notes for this item" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItemOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEditItem} disabled={!editItemForm.description || !editItemForm.unitPrice || updateItem.isPending}>
+              {updateItem.isPending ? "Saving…" : "Save Item"}
             </Button>
           </DialogFooter>
         </DialogContent>
