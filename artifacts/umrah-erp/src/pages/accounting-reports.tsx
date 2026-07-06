@@ -512,6 +512,7 @@ function renderReport(
     const hotelBookings = (data.hotelBookings ?? []) as Record<string, unknown>[];
     const vouchers = (data.vouchers ?? []) as Record<string, unknown>[];
     const summary = (data.summary ?? {}) as { totalSales: number; netVouchers: number; closingBalance: number; isAdvance: boolean };
+    const isAllMode = !!data.isAllMode;
 
     if (!party) {
       return <div className="text-center py-12 text-muted-foreground">Select a party and click Generate</div>;
@@ -532,6 +533,7 @@ function renderReport(
               <TableRow className="text-xs">
                 <TableHead>Date</TableHead>
                 <TableHead>DN-No.</TableHead>
+                {isAllMode && <TableHead>Party</TableHead>}
                 <TableHead>Nationality</TableHead>
                 <TableHead className="text-right">PAX</TableHead>
                 <TableHead>Guest</TableHead>
@@ -547,7 +549,7 @@ function renderReport(
             </TableHeader>
             <TableBody>
               {hotelBookings.length === 0 ? (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground text-sm py-4">No hotel bookings</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAllMode ? 14 : 13} className="text-center text-muted-foreground text-sm py-4">No hotel bookings</TableCell></TableRow>
               ) : hotelBookings.map((h, i) => {
                 const nights = (h.noOfNights as number) ?? 1;
                 const rooms = (h.noOfRooms as number) ?? 1;
@@ -557,6 +559,7 @@ function renderReport(
                   <TableRow key={i} className="text-xs">
                     <TableCell>{String(h.invoiceDate ?? "—")}</TableCell>
                     <TableCell className="font-mono">{String(h.dnNumber)}</TableCell>
+                    {isAllMode && <TableCell className="font-medium">{String(h.partyName ?? "—")}</TableCell>}
                     <TableCell>{String(h.nationality ?? "—")}</TableCell>
                     <TableCell className="text-right">{String(h.noOfPax ?? 1)}</TableCell>
                     <TableCell>{String(h.passengerName ?? "—")}</TableCell>
@@ -585,6 +588,7 @@ function renderReport(
               <TableRow className="text-xs">
                 <TableHead>Date</TableHead>
                 <TableHead>V/No</TableHead>
+                {isAllMode && <TableHead>Party</TableHead>}
                 <TableHead>B/No</TableHead>
                 <TableHead>Narration</TableHead>
                 <TableHead>Detail</TableHead>
@@ -593,11 +597,12 @@ function renderReport(
             </TableHeader>
             <TableBody>
               {vouchers.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-4">No vouchers</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAllMode ? 7 : 6} className="text-center text-muted-foreground text-sm py-4">No vouchers</TableCell></TableRow>
               ) : vouchers.map((v, i) => (
                 <TableRow key={i} className="text-xs">
                   <TableCell>{String(v.date ?? "—")}</TableCell>
                   <TableCell className="font-mono">{String(v.voucherNumber ?? "—")}</TableCell>
+                  {isAllMode && <TableCell className="font-medium">{String(v.partyName ?? "—")}</TableCell>}
                   <TableCell className="font-mono text-muted-foreground">{v.hotelInvoiceId ? String(v.hotelInvoiceId) : "—"}</TableCell>
                   <TableCell className="max-w-xs truncate">{String(v.narration ?? "—")}</TableCell>
                   <TableCell className="max-w-xs truncate text-muted-foreground">{v.detail ? String(v.detail) : "—"}</TableCell>
@@ -637,6 +642,7 @@ function renderReport(
     const vouchers = (data.vouchers ?? []) as Record<string, unknown>[];
     const summary = (data.summary ?? {}) as { totalPurchase: number; totalHotelPurchase: number; totalTransportPurchase: number; netVouchers: number; closingBalance: number };
     const showParty = data.showPartyName as boolean;
+    const isAllMode = !!data.isAllMode;
 
     if (!vendor) {
       return <div className="text-center py-12 text-muted-foreground">Select a vendor and click Generate</div>;
@@ -657,6 +663,7 @@ function renderReport(
               <TableRow className="text-xs">
                 <TableHead>Date</TableHead>
                 <TableHead>DN-No.</TableHead>
+                {isAllMode && <TableHead>Vendor</TableHead>}
                 {showParty && <TableHead>Party</TableHead>}
                 <TableHead>Guest</TableHead>
                 <TableHead>Hotel</TableHead>
@@ -672,7 +679,7 @@ function renderReport(
             </TableHeader>
             <TableBody>
               {hotelBookings.length === 0 ? (
-                <TableRow><TableCell colSpan={showParty ? 13 : 12} className="text-center text-muted-foreground text-sm py-4">No hotel bookings</TableCell></TableRow>
+                <TableRow><TableCell colSpan={(showParty ? 13 : 12) + (isAllMode ? 1 : 0)} className="text-center text-muted-foreground text-sm py-4">No hotel bookings</TableCell></TableRow>
               ) : hotelBookings.map((h, i) => {
                 const nights = (h.noOfNights as number) ?? 1;
                 const rooms = (h.noOfRooms as number) ?? 1;
@@ -682,6 +689,7 @@ function renderReport(
                   <TableRow key={i} className="text-xs">
                     <TableCell>{String(h.invoiceDate ?? "—")}</TableCell>
                     <TableCell className="font-mono">{String(h.dnNumber)}</TableCell>
+                    {isAllMode && <TableCell className="font-medium">{String(h.vendorName ?? "—")}</TableCell>}
                     {showParty && <TableCell>{String(h.partyName ?? "—")}</TableCell>}
                     <TableCell>{String(h.passengerName ?? "—")}</TableCell>
                     <TableCell>{String(h.hotelName ?? "—")}</TableCell>
@@ -711,6 +719,7 @@ function renderReport(
                 <TableRow className="text-xs">
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
+                  {isAllMode && <TableHead>Vendor</TableHead>}
                   <TableHead>Party</TableHead>
                   <TableHead>Pickup</TableHead>
                   <TableHead>Dropoff</TableHead>
@@ -725,6 +734,7 @@ function renderReport(
                   <TableRow key={i} className="text-xs">
                     <TableCell>{String(t.date ?? "—").slice(0, 10)}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(t.type)}</Badge></TableCell>
+                    {isAllMode && <TableCell className="font-medium">{String(t.vendorName ?? "—")}</TableCell>}
                     <TableCell>{String(t.partyName ?? "—")}</TableCell>
                     <TableCell className="max-w-32 truncate">{String(t.pickupLocation ?? "—")}</TableCell>
                     <TableCell className="max-w-32 truncate">{String(t.dropoffLocation ?? "—")}</TableCell>
@@ -749,6 +759,7 @@ function renderReport(
               <TableRow className="text-xs">
                 <TableHead>Date</TableHead>
                 <TableHead>V/No</TableHead>
+                {isAllMode && <TableHead>Vendor</TableHead>}
                 <TableHead>B/No</TableHead>
                 <TableHead>Narration</TableHead>
                 <TableHead>Detail</TableHead>
@@ -757,11 +768,12 @@ function renderReport(
             </TableHeader>
             <TableBody>
               {vouchers.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-4">No vouchers</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAllMode ? 7 : 6} className="text-center text-muted-foreground text-sm py-4">No vouchers</TableCell></TableRow>
               ) : vouchers.map((v, i) => (
                 <TableRow key={i} className="text-xs">
                   <TableCell>{String(v.date ?? "—")}</TableCell>
                   <TableCell className="font-mono">{String(v.voucherNumber ?? "—")}</TableCell>
+                  {isAllMode && <TableCell className="font-medium">{String(v.vendorName ?? "—")}</TableCell>}
                   <TableCell className="font-mono text-muted-foreground">{v.hotelInvoiceId ? String(v.hotelInvoiceId) : "—"}</TableCell>
                   <TableCell className="max-w-xs truncate">{String(v.narration ?? "—")}</TableCell>
                   <TableCell className="max-w-xs truncate text-muted-foreground">{v.detail ? String(v.detail) : "—"}</TableCell>

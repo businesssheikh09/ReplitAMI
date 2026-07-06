@@ -72,20 +72,30 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
   try {
     const { partyId, from, to, dateType } = req.query as Record<string, string>;
 
-    if (!partyId) {
+    const pid = partyId ? parseInt(String(partyId)) : null;
+    const isAllMode = !pid;
+
+    // Fetch specific party, or use synthetic "All Clients" header
+    let party: Record<string, unknown> | null = null;
+    if (pid) {
+      const [found] = await db
+        .select({ id: clientsTable.id, name: clientsTable.name, phone: clientsTable.phone, email: clientsTable.email, city: clientsTable.city, country: clientsTable.country })
+        .from(clientsTable)
+        .where(eq(clientsTable.id, pid));
+      party = found ?? null;
+    } else {
+      party = { id: null, name: "All Clients", phone: null, email: null, city: null, country: null };
+    }
+
+    if (!party) {
       return res.json({ party: null, hotelBookings: [], vouchers: [], summary: { totalSales: 0, netVouchers: 0, closingBalance: 0, isAdvance: false } });
     }
 
-    const pid = parseInt(String(partyId));
-
-    const [party] = await db
-      .select({ id: clientsTable.id, name: clientsTable.name, phone: clientsTable.phone, email: clientsTable.email, city: clientsTable.city, country: clientsTable.country })
-      .from(clientsTable)
-      .where(eq(clientsTable.id, pid));
-
     // Hotel bookings filtered by invoiceDate or checkIn
     const useCheckIn = dateType === "checkin";
-    const hotelConds: ReturnType<typeof eq>[] = [eq(hotelInvoicesTable.partyId, pid) as ReturnType<typeof eq>];
+    const hotelConds: ReturnType<typeof eq>[] = [
+      (pid ? eq(hotelInvoicesTable.partyId, pid) : isNotNull(hotelInvoicesTable.partyId)) as ReturnType<typeof eq>,
+    ];
     if (from) hotelConds.push((useCheckIn ? gte(hotelInvoicesTable.checkIn, from) : gte(hotelInvoicesTable.invoiceDate, from)) as ReturnType<typeof eq>);
     if (to) hotelConds.push((useCheckIn ? lte(hotelInvoicesTable.checkIn, to) : lte(hotelInvoicesTable.invoiceDate, to)) as ReturnType<typeof eq>);
 
@@ -106,20 +116,31 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
       noOfRooms: hotelInvoicesTable.noOfRooms,
       receivableSar: hotelInvoicesTable.receivableSar,
       status: hotelInvoicesTable.status,
+      partyName: clientsTable.name,
     })
       .from(hotelInvoicesTable)
+      .leftJoin(clientsTable, eq(hotelInvoicesTable.partyId, clientsTable.id))
       .where(and(...hotelConds))
       .orderBy(asc(hotelInvoicesTable.invoiceDate));
 
-    // Vouchers (RV/PV/JV only) linked to this party
+    // Vouchers (RV/PV/JV only) — filter by party or all parties
     const vConds: ReturnType<typeof eq>[] = [
-      eq(vouchersTable.partyId, pid) as ReturnType<typeof eq>,
+      (pid ? eq(vouchersTable.partyId, pid) : isNotNull(vouchersTable.partyId)) as ReturnType<typeof eq>,
       inArray(vouchersTable.type, ["RV", "PV", "JV"]) as ReturnType<typeof eq>,
     ];
     if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
-    const rawVouchers = await db.select().from(vouchersTable).where(and(...vConds)).orderBy(asc(vouchersTable.date));
+    const rawVouchers = await db.select({
+      id: vouchersTable.id, voucherNumber: vouchersTable.voucherNumber, type: vouchersTable.type,
+      date: vouchersTable.date, narration: vouchersTable.narration, status: vouchersTable.status,
+      partyId: vouchersTable.partyId, vendorId: vouchersTable.vendorId, hotelInvoiceId: vouchersTable.hotelInvoiceId,
+      partyName: clientsTable.name,
+    })
+      .from(vouchersTable)
+      .leftJoin(clientsTable, eq(vouchersTable.partyId, clientsTable.id))
+      .where(and(...vConds))
+      .orderBy(asc(vouchersTable.date));
     const detailMap = await getVoucherDetails(rawVouchers.map((v) => v.id));
     const vouchers = rawVouchers.map((v) => { const d = detailMap.get(v.id) ?? { amount: 0, detail: null }; return { ...v, amount: d.amount, detail: d.detail }; });
 
@@ -128,7 +149,8 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
     const closingBalance = totalSales - netVouchers;
 
     return res.json({
-      party: party ?? null,
+      party,
+      isAllMode,
       hotelBookings,
       vouchers,
       summary: { totalSales, netVouchers, closingBalance, isAdvance: closingBalance < 0 },
@@ -145,23 +167,33 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
   try {
     const { vendorId, from, to, dateType, showPartyName } = req.query as Record<string, string>;
 
-    if (!vendorId) {
+    const vid = vendorId ? parseInt(String(vendorId)) : null;
+    const isAllMode = !vid;
+
+    // Fetch specific vendor, or use synthetic "All Vendors" header
+    let vendor: Record<string, unknown> | null = null;
+    if (vid) {
+      const [found] = await db
+        .select({ id: vendorsTable.id, name: vendorsTable.name, phone: vendorsTable.phone, email: vendorsTable.email, country: vendorsTable.country })
+        .from(vendorsTable)
+        .where(eq(vendorsTable.id, vid));
+      vendor = found ?? null;
+    } else {
+      vendor = { id: null, name: "All Vendors", phone: null, email: null, country: null };
+    }
+
+    if (!vendor) {
       return res.json({ vendor: null, hotelBookings: [], transportBookings: [], vouchers: [], summary: { totalPurchase: 0, netVouchers: 0, closingBalance: 0 } });
     }
 
-    const vid = parseInt(String(vendorId));
-
-    const [vendor] = await db
-      .select({ id: vendorsTable.id, name: vendorsTable.name, phone: vendorsTable.phone, email: vendorsTable.email, country: vendorsTable.country })
-      .from(vendorsTable)
-      .where(eq(vendorsTable.id, vid));
-
     const useCheckIn = dateType === "checkin";
-    const hotelConds: ReturnType<typeof eq>[] = [eq(hotelInvoicesTable.vendorId, vid) as ReturnType<typeof eq>];
+    const hotelConds: ReturnType<typeof eq>[] = [
+      (vid ? eq(hotelInvoicesTable.vendorId, vid) : isNotNull(hotelInvoicesTable.vendorId)) as ReturnType<typeof eq>,
+    ];
     if (from) hotelConds.push((useCheckIn ? gte(hotelInvoicesTable.checkIn, from) : gte(hotelInvoicesTable.invoiceDate, from)) as ReturnType<typeof eq>);
     if (to) hotelConds.push((useCheckIn ? lte(hotelInvoicesTable.checkIn, to) : lte(hotelInvoicesTable.invoiceDate, to)) as ReturnType<typeof eq>);
 
-    // Hotel bookings — optionally join clients for party name
+    // Hotel bookings — join clients for partyName, join vendors for vendorName (useful in all-mode)
     const hotelRows = await db.select({
       id: hotelInvoicesTable.id,
       dnNumber: hotelInvoicesTable.dnNumber,
@@ -181,14 +213,18 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
       status: hotelInvoicesTable.status,
       partyId: hotelInvoicesTable.partyId,
       partyName: clientsTable.name,
+      vendorName: vendorsTable.name,
     })
       .from(hotelInvoicesTable)
       .leftJoin(clientsTable, eq(hotelInvoicesTable.partyId, clientsTable.id))
+      .leftJoin(vendorsTable, eq(hotelInvoicesTable.vendorId, vendorsTable.id))
       .where(and(...hotelConds))
       .orderBy(asc(hotelInvoicesTable.invoiceDate));
 
-    // Transport bookings for this vendor
-    const transConds: ReturnType<typeof eq>[] = [eq(transportBookingsTable.vendorId, vid) as ReturnType<typeof eq>];
+    // Transport bookings — filter by vendor or all vendors
+    const transConds: ReturnType<typeof eq>[] = [
+      (vid ? eq(transportBookingsTable.vendorId, vid) : isNotNull(transportBookingsTable.vendorId)) as ReturnType<typeof eq>,
+    ];
     if (from) transConds.push(gte(transportBookingsTable.date, new Date(from)) as ReturnType<typeof eq>);
     if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); transConds.push(lte(transportBookingsTable.date, t) as ReturnType<typeof eq>); }
 
@@ -205,21 +241,32 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
       status: transportBookingsTable.status,
       clientId: transportBookingsTable.clientId,
       partyName: clientsTable.name,
+      vendorName: vendorsTable.name,
     })
       .from(transportBookingsTable)
       .leftJoin(clientsTable, eq(transportBookingsTable.clientId, clientsTable.id))
+      .leftJoin(vendorsTable, eq(transportBookingsTable.vendorId, vendorsTable.id))
       .where(and(...transConds))
       .orderBy(asc(transportBookingsTable.date));
 
-    // Vouchers (RV/PV/JV only) linked to this vendor
+    // Vouchers (RV/PV/JV only) — filter by vendor or all vendors
     const vConds: ReturnType<typeof eq>[] = [
-      eq(vouchersTable.vendorId, vid) as ReturnType<typeof eq>,
+      (vid ? eq(vouchersTable.vendorId, vid) : isNotNull(vouchersTable.vendorId)) as ReturnType<typeof eq>,
       inArray(vouchersTable.type, ["RV", "PV", "JV"]) as ReturnType<typeof eq>,
     ];
     if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
-    const rawVouchers = await db.select().from(vouchersTable).where(and(...vConds)).orderBy(asc(vouchersTable.date));
+    const rawVouchers = await db.select({
+      id: vouchersTable.id, voucherNumber: vouchersTable.voucherNumber, type: vouchersTable.type,
+      date: vouchersTable.date, narration: vouchersTable.narration, status: vouchersTable.status,
+      partyId: vouchersTable.partyId, vendorId: vouchersTable.vendorId, hotelInvoiceId: vouchersTable.hotelInvoiceId,
+      vendorName: vendorsTable.name,
+    })
+      .from(vouchersTable)
+      .leftJoin(vendorsTable, eq(vouchersTable.vendorId, vendorsTable.id))
+      .where(and(...vConds))
+      .orderBy(asc(vouchersTable.date));
     const detailMapV = await getVoucherDetails(rawVouchers.map((v) => v.id));
     const vouchers = rawVouchers.map((v) => { const d = detailMapV.get(v.id) ?? { amount: 0, detail: null }; return { ...v, amount: d.amount, detail: d.detail }; });
 
@@ -229,11 +276,12 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
     const netVouchers = vouchers.reduce((s, v) => s + v.amount, 0);
     const closingBalance = totalPurchase - netVouchers;
 
-    const showParty = showPartyName === "true";
-    const hotelBookings = showParty ? hotelRows : hotelRows.map(({ partyName: _p, partyId: _pi, ...rest }) => rest);
+    const showParty = showPartyName === "true" || isAllMode;
+    const hotelBookings = showParty ? hotelRows : hotelRows.map(({ partyName: _p, partyId: _pi, vendorName: _vn, ...rest }) => rest);
 
     return res.json({
-      vendor: vendor ?? null,
+      vendor,
+      isAllMode,
       hotelBookings,
       transportBookings,
       vouchers,
