@@ -207,6 +207,20 @@ function useFlightRequestsPending() {
   });
 }
 
+function useDraftQuotationsCount() {
+  const { isAuthenticated, token } = useAuth();
+  return useQuery<{ count: number }>({
+    queryKey: ["draft-quotations-count", token],
+    queryFn: () =>
+      fetch("/api/quotations?status=draft", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : [])
+        .then((qs) => ({ count: Array.isArray(qs) ? qs.length : 0 })),
+    enabled: isAuthenticated && !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+}
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout, user, token } = useAuth();
@@ -216,10 +230,12 @@ export function Sidebar() {
   const { data: portalPending } = usePortalPending();
   const { data: pkgInquiries } = usePackageInquiriesPending();
   const { data: flightRequestsData } = useFlightRequestsPending();
+  const { data: draftQuotationsData } = useDraftQuotationsCount();
   const unreadCount = unreadData?.total ?? 0;
   const pendingPortal = portalPending?.count ?? 0;
   const pendingPkgInquiries = pkgInquiries?.count ?? 0;
   const pendingFlightRequests = flightRequestsData?.count ?? 0;
+  const draftQuotations = draftQuotationsData?.count ?? 0;
 
   const filteredGroups = navGroups
     .map((group) => ({
@@ -281,6 +297,11 @@ export function Sidebar() {
                         {item.href === "/portal-users" && pendingPortal > 0 && (
                           <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-amber-500 text-white border-0">
                             {pendingPortal}
+                          </Badge>
+                        )}
+                        {item.href === "/quotations" && draftQuotations > 0 && (
+                          <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 text-xs bg-slate-500 text-white border-0">
+                            {draftQuotations} draft{draftQuotations !== 1 ? "s" : ""}
                           </Badge>
                         )}
                         {item.href === "/quotations/pending" && pendingPkgInquiries > 0 && (

@@ -86,12 +86,21 @@ export default function HotelInvoiceFormPage() {
   const [receivableRate, setReceivableRate] = useState("");
   const [payableRate, setPayableRate] = useState("");
 
-  /* Live rates from API (PKR per 1 foreign unit) */
+  /* Live rates from API — response shape: { base: "USD", rates: { PKR, SAR, USD, GBP, EUR, ... } } */
   const { data: liveRates = {} } = useQuery<Record<string, number>>({
     queryKey: ["/api/currency/rates"],
-    queryFn: () => fetch("/api/currency/rates").then(r => r.json()),
+    queryFn: () => fetch("/api/currency/rates").then(r => r.json()).then(d => d.rates || {}),
     staleTime: 5 * 60 * 1000,
   });
+
+  /* Return PKR per 1 unit of `currency` using USD-base cross-rate math */
+  function toPkrRate(currency: string, rates: Record<string, number>): number {
+    if (currency === "PKR") return 1;
+    const pkrUsd = rates["PKR"];   // e.g. 278
+    const srcUsd = rates[currency]; // e.g. 3.75 for SAR
+    if (!pkrUsd || !srcUsd) return 0;
+    return pkrUsd / srcUsd;  // PKR per 1 SAR = 278/3.75 ≈ 74.1
+  }
 
   // ── Lookup data ────────────────────────────────────────────────────────────
   const { data: clients = [] }  = useListClients({});
@@ -188,31 +197,19 @@ export default function HotelInvoiceFormPage() {
   const CURRENCIES = ["SAR", "USD", "GBP", "EUR", "PKR"];
 
   function onCurrencyChange(side: "receivable" | "payable", currency: string) {
+    const r = toPkrRate(currency, liveRates);  // PKR per 1 unit of currency
+    const nr = r > 0 ? round2(r) : "";
     if (side === "receivable") {
       setReceivableCurrency(currency);
-      if (currency === "PKR") {
-        setReceivableRate("1");
-        setForm(p => ({ ...p, receivablePkr: p.receivableSar }));
-      } else {
-        const r = (liveRates as Record<string, number>)[currency];
-        if (r) {
-          const nr = round2(r);
-          setReceivableRate(nr);
-          setForm(p => p.receivableSar !== "" ? { ...p, receivablePkr: round2(Number(p.receivableSar) * r) } : p);
-        }
+      if (nr) {
+        setReceivableRate(nr);
+        setForm(p => p.receivableSar !== "" ? { ...p, receivablePkr: round2(Number(p.receivableSar) * r) } : p);
       }
     } else {
       setPayableCurrency(currency);
-      if (currency === "PKR") {
-        setPayableRate("1");
-        setForm(p => ({ ...p, payablePkr: p.payableSar }));
-      } else {
-        const r = (liveRates as Record<string, number>)[currency];
-        if (r) {
-          const nr = round2(r);
-          setPayableRate(nr);
-          setForm(p => p.payableSar !== "" ? { ...p, payablePkr: round2(Number(p.payableSar) * r) } : p);
-        }
+      if (nr) {
+        setPayableRate(nr);
+        setForm(p => p.payableSar !== "" ? { ...p, payablePkr: round2(Number(p.payableSar) * r) } : p);
       }
     }
   }
@@ -301,6 +298,8 @@ export default function HotelInvoiceFormPage() {
       payableSar:    form.payableSar    !== "" ? Number(form.payableSar)    : null,
       receivablePkr: form.receivablePkr !== "" ? Number(form.receivablePkr) : null,
       payablePkr:    form.payablePkr    !== "" ? Number(form.payablePkr)    : null,
+      receivableCurrency,
+      payableCurrency,
     };
     save.mutate(payload);
   };
@@ -602,8 +601,8 @@ export default function HotelInvoiceFormPage() {
                       type="button"
                       className="ml-1 text-xs border border-amber-300 rounded px-1 bg-amber-50 hover:bg-amber-100"
                       onClick={() => {
-                        const r = (liveRates as Record<string, number>)[receivableCurrency];
-                        if (r) { onRateChange("receivable", round2(r)); }
+                        const r = toPkrRate(receivableCurrency, liveRates);
+                        if (r > 0) { onRateChange("receivable", round2(r)); }
                       }}
                     >live</button>
                   </span>
@@ -629,8 +628,8 @@ export default function HotelInvoiceFormPage() {
                       type="button"
                       className="ml-1 text-xs border border-amber-300 rounded px-1 bg-amber-50 hover:bg-amber-100"
                       onClick={() => {
-                        const r = (liveRates as Record<string, number>)[payableCurrency];
-                        if (r) { onRateChange("payable", round2(r)); }
+                        const r = toPkrRate(payableCurrency, liveRates);
+                        if (r > 0) { onRateChange("payable", round2(r)); }
                       }}
                     >live</button>
                   </span>
