@@ -76,6 +76,7 @@ const navGroups = [
       { title: "Payment Voucher", href: "/accounting/vouchers/new?type=PV", icon: CreditCard },
       { title: "Journal Voucher", href: "/accounting/vouchers/new?type=JV", icon: FileStack },
       { title: "Cash Voucher", href: "/accounting/vouchers/new?type=CV", icon: Banknote },
+      { title: "Voucher Register", href: "/accounting/vouchers", icon: BookOpen },
     ],
   },
   {

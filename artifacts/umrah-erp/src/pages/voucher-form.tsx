@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, AlertCircle, ArrowLeft } from "lucide-react";
@@ -17,6 +17,7 @@ interface Account {
   code: string;
   name: string;
   type: string;
+  description?: string | null;
 }
 
 interface Line {
@@ -33,6 +34,7 @@ const VOUCHER_TYPES = [
   { value: "JV", label: "JV — Journal Voucher" },
   { value: "CV", label: "CV — Contra/Cash Voucher" },
 ];
+const VALID_TYPES = new Set(["RV", "PV", "JV", "CV"]);
 
 const CURRENCIES = ["PKR", "SAR", "USD", "AED", "GBP", "EUR"];
 
@@ -48,10 +50,12 @@ export default function VoucherFormPage() {
   const { token } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const searchStr = useSearch();
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const [type, setType] = useState("JV");
+  const typeFromUrl = new URLSearchParams(searchStr).get("type") ?? "";
+  const [type, setType] = useState(VALID_TYPES.has(typeFromUrl) ? typeFromUrl : "JV");
   const [date, setDate] = useState(today);
   const [narration, setNarration] = useState("");
   const [lines, setLines] = useState<Line[]>([emptyLine(), emptyLine()]);
@@ -173,11 +177,43 @@ export default function VoucherFormPage() {
                         <SelectValue placeholder="Select account…" />
                       </SelectTrigger>
                       <SelectContent>
-                        {accounts.map((a) => (
-                          <SelectItem key={a.id} value={String(a.id)}>
-                            {a.code} — {a.name}
-                          </SelectItem>
-                        ))}
+                        {/* Generic group accounts */}
+                        <SelectGroup>
+                          <SelectLabel className="text-xs text-muted-foreground">General Accounts</SelectLabel>
+                          {accounts.filter((a) => a.type !== "party_ledger" && a.type !== "vendor_ledger").map((a) => (
+                            <SelectItem key={a.id} value={String(a.id)}>
+                              {a.code} — {a.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                        {/* Individual client sub-ledger accounts */}
+                        {accounts.some((a) => a.type === "party_ledger") && (
+                          <>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel className="text-xs text-muted-foreground">Clients / Parties</SelectLabel>
+                              {accounts.filter((a) => a.type === "party_ledger").map((a) => (
+                                <SelectItem key={a.id} value={String(a.id)}>
+                                  {a.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </>
+                        )}
+                        {/* Individual vendor sub-ledger accounts */}
+                        {accounts.some((a) => a.type === "vendor_ledger") && (
+                          <>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel className="text-xs text-muted-foreground">Vendors</SelectLabel>
+                              {accounts.filter((a) => a.type === "vendor_ledger").map((a) => (
+                                <SelectItem key={a.id} value={String(a.id)}>
+                                  {a.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   </TableCell>

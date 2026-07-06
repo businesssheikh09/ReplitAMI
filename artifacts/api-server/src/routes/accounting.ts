@@ -171,6 +171,27 @@ router.post("/invoices/:id/payments", requireAuth, async (req, res) => {
 
 router.get("/accounting/accounts", requireAuth, async (req, res) => {
   try {
+    // Auto-sync individual client and vendor sub-ledger accounts so they appear
+    // in the voucher form dropdown. Uses ON CONFLICT DO UPDATE to keep names
+    // fresh if a client/vendor is renamed.
+    const [clients, vendors] = await Promise.all([
+      db.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable),
+      db.select({ id: vendorsTable.id, name: vendorsTable.name, isActive: vendorsTable.isActive }).from(vendorsTable),
+    ]);
+
+    if (clients.length > 0) {
+      await db.insert(chartOfAccountsTable)
+        .values(clients.map((c) => ({ code: `C-${c.id}`, name: c.name, type: "party_ledger", description: "Client sub-ledger" })))
+        .onConflictDoUpdate({ target: chartOfAccountsTable.code, set: { name: sql`EXCLUDED.name` } });
+    }
+
+    const activeVendors = vendors.filter((v) => v.isActive);
+    if (activeVendors.length > 0) {
+      await db.insert(chartOfAccountsTable)
+        .values(activeVendors.map((v) => ({ code: `V-${v.id}`, name: v.name, type: "vendor_ledger", description: "Vendor sub-ledger" })))
+        .onConflictDoUpdate({ target: chartOfAccountsTable.code, set: { name: sql`EXCLUDED.name` } });
+    }
+
     const accounts = await db.select().from(chartOfAccountsTable).orderBy(chartOfAccountsTable.code);
     return res.json(accounts);
   } catch (err) {
