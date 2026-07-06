@@ -161,6 +161,7 @@ router.post("/quotations/:id/items", requireAuth, async (req, res) => {
       currency,
       totalPriceBase,
       notes: req.body.notes,
+      metadata: req.body.metadata ?? null,
     }).returning();
 
     // Recalculate total using base-converted values when available
@@ -192,6 +193,7 @@ router.patch("/quotations/:id/items/:itemId", requireAuth, async (req, res) => {
     if (req.body.description !== undefined) updates.description = req.body.description;
     if (req.body.currency !== undefined) updates.currency = req.body.currency;
     if (req.body.notes !== undefined) updates.notes = req.body.notes;
+    if (req.body.metadata !== undefined) updates.metadata = req.body.metadata;
 
     const unitPrice = req.body.unitPrice;
     const quantity = req.body.quantity;

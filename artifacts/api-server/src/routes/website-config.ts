@@ -52,6 +52,11 @@ const DEFAULTS: Record<string, string> = {
   template_refund_approved: "",
   template_refund_paid: "",
   template_pending_approvals: "",
+  // ── Quotation Defaults ────────────────────────────────────────────────────
+  quotation_default_currency: "SAR",
+  quotation_default_validity_days: "7",
+  quotation_default_terms: "",
+  quotation_default_notes: "",
 };
 
 function rowsToConfig(rows: { key: string; value: string }[]) {
@@ -103,6 +108,11 @@ function rowsToConfig(rows: { key: string; value: string }[]) {
     template_refund_approved: map.template_refund_approved,
     template_refund_paid: map.template_refund_paid,
     template_pending_approvals: map.template_pending_approvals,
+    // ── Quotation Defaults ──────────────────────────────────────────────────
+    quotation_default_currency: map.quotation_default_currency,
+    quotation_default_validity_days: map.quotation_default_validity_days,
+    quotation_default_terms: map.quotation_default_terms,
+    quotation_default_notes: map.quotation_default_notes,
   };
 }
 
@@ -159,6 +169,10 @@ router.put("/website-config", requireAuth, async (req, res) => {
     template_refund_approved: "template_refund_approved",
     template_refund_paid: "template_refund_paid",
     template_pending_approvals: "template_pending_approvals",
+    quotation_default_currency: "quotation_default_currency",
+    quotation_default_validity_days: "quotation_default_validity_days",
+    quotation_default_terms: "quotation_default_terms",
+    quotation_default_notes: "quotation_default_notes",
   };
 
   for (const [camel, dbKey] of Object.entries(keyMap)) {

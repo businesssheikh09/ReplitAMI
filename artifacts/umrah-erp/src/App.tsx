@@ -53,6 +53,7 @@ import StaffTicketLogPage from "@/pages/staff-ticket-log";
 import PassengerDocumentsPage from "@/pages/passenger-documents-page";
 import AutomationSettingsPage from "@/pages/automation-settings";
 import AutomationLogsPage from "@/pages/automation-logs";
+import ErpSettingsPage from "@/pages/erp-settings";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -172,6 +173,7 @@ function Router() {
         <ProtectedRoute path="/website-settings" component={WebsiteSettingsPage} />
         <ProtectedRoute path="/ai-settings" component={AiSettingsPage} />
         <ProtectedRoute path="/local-airline-settings" component={LocalAirlineSettingsPage} />
+        <ProtectedRoute path="/erp-settings" component={ErpSettingsPage} />
         <ProtectedRoute path="/reports" component={ReportsPage} />
 
         {/* Automation */}

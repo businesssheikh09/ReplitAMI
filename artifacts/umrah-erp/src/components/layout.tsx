@@ -141,6 +141,7 @@ const navGroups = [
       { title: "GDS Settings", href: "/gds-settings", icon: Settings2 },
       { title: "AI Settings", href: "/ai-settings", icon: Bot },
       { title: "Local Airlines", href: "/local-airline-settings", icon: Plane },
+      { title: "ERP Settings", href: "/erp-settings", icon: Settings2 },
       { title: "Website Settings", href: "/website-settings", icon: Globe },
       { title: "Automation Engine", href: "/automation-settings", icon: Zap },
       { title: "Automation Logs", href: "/automation-logs", icon: ScrollText },

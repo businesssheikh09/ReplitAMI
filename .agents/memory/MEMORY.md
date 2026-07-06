@@ -3,5 +3,6 @@
 - [Payment Deadline Tiers](deadline-tiers.md) — ≤24h→1h deadline, 25-48h→3h, 49-240h→12h, >240h→24h; calculatePaymentDeadline() in deadline-calculator.ts
 - [OCR Stub Pattern](ocr-stub.md) — scanDocument() checks AI_INTEGRATIONS_OPENAI_API_KEY; AI Settings ERP page stores key in process.env (session) with Replit Secrets note
 - [Print Branding System](print-branding.md) — useBranding() hook + PrintLayout component; branding keys are snake_case in websiteConfigTable key-value store; no DB migration needed to add new keys
+- [Recurring Build Mistakes](recurring-mistakes.md) — (1) always grep for old name before renaming anything; (2) build complete editable UIs in first pass, never leave visible fields read-only
 - [Forced password-change enforcement](force-change-password.md) — must_change_password enforced in requireAuth (403 + allowlist), never UI-only; login still issues a full token
 - [API Create Operation Patterns](api-create-patterns.md) — amount.toString() guard, async generateRef(), FK undefined→Drizzle-default crash, voucher format, portal types

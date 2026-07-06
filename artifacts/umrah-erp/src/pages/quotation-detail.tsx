@@ -17,6 +17,240 @@ const SERVICE_TYPES = Object.values(QuotationItemInputServiceType) as QuotationI
 const CURRENCIES = ["USD", "PKR", "SAR", "GBP", "EUR", "AED", "OMR", "KWD", "QAR"];
 const EMPTY_RATES: Record<string, number> = {};
 
+type ServiceMeta = Record<string, string>;
+
+function MLabel({ children }: { children: React.ReactNode }) {
+  return <label className="block text-xs font-medium text-muted-foreground mb-1">{children}</label>;
+}
+
+function ServiceMetadataFields({
+  serviceType,
+  metadata,
+  onChange,
+}: {
+  serviceType: string;
+  metadata: ServiceMeta;
+  onChange: (meta: ServiceMeta) => void;
+}) {
+  const set = (k: string, v: string) => onChange({ ...metadata, [k]: v });
+  const v = (k: string) => metadata[k] ?? "";
+
+  if (serviceType === "hotel") {
+    return (
+      <div className="mt-3 p-3 rounded-lg border border-blue-200 bg-blue-50/50 space-y-3">
+        <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Hotel Details</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <MLabel>Hotel Name</MLabel>
+            <Input className="h-8 text-sm" placeholder="e.g. Zam Zam Tower" value={v("hotelName")} onChange={e => set("hotelName", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Room Type</MLabel>
+            <Select value={v("roomType") || "double"} onValueChange={val => set("roomType", val)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Room type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single</SelectItem>
+                <SelectItem value="double">Double</SelectItem>
+                <SelectItem value="triple">Triple</SelectItem>
+                <SelectItem value="quad">Quad</SelectItem>
+                <SelectItem value="suite">Suite</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <MLabel>No. of Rooms</MLabel>
+            <Input type="number" min={1} className="h-8 text-sm" placeholder="1" value={v("roomCount")} onChange={e => set("roomCount", e.target.value)} />
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <MLabel>Check-in Date</MLabel>
+            <Input type="date" className="h-8 text-sm" value={v("checkIn")} onChange={e => set("checkIn", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Check-out Date</MLabel>
+            <Input type="date" className="h-8 text-sm" value={v("checkOut")} onChange={e => set("checkOut", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Nights</MLabel>
+            <Input type="number" min={1} className="h-8 text-sm" placeholder="5" value={v("nights")} onChange={e => set("nights", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Meal Plan</MLabel>
+            <Select value={v("mealPlan") || "room_only"} onValueChange={val => set("mealPlan", val)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="room_only">Room Only</SelectItem>
+                <SelectItem value="bb">Bed & Breakfast</SelectItem>
+                <SelectItem value="hb">Half Board</SelectItem>
+                <SelectItem value="fb">Full Board</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (serviceType === "flight") {
+    return (
+      <div className="mt-3 p-3 rounded-lg border border-purple-200 bg-purple-50/50 space-y-3">
+        <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Flight Details</p>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <MLabel>Airline</MLabel>
+            <Input className="h-8 text-sm" placeholder="PIA / Emirates" value={v("airline")} onChange={e => set("airline", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Flight No.</MLabel>
+            <Input className="h-8 text-sm font-mono" placeholder="PK-743" value={v("flightNo")} onChange={e => set("flightNo", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>From</MLabel>
+            <Input className="h-8 text-sm" placeholder="Karachi (KHI)" value={v("fromCity")} onChange={e => set("fromCity", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>To</MLabel>
+            <Input className="h-8 text-sm" placeholder="Jeddah (JED)" value={v("toCity")} onChange={e => set("toCity", e.target.value)} />
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <MLabel>Departure Date</MLabel>
+            <Input type="date" className="h-8 text-sm" value={v("departureDate")} onChange={e => set("departureDate", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Departure Time</MLabel>
+            <Input type="time" className="h-8 text-sm" value={v("departureTime")} onChange={e => set("departureTime", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Arrival Date</MLabel>
+            <Input type="date" className="h-8 text-sm" value={v("arrivalDate")} onChange={e => set("arrivalDate", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Cabin Class</MLabel>
+            <Select value={v("cabinClass") || "economy"} onValueChange={val => set("cabinClass", val)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="economy">Economy</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="first">First Class</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (serviceType === "transport") {
+    return (
+      <div className="mt-3 p-3 rounded-lg border border-orange-200 bg-orange-50/50 space-y-3">
+        <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Transport Details</p>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <MLabel>Vehicle Type</MLabel>
+            <Select value={v("vehicleType") || "van"} onValueChange={val => set("vehicleType", val)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sedan">Sedan</SelectItem>
+                <SelectItem value="van">Van</SelectItem>
+                <SelectItem value="coaster">Coaster</SelectItem>
+                <SelectItem value="bus">Bus</SelectItem>
+                <SelectItem value="suv">SUV</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <MLabel>From</MLabel>
+            <Input className="h-8 text-sm" placeholder="Jeddah Airport" value={v("fromCity")} onChange={e => set("fromCity", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>To</MLabel>
+            <Input className="h-8 text-sm" placeholder="Makkah Hotel" value={v("toCity")} onChange={e => set("toCity", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Date</MLabel>
+            <Input type="date" className="h-8 text-sm" value={v("date")} onChange={e => set("date", e.target.value)} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (serviceType === "visa") {
+    return (
+      <div className="mt-3 p-3 rounded-lg border border-green-200 bg-green-50/50 space-y-3">
+        <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Visa Details</p>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <MLabel>Visa Type</MLabel>
+            <Select value={v("visaType") || "umrah"} onValueChange={val => set("visaType", val)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="umrah">Umrah Visa</SelectItem>
+                <SelectItem value="tourist">Tourist Visa</SelectItem>
+                <SelectItem value="business">Business Visa</SelectItem>
+                <SelectItem value="hajj">Hajj Visa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <MLabel>Country</MLabel>
+            <Input className="h-8 text-sm" placeholder="Saudi Arabia" value={v("country")} onChange={e => set("country", e.target.value)} />
+          </div>
+          <div>
+            <MLabel>Entry Type</MLabel>
+            <Select value={v("entryType") || "single"} onValueChange={val => set("entryType", val)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single Entry</SelectItem>
+                <SelectItem value="multiple">Multiple Entry</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <MLabel>Processing Days</MLabel>
+            <Input type="number" min={1} className="h-8 text-sm" placeholder="3" value={v("processingDays")} onChange={e => set("processingDays", e.target.value)} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function MetaSummary({ serviceType, metadata }: { serviceType: string; metadata?: ServiceMeta | null }) {
+  if (!metadata) return null;
+  const parts: string[] = [];
+  if (serviceType === "hotel") {
+    if (metadata.hotelName) parts.push(metadata.hotelName);
+    if (metadata.roomType && metadata.roomCount) parts.push(`${metadata.roomCount}× ${metadata.roomType}`);
+    else if (metadata.roomType) parts.push(metadata.roomType);
+    if (metadata.checkIn && metadata.checkOut) parts.push(`${metadata.checkIn} → ${metadata.checkOut}`);
+    if (metadata.nights) parts.push(`${metadata.nights} nights`);
+    if (metadata.mealPlan) parts.push({ room_only: "Room only", bb: "B&B", hb: "Half board", fb: "Full board" }[metadata.mealPlan] ?? metadata.mealPlan);
+  } else if (serviceType === "flight") {
+    if (metadata.airline) parts.push(metadata.airline);
+    if (metadata.flightNo) parts.push(metadata.flightNo);
+    if (metadata.fromCity && metadata.toCity) parts.push(`${metadata.fromCity} → ${metadata.toCity}`);
+    if (metadata.departureDate) parts.push(metadata.departureDate);
+    if (metadata.cabinClass) parts.push(metadata.cabinClass.charAt(0).toUpperCase() + metadata.cabinClass.slice(1));
+  } else if (serviceType === "transport") {
+    if (metadata.vehicleType) parts.push(metadata.vehicleType.charAt(0).toUpperCase() + metadata.vehicleType.slice(1));
+    if (metadata.fromCity && metadata.toCity) parts.push(`${metadata.fromCity} → ${metadata.toCity}`);
+    if (metadata.date) parts.push(metadata.date);
+  } else if (serviceType === "visa") {
+    if (metadata.visaType) parts.push({ umrah: "Umrah Visa", tourist: "Tourist Visa", business: "Business Visa", hajj: "Hajj Visa" }[metadata.visaType] ?? metadata.visaType);
+    if (metadata.country) parts.push(metadata.country);
+    if (metadata.entryType) parts.push(metadata.entryType);
+    if (metadata.processingDays) parts.push(`${metadata.processingDays} days processing`);
+  }
+  if (!parts.length) return null;
+  return <div className="text-xs text-muted-foreground mt-0.5 truncate">{parts.join(" · ")}</div>;
+}
+
 const SERVICE_COLORS: Record<string, string> = {
   hotel: "bg-blue-50 text-blue-700 border-blue-200",
   flight: "bg-purple-50 text-purple-700 border-purple-200",
@@ -75,6 +309,7 @@ export default function QuotationDetailPage() {
     currency: string;
     customRate: string;
     notes: string;
+    metadata: ServiceMeta;
   }>({
     serviceType: QuotationItemInputServiceType.hotel,
     description: "",
@@ -83,6 +318,7 @@ export default function QuotationDetailPage() {
     currency: "USD",
     customRate: "",
     notes: "",
+    metadata: {},
   });
 
   const [editOpen, setEditOpen] = useState(false);
@@ -98,7 +334,8 @@ export default function QuotationDetailPage() {
     currency: string;
     customRate: string;
     notes: string;
-  }>({ id: 0, serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, currency: "USD", customRate: "", notes: "" });
+    metadata: ServiceMeta;
+  }>({ id: 0, serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, currency: "USD", customRate: "", notes: "", metadata: {} });
 
   const { data: quotation, isLoading } = useGetQuotation(Number(id));
   const { data: rates = EMPTY_RATES } = useCurrencyRates();
@@ -183,6 +420,7 @@ export default function QuotationDetailPage() {
         currency: itemForm.currency,
         notes: itemForm.notes,
         unitPriceBase,
+        metadata: Object.keys(itemForm.metadata).length ? itemForm.metadata : undefined,
       } as any,
     });
   }
@@ -220,6 +458,7 @@ export default function QuotationDetailPage() {
       currency: itemCurr,
       customRate,
       notes: item.notes || "",
+      metadata: (item.metadata as ServiceMeta) || {},
     });
     setEditItemOpen(true);
   }
@@ -241,6 +480,7 @@ export default function QuotationDetailPage() {
         currency: editItemForm.currency,
         notes: editItemForm.notes,
         unitPriceBase,
+        metadata: Object.keys(editItemForm.metadata).length ? editItemForm.metadata : undefined,
       } as any,
     });
   }
@@ -508,7 +748,10 @@ export default function QuotationDetailPage() {
                           {item.serviceType}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-xs">{item.description}</TableCell>
+                      <TableCell className="max-w-xs">
+                        <div>{item.description}</div>
+                        <MetaSummary serviceType={item.serviceType} metadata={item.metadata} />
+                      </TableCell>
                       <TableCell className="text-center">{item.quantity}</TableCell>
                       <TableCell className="text-center text-muted-foreground">
                         {fmt(Number(item.unitPrice), itemCurr)}
@@ -629,6 +872,22 @@ export default function QuotationDetailPage() {
                       className="flex-1"
                     />
                   </div>
+                </div>
+
+                {/* Service-specific metadata fields */}
+                <ServiceMetadataFields
+                  serviceType={itemForm.serviceType}
+                  metadata={itemForm.metadata}
+                  onChange={meta => setItemForm(p => ({ ...p, metadata: meta }))}
+                />
+
+                {/* Notes row */}
+                <div className="mt-3">
+                  <Input
+                    placeholder="Notes (optional)"
+                    value={itemForm.notes}
+                    onChange={e => setItemForm(p => ({ ...p, notes: e.target.value }))}
+                  />
                 </div>
 
                 {/* Rate + Conversion row — shown when item currency differs from base */}
@@ -820,6 +1079,12 @@ export default function QuotationDetailPage() {
                 })()}
               </div>
             )}
+
+            <ServiceMetadataFields
+              serviceType={editItemForm.serviceType}
+              metadata={editItemForm.metadata}
+              onChange={meta => setEditItemForm(p => ({ ...p, metadata: meta }))}
+            />
 
             <div className="space-y-1">
               <Label>Notes <span className="text-muted-foreground">(optional)</span></Label>
