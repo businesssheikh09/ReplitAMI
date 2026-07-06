@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -78,11 +78,20 @@ export default function HotelInvoiceFormPage() {
   const branding = useBranding();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [dnNumber, setDnNumber] = useState<string>("");
-  const [convRate, setConvRate] = useState<string>("");
   const [savedInvoice, setSavedInvoice] = useState<any>(null);
 
-  /* track which field last changed so bidirectional calc doesn't loop */
-  const lastChanged = useRef<"sar" | "pkr" | "rate" | null>(null);
+  /* Multi-currency: each side has its own currency + exchange rate (→ PKR) */
+  const [receivableCurrency, setReceivableCurrency] = useState("SAR");
+  const [payableCurrency, setPayableCurrency] = useState("SAR");
+  const [receivableRate, setReceivableRate] = useState("");
+  const [payableRate, setPayableRate] = useState("");
+
+  /* Live rates from API (PKR per 1 foreign unit) */
+  const { data: liveRates = {} } = useQuery<Record<string, number>>({
+    queryKey: ["/api/currency/rates"],
+    queryFn: () => fetch("/api/currency/rates").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // ── Lookup data ────────────────────────────────────────────────────────────
   const { data: clients = [] }  = useListClients({});
@@ -115,10 +124,11 @@ export default function HotelInvoiceFormPage() {
       setDnNumber(existing.dnNumber);
       const rSar = existing.receivableSar != null ? String(existing.receivableSar) : "";
       const rPkr = existing.receivablePkr != null ? String(existing.receivablePkr) : "";
-      /* back-calc stored rate from receivable pair */
-      if (rSar && rPkr && Number(rSar) > 0) {
-        setConvRate(round2(Number(rPkr) / Number(rSar)));
-      }
+      const pSar = existing.payableSar != null ? String(existing.payableSar) : "";
+      const pPkr = existing.payablePkr != null ? String(existing.payablePkr) : "";
+      /* back-calc stored rate from each pair */
+      if (rSar && rPkr && Number(rSar) > 0) setReceivableRate(round2(Number(rPkr) / Number(rSar)));
+      if (pSar && pPkr && Number(pSar) > 0) setPayableRate(round2(Number(pPkr) / Number(pSar)));
       setForm({
         invoiceDate: existing.invoiceDate || today(),
         partyId: existing.partyId ? String(existing.partyId) : "",
@@ -170,67 +180,83 @@ export default function HotelInvoiceFormPage() {
   const f = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
-  /* ── Bidirectional SAR ↔ PKR conversion ──────────────────────────────────
-     Three handlers — one per "source" field type.
-     Rule: the field being edited is authoritative; the paired field is derived.
+  /* ── Per-side currency + rate handlers ───────────────────────────────────
+     Each side (receivable / payable) has its own currency and PKR rate.
+     Editing the foreign-currency amount auto-derives PKR; editing PKR back-calcs rate.
   ─────────────────────────────────────────────────────────────────────────── */
 
-  function onSarChange(key: "receivableSar" | "payableSar", val: string) {
-    lastChanged.current = "sar";
-    const rate = Number(convRate);
-    setForm(p => {
-      const next = { ...p, [key]: val };
-      if (rate > 0 && val !== "") {
-        const pkrKey = key === "receivableSar" ? "receivablePkr" : "payablePkr";
-        next[pkrKey] = round2(Number(val) * rate);
-      }
-      return next;
-    });
-  }
+  const CURRENCIES = ["SAR", "USD", "GBP", "EUR", "PKR"];
 
-  function onPkrChange(key: "receivablePkr" | "payablePkr", val: string) {
-    lastChanged.current = "pkr";
-    setForm(p => {
-      const next = { ...p, [key]: val };
-      /* back-calc rate from receivable pair if that's what changed */
-      if (key === "receivablePkr") {
-        const sarNum = Number(p.receivableSar);
-        const pkrNum = Number(val);
-        if (sarNum > 0 && pkrNum > 0) {
-          const newRate = pkrNum / sarNum;
-          setConvRate(round2(newRate));
-          /* propagate new rate to payable */
-          if (p.payableSar !== "") {
-            next.payablePkr = round2(Number(p.payableSar) * newRate);
-          }
-        }
+  function onCurrencyChange(side: "receivable" | "payable", currency: string) {
+    if (side === "receivable") {
+      setReceivableCurrency(currency);
+      if (currency === "PKR") {
+        setReceivableRate("1");
+        setForm(p => ({ ...p, receivablePkr: p.receivableSar }));
       } else {
-        /* payablePkr changed — back-calc rate from payable pair */
-        const sarNum = Number(p.payableSar);
-        const pkrNum = Number(val);
-        if (sarNum > 0 && pkrNum > 0) {
-          const newRate = pkrNum / sarNum;
-          setConvRate(round2(newRate));
-          if (p.receivableSar !== "") {
-            next.receivablePkr = round2(Number(p.receivableSar) * newRate);
-          }
+        const r = (liveRates as Record<string, number>)[currency];
+        if (r) {
+          const nr = round2(r);
+          setReceivableRate(nr);
+          setForm(p => p.receivableSar !== "" ? { ...p, receivablePkr: round2(Number(p.receivableSar) * r) } : p);
         }
+      }
+    } else {
+      setPayableCurrency(currency);
+      if (currency === "PKR") {
+        setPayableRate("1");
+        setForm(p => ({ ...p, payablePkr: p.payableSar }));
+      } else {
+        const r = (liveRates as Record<string, number>)[currency];
+        if (r) {
+          const nr = round2(r);
+          setPayableRate(nr);
+          setForm(p => p.payableSar !== "" ? { ...p, payablePkr: round2(Number(p.payableSar) * r) } : p);
+        }
+      }
+    }
+  }
+
+  function onAmountChange(side: "receivable" | "payable", val: string) {
+    const rate = side === "receivable" ? Number(receivableRate) : Number(payableRate);
+    setForm(p => {
+      const next = { ...p };
+      if (side === "receivable") {
+        next.receivableSar = val;
+        if (rate > 0 && val !== "") next.receivablePkr = round2(Number(val) * rate);
+      } else {
+        next.payableSar = val;
+        if (rate > 0 && val !== "") next.payablePkr = round2(Number(val) * rate);
       }
       return next;
     });
   }
 
-  function onRateChange(val: string) {
-    lastChanged.current = "rate";
-    setConvRate(val);
-    const rate = Number(val);
-    if (rate > 0) {
-      setForm(p => {
-        const next = { ...p };
-        if (p.receivableSar !== "") next.receivablePkr = round2(Number(p.receivableSar) * rate);
-        if (p.payableSar !== "")   next.payablePkr    = round2(Number(p.payableSar) * rate);
-        return next;
-      });
+  function onPkrChange(side: "receivable" | "payable", val: string) {
+    setForm(p => {
+      const next = { ...p };
+      if (side === "receivable") {
+        next.receivablePkr = val;
+        const fNum = Number(p.receivableSar);
+        if (fNum > 0 && Number(val) > 0) setReceivableRate(round2(Number(val) / fNum));
+      } else {
+        next.payablePkr = val;
+        const fNum = Number(p.payableSar);
+        if (fNum > 0 && Number(val) > 0) setPayableRate(round2(Number(val) / fNum));
+      }
+      return next;
+    });
+  }
+
+  function onRateChange(side: "receivable" | "payable", val: string) {
+    if (side === "receivable") {
+      setReceivableRate(val);
+      const rate = Number(val);
+      if (rate > 0) setForm(p => p.receivableSar !== "" ? { ...p, receivablePkr: round2(Number(p.receivableSar) * rate) } : p);
+    } else {
+      setPayableRate(val);
+      const rate = Number(val);
+      if (rate > 0) setForm(p => p.payableSar !== "" ? { ...p, payablePkr: round2(Number(p.payableSar) * rate) } : p);
     }
   }
 
@@ -281,7 +307,10 @@ export default function HotelInvoiceFormPage() {
 
   const handleClear = () => {
     setSavedInvoice(null);
-    setConvRate("");
+    setReceivableRate("");
+    setPayableRate("");
+    setReceivableCurrency("SAR");
+    setPayableCurrency("SAR");
     setForm({ ...EMPTY_FORM, reference: dnNumber.replace("DN-", "") });
   };
 
@@ -511,76 +540,116 @@ export default function HotelInvoiceFormPage() {
         <SectionHeader title="Calculation (Per Night Per Room Rate)" />
         <div className="px-4 py-2 bg-slate-50 space-y-1.5">
 
-          {/* Conversion rate row — spans full width */}
-          <div className="flex items-center gap-3 py-1 px-2 bg-amber-50 border border-amber-200 rounded">
-            <label className="font-semibold text-sm text-amber-900 shrink-0">Conversion Rate</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="e.g. 77.5"
-              className="border border-amber-400 px-2 py-0.5 text-sm bg-white w-28 text-center font-mono"
-              value={convRate}
-              onChange={e => onRateChange(e.target.value)}
-            />
-            <span className="text-xs text-amber-700 font-medium">PKR per SAR</span>
-            {convRate && Number(convRate) > 0 && (
-              <span className="text-xs text-amber-600 ml-1">
-                — 1 SAR = {Number(convRate).toFixed(2)} Rs &nbsp;|&nbsp; 1 Rs = {(1 / Number(convRate)).toFixed(4)} SAR
-              </span>
-            )}
-          </div>
+          {/* Receivable side */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+            {/* Receivable amount + currency */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-sm shrink-0">Receivable Amount</label>
+              <div className="flex-1 flex gap-1">
+                <select
+                  className="border border-gray-400 px-1 py-0.5 text-sm bg-white w-20"
+                  value={receivableCurrency}
+                  onChange={e => onCurrencyChange("receivable", e.target.value)}
+                >
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="border border-gray-400 px-2 py-0.5 text-sm bg-white flex-1"
+                  value={form.receivableSar}
+                  onChange={e => onAmountChange("receivable", e.target.value)}
+                />
+              </div>
+            </div>
+            {/* Payable amount + currency */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-sm shrink-0">Payable Amount</label>
+              <div className="flex-1 flex gap-1">
+                <select
+                  className="border border-gray-400 px-1 py-0.5 text-sm bg-white w-20"
+                  value={payableCurrency}
+                  onChange={e => onCurrencyChange("payable", e.target.value)}
+                >
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="border border-gray-400 px-2 py-0.5 text-sm bg-white flex-1"
+                  value={form.payableSar}
+                  onChange={e => onAmountChange("payable", e.target.value)}
+                />
+              </div>
+            </div>
 
-          {/* SAR row */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">
-            <FormRow label="Receivable Amount (SAR)">
-              <input
-                type="number"
-                step="0.01"
-                className="border border-gray-400 px-2 py-0.5 text-sm bg-white w-full"
-                value={form.receivableSar}
-                onChange={e => onSarChange("receivableSar", e.target.value)}
-              />
-            </FormRow>
-            <FormRow label="Payable Amount (SAR)">
-              <input
-                type="number"
-                step="0.01"
-                className="border border-gray-400 px-2 py-0.5 text-sm bg-white w-full"
-                value={form.payableSar}
-                onChange={e => onSarChange("payableSar", e.target.value)}
-              />
-            </FormRow>
-            {/* PKR row — auto-filled but editable */}
-            <FormRow label="Receivable Amount (Rs)">
-              <input
-                type="number"
-                step="0.01"
-                className="border border-gray-400 px-2 py-0.5 text-sm bg-white w-full"
-                value={form.receivablePkr}
-                onChange={e => onPkrChange("receivablePkr", e.target.value)}
-              />
-            </FormRow>
-            <FormRow label="Payable Amount (Rs)">
-              <input
-                type="number"
-                step="0.01"
-                className="border border-gray-400 px-2 py-0.5 text-sm bg-white w-full"
-                value={form.payablePkr}
-                onChange={e => onPkrChange("payablePkr", e.target.value)}
-              />
-            </FormRow>
+            {/* Receivable PKR equivalent */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-sm shrink-0 text-muted-foreground">↳ Equiv. in PKR (Rs)</label>
+              <div className="flex-1 flex gap-1 items-center">
+                <input
+                  type="number"
+                  step="0.01"
+                  className="border border-gray-300 px-2 py-0.5 text-sm bg-yellow-50 flex-1"
+                  value={form.receivablePkr}
+                  onChange={e => onPkrChange("receivable", e.target.value)}
+                  placeholder="auto"
+                />
+                {receivableRate && Number(receivableRate) > 0 && receivableCurrency !== "PKR" && (
+                  <span className="text-xs text-amber-700 whitespace-nowrap">
+                    @ {Number(receivableRate).toFixed(2)} Rs/{receivableCurrency}
+                    <button
+                      type="button"
+                      className="ml-1 text-xs border border-amber-300 rounded px-1 bg-amber-50 hover:bg-amber-100"
+                      onClick={() => {
+                        const r = (liveRates as Record<string, number>)[receivableCurrency];
+                        if (r) { onRateChange("receivable", round2(r)); }
+                      }}
+                    >live</button>
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Payable PKR equivalent */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-sm shrink-0 text-muted-foreground">↳ Equiv. in PKR (Rs)</label>
+              <div className="flex-1 flex gap-1 items-center">
+                <input
+                  type="number"
+                  step="0.01"
+                  className="border border-gray-300 px-2 py-0.5 text-sm bg-yellow-50 flex-1"
+                  value={form.payablePkr}
+                  onChange={e => onPkrChange("payable", e.target.value)}
+                  placeholder="auto"
+                />
+                {payableRate && Number(payableRate) > 0 && payableCurrency !== "PKR" && (
+                  <span className="text-xs text-amber-700 whitespace-nowrap">
+                    @ {Number(payableRate).toFixed(2)} Rs/{payableCurrency}
+                    <button
+                      type="button"
+                      className="ml-1 text-xs border border-amber-300 rounded px-1 bg-amber-50 hover:bg-amber-100"
+                      onClick={() => {
+                        const r = (liveRates as Record<string, number>)[payableCurrency];
+                        if (r) { onRateChange("payable", round2(r)); }
+                      }}
+                    >live</button>
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Profit preview */}
-          {(form.receivableSar || form.payableSar) && (
-            <div className="mt-2 flex gap-8 text-sm">
-              <span className="text-green-700 font-medium">
-                SAR Income: {income >= 0 ? "+" : ""}{income.toLocaleString(undefined, { maximumFractionDigits: 2 })} SAR
+          {(form.receivablePkr || form.payablePkr) && (
+            <div className="mt-2 flex gap-6 text-sm flex-wrap">
+              <span className={`font-medium ${incomePkr >= 0 ? "text-green-700" : "text-red-600"}`}>
+                PKR Profit/Loss: {incomePkr >= 0 ? "+" : ""}{incomePkr.toLocaleString(undefined, { maximumFractionDigits: 2 })} Rs
               </span>
-              <span className="text-green-700 font-medium">
-                PKR Income: {incomePkr >= 0 ? "+" : ""}{incomePkr.toLocaleString(undefined, { maximumFractionDigits: 2 })} Rs
-              </span>
+              {receivableCurrency !== "PKR" && (
+                <span className={`font-medium ${income >= 0 ? "text-green-700" : "text-red-600"}`}>
+                  {receivableCurrency} Income: {income >= 0 ? "+" : ""}{income.toLocaleString(undefined, { maximumFractionDigits: 2 })} {receivableCurrency}
+                </span>
+              )}
             </div>
           )}
 

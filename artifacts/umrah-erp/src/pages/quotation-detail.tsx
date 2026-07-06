@@ -23,6 +23,25 @@ function MLabel({ children }: { children: React.ReactNode }) {
   return <label className="block text-xs font-medium text-muted-foreground mb-1">{children}</label>;
 }
 
+// For hotel: derive quantity = rooms × nights from metadata (overrides the stale DB value)
+function itemEffectiveQty(item: any): number {
+  if (item.serviceType === "hotel") {
+    const rooms = Number(item.metadata?.roomCount) || 0;
+    const nights = Number(item.metadata?.nights) || 0;
+    if (rooms > 0 && nights > 0) return rooms * nights;
+  }
+  return Number(item.quantity) || 1;
+}
+
+function itemEffectiveTotal(item: any): number {
+  return Number(item.unitPrice) * itemEffectiveQty(item);
+}
+
+function itemEffectiveTotalBase(item: any): number | null {
+  if (item.unitPriceBase == null) return null;
+  return Number(item.unitPriceBase) * itemEffectiveQty(item);
+}
+
 function ServiceMetadataFields({
   serviceType,
   metadata,
@@ -487,16 +506,17 @@ export default function QuotationDetailPage() {
       const autoRate = convertToBase(1, base, itemCurr, rates);
       if (autoRate != null) customRate = autoRate.toFixed(4);
     }
+    const meta = (item.metadata as ServiceMeta) || {};
     setEditItemForm({
       id: item.id,
       serviceType: item.serviceType as QuotationItemInputServiceType,
       description: item.description || "",
-      quantity: Number(item.quantity),
+      quantity: itemEffectiveQty({ ...item, metadata: meta }),
       unitPrice: Number(item.unitPrice),
       currency: itemCurr,
       customRate,
       notes: item.notes || "",
-      metadata: (item.metadata as ServiceMeta) || {},
+      metadata: meta,
     });
     setEditItemOpen(true);
   }
@@ -551,11 +571,11 @@ export default function QuotationDetailPage() {
 
   const hasMixedCurrencies = items.some((i: any) => i.currency && i.currency !== baseCurrency);
 
-  // Per-currency subtotals (sum of totalPrice grouped by currency)
+  // Per-currency subtotals — use derived effective total so hotel rooms×nights is correct
   const currencySubtotals: Record<string, number> = {};
   for (const item of items) {
     const c = item.currency || baseCurrency;
-    currencySubtotals[c] = (currencySubtotals[c] || 0) + Number(item.totalPrice || 0);
+    currencySubtotals[c] = (currencySubtotals[c] || 0) + itemEffectiveTotal(item);
   }
   const foreignSubtotals = Object.entries(currencySubtotals).filter(([c]) => c !== baseCurrency);
 
@@ -634,15 +654,15 @@ export default function QuotationDetailPage() {
                   </span>
                 </td>
                 <td style={{ padding: "8px 10px", color: "#111827" }}>{item.description}</td>
-                <td style={{ padding: "8px 10px", textAlign: "center", color: "#374151" }}>{item.quantity}</td>
+                <td style={{ padding: "8px 10px", textAlign: "center", color: "#374151" }}>{itemEffectiveQty(item)}</td>
                 <td style={{ padding: "8px 10px", textAlign: "center", color: "#374151" }}>{fmt(Number(item.unitPrice), item.currency || baseCurrency)}</td>
                 {hasMixedCurrencies && (
                   <td style={{ padding: "8px 10px", textAlign: "center", fontSize: "10px", color: "#6b7280" }}>{item.currency || baseCurrency}</td>
                 )}
-                <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#111827" }}>{fmt(Number(item.totalPrice), item.currency || baseCurrency)}</td>
+                <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#111827" }}>{fmt(itemEffectiveTotal(item), item.currency || baseCurrency)}</td>
                 {hasMixedCurrencies && (
                   <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#0f766e" }}>
-                    {item.totalPriceBase != null ? fmt(Number(item.totalPriceBase), baseCurrency) : fmt(Number(item.totalPrice), baseCurrency)}
+                    {(() => { const b = itemEffectiveTotalBase(item); return b != null ? fmt(b, baseCurrency) : fmt(itemEffectiveTotal(item), baseCurrency); })()}
                   </td>
                 )}
               </tr>
@@ -806,13 +826,18 @@ export default function QuotationDetailPage() {
                         {isDifferent && !item.metadata?.roomCount && <div className="text-xs text-muted-foreground/60">{itemCurr}</div>}
                       </TableCell>
                       <TableCell className="text-center font-semibold">
-                        {fmt(Number(item.totalPrice), itemCurr)}
+                        {fmt(itemEffectiveTotal(item), itemCurr)}
                       </TableCell>
                       {hasMixedCurrencies && (
                         <TableCell className="text-center font-semibold text-teal-700">
                           {isDifferent
-                            ? (item.totalPriceBase != null ? fmt(Number(item.totalPriceBase), baseCurrency) : <span className="text-amber-500 text-xs">No rate</span>)
-                            : fmt(Number(item.totalPrice), baseCurrency)}
+                            ? (() => {
+                                const effBase = itemEffectiveTotalBase(item);
+                                return effBase != null
+                                  ? fmt(effBase, baseCurrency)
+                                  : <span className="text-amber-500 text-xs">No rate</span>;
+                              })()
+                            : fmt(itemEffectiveTotal(item), baseCurrency)}
                         </TableCell>
                       )}
                       <TableCell>
