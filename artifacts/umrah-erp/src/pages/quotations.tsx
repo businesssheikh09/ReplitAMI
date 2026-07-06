@@ -121,18 +121,36 @@ export default function QuotationsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex gap-3">
-            <div className="relative flex-1">
+          <div className="flex gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search by reference..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {["draft","sent","accepted","rejected","expired"].map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-1">
+              {[
+                { value: "all",      label: "All" },
+                { value: "draft",    label: "Drafts" },
+                { value: "sent",     label: "Sent" },
+                { value: "accepted", label: "Accepted" },
+                { value: "rejected", label: "Rejected" },
+                { value: "expired",  label: "Expired" },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setStatusFilter(value)}
+                  className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors border ${
+                    statusFilter === value
+                      ? value === "draft"    ? "bg-slate-700 text-white border-slate-700"
+                      : value === "sent"     ? "bg-blue-600 text-white border-blue-600"
+                      : value === "accepted" ? "bg-green-600 text-white border-green-600"
+                      : value === "rejected" ? "bg-red-600 text-white border-red-600"
+                      : value === "expired"  ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-slate-900 text-white border-slate-900"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >{label}</button>
+              ))}
+            </div>
           </div>
         </CardHeader>
         <CardContent>

@@ -41,6 +41,8 @@ function serializeInvoice(
     payableSar: parseNumericField(inv.payableSar),
     receivablePkr: parseNumericField(inv.receivablePkr),
     payablePkr: parseNumericField(inv.payablePkr),
+    receivableCurrency: inv.receivableCurrency ?? "SAR",
+    payableCurrency: inv.payableCurrency ?? "SAR",
   };
 }
 
@@ -129,6 +131,8 @@ router.post("/invoices/hotel", requireAuth, async (req, res) => {
       payableSar: body.payableSar != null ? String(body.payableSar) : null,
       receivablePkr: body.receivablePkr != null ? String(body.receivablePkr) : null,
       payablePkr: body.payablePkr != null ? String(body.payablePkr) : null,
+      receivableCurrency: body.receivableCurrency || "SAR",
+      payableCurrency: body.payableCurrency || "SAR",
       incomeHead: body.incomeHead || "Hotel Income",
       salesmanId: body.salesmanId ? Number(body.salesmanId) : null,
       status: body.status || "draft",
@@ -182,6 +186,8 @@ router.put("/invoices/hotel/:id", requireAuth, async (req, res) => {
       payableSar: body.payableSar != null ? String(body.payableSar) : null,
       receivablePkr: body.receivablePkr != null ? String(body.receivablePkr) : null,
       payablePkr: body.payablePkr != null ? String(body.payablePkr) : null,
+      receivableCurrency: body.receivableCurrency || "SAR",
+      payableCurrency: body.payableCurrency || "SAR",
       incomeHead: body.incomeHead || "Hotel Income",
       salesmanId: body.salesmanId ? Number(body.salesmanId) : null,
       status: body.status || "draft",

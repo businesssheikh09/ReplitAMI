@@ -35,6 +35,8 @@ export const hotelInvoicesTable = pgTable("hotel_invoices", {
   payableSar: numeric("payable_sar", { precision: 14, scale: 2 }),
   receivablePkr: numeric("receivable_pkr", { precision: 14, scale: 2 }),
   payablePkr: numeric("payable_pkr", { precision: 14, scale: 2 }),
+  receivableCurrency: text("receivable_currency").notNull().default("SAR"),
+  payableCurrency: text("payable_currency").notNull().default("SAR"),
   incomeHead: text("income_head").notNull().default("Hotel Income"),
   salesmanId: integer("salesman_id"),
   status: text("status").notNull().default("draft"),

@@ -138,6 +138,8 @@ export default function HotelInvoiceFormPage() {
       /* back-calc stored rate from each pair */
       if (rSar && rPkr && Number(rSar) > 0) setReceivableRate(round2(Number(rPkr) / Number(rSar)));
       if (pSar && pPkr && Number(pSar) > 0) setPayableRate(round2(Number(pPkr) / Number(pSar)));
+      if (existing.receivableCurrency) setReceivableCurrency(existing.receivableCurrency);
+      if (existing.payableCurrency) setPayableCurrency(existing.payableCurrency);
       setForm({
         invoiceDate: existing.invoiceDate || today(),
         partyId: existing.partyId ? String(existing.partyId) : "",
@@ -702,7 +704,7 @@ export default function HotelInvoiceFormPage() {
         <div style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", maxWidth: "700px", margin: "0 auto", border: "2px solid #1e3a5f", padding: "0" }}>
           {/* Header */}
           <div style={{ background: "#1e3a5f", color: "white", textAlign: "center", padding: "14px 10px 10px" }}>
-            <div style={{ fontSize: "18px", fontWeight: "bold", letterSpacing: "2px" }}>{COMPANY_NAME}</div>
+            <div style={{ fontSize: "18px", fontWeight: "bold", letterSpacing: "2px" }}>{branding.companyName || COMPANY_NAME}</div>
             <div style={{ fontSize: "11px", marginTop: "4px", letterSpacing: "1px", opacity: 0.85 }}>HOTEL ACCOMMODATION VOUCHER</div>
           </div>
           {/* DN + Date */}
@@ -738,7 +740,7 @@ export default function HotelInvoiceFormPage() {
           </VoucherSection>
           {/* Footer */}
           <div style={{ padding: "10px 16px", borderTop: "1px solid #ccc", background: "#f9f9f9", fontSize: "11px", color: "#555", textAlign: "center" }}>
-            This voucher does not constitute a receipt of payment. &nbsp;|&nbsp; {COMPANY_NAME} &nbsp;|&nbsp; {new Date().toLocaleDateString()}
+            This voucher does not constitute a receipt of payment. &nbsp;|&nbsp; {branding.companyName || COMPANY_NAME} &nbsp;|&nbsp; {new Date().toLocaleDateString()}
           </div>
         </div>
       </div>
