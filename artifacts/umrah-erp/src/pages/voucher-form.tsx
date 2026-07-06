@@ -176,7 +176,7 @@ export default function VoucherFormPage() {
                       <SelectTrigger className="h-8 text-sm">
                         <SelectValue placeholder="Select account…" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-80">
                         {/* Generic group accounts */}
                         <SelectGroup>
                           <SelectLabel className="text-xs text-muted-foreground">General Accounts</SelectLabel>
