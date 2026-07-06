@@ -377,7 +377,7 @@ export default function HotelInvoiceFormPage() {
           <Button variant="ghost" size="sm" onClick={() => setLocation("/accounting/invoices")}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
+          <Button variant="outline" size="sm" onClick={handlePrintFormalInvoice}>
             <Printer className="mr-2 h-4 w-4" /> Print Invoice
           </Button>
         </div>
@@ -845,7 +845,7 @@ export default function HotelInvoiceFormPage() {
             <div><strong>Date:</strong> {form.invoiceDate || "—"}</div>
             <div><strong>Ref:</strong> {savedInvoice?.dnNumber || dnNumber || "—"}</div>
             <div><strong>To:</strong> {savedInvoice?.partyName || partyName || "—"}</div>
-            <div><strong>From:</strong> {branding.companyName}</div>
+            <div><strong>From:</strong> {branding.companyName}{branding.companyPhone ? ` | ${branding.companyPhone}` : ""}</div>
           </div>
         </div>
 
@@ -866,7 +866,7 @@ export default function HotelInvoiceFormPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
             <thead>
               <tr style={{ background: "#1e3a5f", color: "white" }}>
-                {["Pax","Qty","Room Type","Meal","View","Cnf.#","Check-In","Check-Out","Nights","Room Rate (SAR)"].map(h => (
+                {["Pax","Qty","Room Type","Bed Type","View","Cnf.#","Check-In","Check-Out","Nights","Room Rate (SAR)"].map(h => (
                   <th key={h} style={{ padding: "4px 5px", textAlign: h === "Room Rate (SAR)" ? "right" : "center", border: "1px solid #1e3a5f", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -931,10 +931,11 @@ export default function HotelInvoiceFormPage() {
           <div style={{ padding: "8px 24px", borderTop: "1px solid #e5e7eb", background: "#f9fafb" }}>
             <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>Bank Details:</div>
             <div style={{ fontSize: "11px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px" }}>
-              {branding.bankName    && <div><strong>Bank Name:</strong> {branding.bankName}</div>}
-              {branding.bankAccount && <div><strong>Account No:</strong> {branding.bankAccount}</div>}
-              {branding.bankIban    && <div><strong>IBAN:</strong> {branding.bankIban}</div>}
-              {branding.swiftCode   && <div><strong>Swift:</strong> {branding.swiftCode}</div>}
+              {branding.bankName        && <div><strong>Bank Name:</strong> {branding.bankName}</div>}
+              {(branding.bankAccountName || branding.companyName) && <div><strong>Account Name:</strong> {branding.bankAccountName || branding.companyName}</div>}
+              {(branding.bankAccountNo || branding.bankAccount)   && <div><strong>Account No:</strong> {branding.bankAccountNo || branding.bankAccount}</div>}
+              {branding.bankIban        && <div><strong>IBAN:</strong> {branding.bankIban}</div>}
+              {branding.swiftCode       && <div><strong>Swift:</strong> {branding.swiftCode}</div>}
             </div>
           </div>
         )}

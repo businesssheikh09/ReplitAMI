@@ -14,6 +14,8 @@ interface Branding {
   companyWhatsapp: string;
   bankName: string;
   bankAccount: string;
+  bankAccountName: string;
+  bankAccountNo: string;
   bankIban: string;
   swiftCode: string;
   routingNo: string;
@@ -36,6 +38,8 @@ function rawToConfig(raw: Record<string, string>): Branding {
     companyWhatsapp:  raw.company_whatsapp   ?? raw.companyWhatsapp  ?? "",
     bankName:         raw.bank_name          ?? raw.bankName         ?? "",
     bankAccount:      raw.bank_account       ?? raw.bankAccount      ?? "",
+    bankAccountName:  raw.bank_account_name  ?? raw.bankAccountName  ?? "",
+    bankAccountNo:    raw.bank_account_no    ?? raw.bankAccountNo    ?? "",
     bankIban:         raw.bank_iban          ?? raw.bankIban         ?? "",
     swiftCode:        raw.swift_code         ?? raw.swiftCode        ?? "",
     routingNo:        raw.routing_no         ?? raw.routingNo        ?? "",
