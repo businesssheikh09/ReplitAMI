@@ -26,6 +26,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 var import_pdfkit = __toESM(require("pdfkit"), 1);
 var import_fs = __toESM(require("fs"), 1);
 var import_path = __toESM(require("path"), 1);
+var import_child_process = require("child_process");
 var W = 595.28;
 var H = 841.89;
 var M = 40;
@@ -717,123 +718,122 @@ folders.forEach((f, i) => {
   doc.fontSize(7.5).font("Helvetica").fillColor(C.text).text(f.desc, fx + 6, fy + 13, { width: CW / 2 - 20, lineBreak: false });
 });
 footer("Developer Quick-Reference");
+function computeAgentSessions() {
+  let raw = "";
+  try {
+    raw = (0, import_child_process.execSync)('git log --pretty=format:"%ai %s"', { encoding: "utf8", timeout: 1e4 });
+  } catch {
+    return [];
+  }
+  const commits = [];
+  for (const line of raw.trim().split("\n")) {
+    const m = line.match(/^([\d-]+ [\d:]+ [+-]\d+)\s+(.+)$/);
+    if (m) {
+      const ts = new Date(m[1]).getTime();
+      if (!isNaN(ts)) commits.push({ ts, msg: m[2] });
+    }
+  }
+  commits.sort((a, b) => a.ts - b.ts);
+  const GAP = 2 * 60 * 60 * 1e3;
+  const clusters = [];
+  let cur = [];
+  for (let i = 0; i < commits.length; i++) {
+    if (i === 0 || commits[i].ts - commits[i - 1].ts > GAP) {
+      if (cur.length) clusters.push(cur);
+      cur = [];
+    }
+    cur.push(commits[i]);
+  }
+  if (cur.length) clusters.push(cur);
+  return clusters.map((cluster) => {
+    const first = cluster[0];
+    const last = cluster[cluster.length - 1];
+    const minutes = Math.round((last.ts - first.ts) / 6e4);
+    const date = new Date(first.ts).toISOString().slice(0, 10);
+    const best = cluster.filter((c) => !c.msg.startsWith("Transitioned") && !c.msg.startsWith("Initial") && !c.msg.startsWith("Saved progress")).sort((a, b) => b.msg.length - a.msg.length)[0] ?? cluster[cluster.length - 1];
+    const raw2 = best.msg.replace(/^(Task #\d+:|feat:|fix:|chore:|Task \d+)/i, "").trim();
+    const label = raw2.length > 72 ? raw2.slice(0, 69) + "..." : raw2;
+    return { date, label: label || best.msg, minutes };
+  }).filter((s) => s.minutes > 0);
+}
+var agentSessions = computeAgentSessions();
+var totalAgentMinutes = agentSessions.reduce((s, r) => s + r.minutes, 0);
+var totalAgentHours = totalAgentMinutes / 60;
+var RATE = 5;
+var PKR_RATE = 290;
 newPage();
 doc.rect(0, 0, W, 70).fill(C.gold);
 doc.rect(0, 0, W, 6).fill("#92400e");
-doc.fontSize(17).font("Helvetica-Bold").fillColor(C.white).text("Estimated Development Cost", M, 16, { width: CW });
-doc.fontSize(9).font("Helvetica").fillColor("#f1f5f9").text("Agent-rate estimate (all 20 modules)  \u2022  $5/hr internal rate  \u2022  1 USD = 290 PKR", M, 40, { width: CW });
-var RATE = 5;
-var PKR_RATE = 290;
-var costData = [
-  { module: "Project Setup & Infrastructure", features: "Monorepo, API server, DB schema, CI, deployment config", hours: 40, status: "done" },
-  { module: "Authentication & User Roles", features: "Login, sessions, roles, forced password change, audit log", hours: 30, status: "done" },
-  { module: "CRM / Clients", features: "Client list, profile, follow-ups, hotel requests", hours: 35, status: "done" },
-  { module: "Quotations", features: "Create/edit quotation, PDF generation, status workflow, pending approvals", hours: 45, status: "done" },
-  { module: "Hotel Invoices (DN)", features: "Invoice form, rate\xD7nights auto-calc, 3 print formats, status tracking", hours: 50, status: "done" },
-  { module: "Flight Management", features: "Flight records, BSP report, cancellations, passenger manifest", hours: 40, status: "done" },
-  { module: "Transport Bookings", features: "Transport invoice form, vendor assignment, status tracking", hours: 25, status: "done" },
-  { module: "Visa Applications", features: "Visa tracking, document upload, status workflow", hours: 25, status: "done" },
-  { module: "Hotels & Vendors Directory", features: "Hotel master list, vendor list, room types, WhatsApp numbers", hours: 20, status: "done" },
-  { module: "Double-Entry Accounting", features: "Chart of accounts, RV/PV/JV/CV vouchers, ledger, trial balance, P&L, balance sheet", hours: 70, status: "done" },
-  { module: "Financial Years", features: "Year open/close, period locking, reporting periods", hours: 15, status: "done" },
-  { module: "Currency Settings", features: "Multi-currency support, live rate fetching, PKR conversion", hours: 15, status: "done" },
-  { module: "WhatsApp Automation", features: "Inbox, bot campaigns, media library, group messaging, session persistence", hours: 60, status: "done" },
-  { module: "Customer Portal", features: "Portal login/register, dashboard, invoices, vouchers, visa, transport, downloads", hours: 55, status: "done" },
-  { module: "Public Website", features: "Landing page, package listings, flight search, GDS booking, package inquiry", hours: 50, status: "done" },
-  { module: "Print & Branding System", features: "Company branding config, print layouts for all document types, logo upload", hours: 20, status: "done" },
-  { module: "AI / OCR Integration", features: "Document scanning stub, AI settings page, OpenAI key management", hours: 15, status: "done" },
-  { module: "ERP Settings & Admin", features: "Website settings, automation, GDS/AI/ERP config pages", hours: 20, status: "done" },
-  { module: "Portal Users Management", features: "Staff approval workflow, portal user list, status management", hours: 15, status: "done" },
-  { module: "Testing, Bug Fixes & Polish", features: "Cross-module testing, UI polish, error handling, security hardening", hours: 50, status: "pending" }
-];
-var workedHours = costData.filter((r) => r.status === "done" || r.status === "in-progress").reduce((s, r) => s + r.hours, 0);
-var pendingHours = costData.filter((r) => r.status === "pending").reduce((s, r) => s + r.hours, 0);
-var totalHours = costData.reduce((s, r) => s + r.hours, 0);
-var cw10 = [108, 165, 32, 68, 55, 87];
-var totalCW = cw10.reduce((s, v) => s + v, 0);
-var y10 = 78;
-doc.rect(M, y10, totalCW, 22).fill(C.gold);
-var hdrs10 = ["Module / Area", "Features Included", "Hrs", "Status", "Cost (USD)", "Cost (PKR)"];
+doc.fontSize(17).font("Helvetica-Bold").fillColor(C.white).text("Actual Agent Working Time", M, 16, { width: CW });
+doc.fontSize(9).font("Helvetica").fillColor("#f1f5f9").text(
+  `Live from git history  \u2022  $${RATE}/hr agent rate  \u2022  1 USD = ${PKR_RATE} PKR  \u2022  Generated ${(/* @__PURE__ */ new Date()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`,
+  M,
+  40,
+  { width: CW }
+);
+var cw10 = [70, 228, 55, 82, 80];
+var totalCW10 = cw10.reduce((s, v) => s + v, 0);
+var y10 = 80;
+doc.rect(M, y10, totalCW10, 22).fill(C.gold);
+var hdrs10 = ["Date", "Primary Work / Session", "Time", "Cost (USD)", "Cost (PKR)"];
 var hx = M;
 hdrs10.forEach((h, i) => {
-  doc.fontSize(8).font("Helvetica-Bold").fillColor(C.white).text(h, hx + 4, y10 + 7, { width: cw10[i] - 8, lineBreak: false, align: i >= 2 && i !== 3 ? "right" : "left" });
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(C.white).text(h, hx + 4, y10 + 7, { width: cw10[i] - 8, lineBreak: false, align: i >= 2 ? "right" : "left" });
   hx += cw10[i];
 });
 y10 += 22;
-var statusCfg = {
-  "done": { color: C.green, label: "\u2713 Done" },
-  "in-progress": { color: C.amber, label: "\u25C9 Active" },
-  "pending": { color: C.gray, label: "\u25CB Pending" }
-};
-costData.forEach((row, ri) => {
+agentSessions.forEach((row, ri) => {
   const rh = 17;
-  doc.rect(M, y10, totalCW, rh).fill(ri % 2 === 0 ? C.white : "#fef9ec");
-  const cells = [
-    row.module,
-    row.features,
-    String(row.hours),
-    "",
-    // status rendered separately below
-    `$${(row.hours * RATE).toLocaleString()}`,
-    `Rs ${(row.hours * RATE * PKR_RATE).toLocaleString()}`
-  ];
+  doc.rect(M, y10, totalCW10, rh).fill(ri % 2 === 0 ? C.white : "#fef9ec");
+  const hrs = row.minutes / 60;
+  const usd = hrs * RATE;
+  const pkr = usd * PKR_RATE;
+  const hh = Math.floor(row.minutes / 60);
+  const mm = row.minutes % 60;
+  const dur = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
+  const cells = [row.date, row.label, dur, `$${usd.toFixed(2)}`, `Rs ${Math.round(pkr).toLocaleString()}`];
   let rx = M;
   cells.forEach((cell, ci) => {
-    if (ci === 3) {
-      const cfg = statusCfg[row.status];
-      doc.circle(rx + 6, y10 + rh / 2, 3).fill(cfg.color);
-      doc.fontSize(7).font("Helvetica").fillColor(cfg.color).text(cfg.label, rx + 12, y10 + (rh - 7) / 2, { width: cw10[ci] - 16, lineBreak: false });
-    } else {
-      doc.fontSize(ci === 1 ? 6.8 : 7.5).font(ci === 0 ? "Helvetica-Bold" : "Helvetica").fillColor(ci === 0 ? C.navy : C.text).text(cell, rx + 4, y10 + (rh - 8) / 2, { width: cw10[ci] - 8, lineBreak: false, align: ci >= 2 ? "right" : "left" });
-    }
+    doc.fontSize(ci === 1 ? 6.8 : 7.5).font(ci === 0 ? "Helvetica-Bold" : "Helvetica").fillColor(ci === 0 ? C.navy : C.text).text(cell, rx + 4, y10 + (rh - 8) / 2, {
+      width: cw10[ci] - 8,
+      lineBreak: false,
+      align: ci >= 2 ? "right" : "left"
+    });
     rx += cw10[ci];
   });
-  doc.rect(M, y10, totalCW, rh).lineWidth(0.25).stroke("#f0e6c8");
+  doc.rect(M, y10, totalCW10, rh).lineWidth(0.25).stroke("#f0e6c8");
   y10 += rh;
 });
-doc.rect(M, 78, totalCW, y10 - 78).lineWidth(0.75).stroke(C.gold);
+doc.rect(M, 80, totalCW10, y10 - 80).lineWidth(0.75).stroke(C.gold);
 y10 += 6;
-drawBox(M, y10, totalCW, 72, "#fffbeb", C.gold, 5);
-var workedUSD = workedHours * RATE;
-var workedPKR = workedUSD * PKR_RATE;
-var pendingUSD = pendingHours * RATE;
-var pendingPKR = pendingUSD * PKR_RATE;
-var totalUSD = totalHours * RATE;
+drawBox(M, y10, totalCW10, 56, "#fffbeb", C.gold, 5);
+var totalUSD = totalAgentHours * RATE;
 var totalPKR = totalUSD * PKR_RATE;
-doc.circle(M + 10, y10 + 12, 4).fill(C.green);
-doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.text).text("AGENT-WORKED (done + active):", M + 18, y10 + 7, { lineBreak: false });
+var totalHDisplay = totalAgentHours % 1 === 0 ? `${totalAgentHours}` : totalAgentHours.toFixed(1);
+doc.circle(M + 10, y10 + 13, 4).fill(C.green);
+doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.text).text("TOTAL ACTIVE AGENT TIME:", M + 18, y10 + 8, { lineBreak: false });
 doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.green).text(
-  `${workedHours} hrs  \u2022  $${workedUSD.toLocaleString()} USD  \u2022  Rs ${workedPKR.toLocaleString()} PKR`,
+  `${totalAgentMinutes} min  (${totalHDisplay} hrs)`,
   M + 18,
-  y10 + 7,
-  { width: totalCW - 26, align: "right", lineBreak: false }
+  y10 + 8,
+  { width: totalCW10 - 26, align: "right", lineBreak: false }
 );
-doc.circle(M + 10, y10 + 30, 4).fill(C.gray);
-doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.text).text("REMAINING ESTIMATE (pending):", M + 18, y10 + 25, { lineBreak: false });
-doc.fontSize(8.5).font("Helvetica-Bold").fillColor(C.gray).text(
-  pendingHours > 0 ? `${pendingHours} hrs  \u2022  $${pendingUSD.toLocaleString()} USD  \u2022  Rs ${pendingPKR.toLocaleString()} PKR` : "0 hrs  \u2022  all modules complete",
-  M + 18,
-  y10 + 25,
-  { width: totalCW - 26, align: "right", lineBreak: false }
-);
-doc.rect(M + 8, y10 + 41, totalCW - 16, 0.5).fill("#d4b896");
-doc.fontSize(9.5).font("Helvetica-Bold").fillColor(C.text).text(`GRAND TOTAL (${totalHours} hrs @ $${RATE}/hr):`, M + 8, y10 + 48, { lineBreak: false });
-doc.fontSize(10).font("Helvetica-Bold").fillColor(C.green).text(`USD ${totalUSD.toLocaleString()}`, M + 8, y10 + 47, { width: totalCW - 100, align: "right", lineBreak: false });
-doc.fontSize(10).font("Helvetica-Bold").fillColor(C.amber).text(`PKR ${totalPKR.toLocaleString()}`, M + 8, y10 + 47, { width: totalCW - 16, align: "right", lineBreak: false });
-y10 += 80;
+doc.rect(M + 8, y10 + 27, totalCW10 - 16, 0.5).fill("#d4b896");
+doc.fontSize(9.5).font("Helvetica-Bold").fillColor(C.text).text(`TOTAL COST  (${totalHDisplay} hrs @ $${RATE}/hr):`, M + 8, y10 + 33, { lineBreak: false });
+doc.fontSize(10).font("Helvetica-Bold").fillColor(C.green).text(`USD $${totalUSD.toFixed(2)}`, M + 8, y10 + 32, { width: totalCW10 - 110, align: "right", lineBreak: false });
+doc.fontSize(10).font("Helvetica-Bold").fillColor(C.amber).text(`PKR ${Math.round(totalPKR).toLocaleString()}`, M + 8, y10 + 32, { width: totalCW10 - 16, align: "right", lineBreak: false });
+y10 += 64;
 doc.fontSize(7).font("Helvetica").fillColor(C.muted).text(
-  "NOTE: Costs calculated at the agent rate of $5/hr. Market rate for an equivalent mid-senior developer team would be $35\u201350/hr. Does not include third-party service costs (hosting, WhatsApp Business API, SMS, GDS/Amadeus fees, domain/SSL). Testing & Polish module is ongoing; final hours may vary.",
+  "NOTE: Times are computed from git commit timestamps \u2014 each session spans from the first commit to the last commit before a gap of more than 2 hours. Single-commit sessions (0 min) are excluded. Market rate for an equivalent mid-senior developer team would be $35\u201350/hr. Does not include third-party service costs (hosting, WhatsApp Business API, SMS, GDS/Amadeus fees).",
   M,
   y10,
-  { width: totalCW, lineGap: 2 }
+  { width: totalCW10, lineGap: 2 }
 );
-footer("Estimated Development Cost");
+footer("Actual Agent Working Time");
 writeStream.on("finish", () => {
-  const h = costData.reduce((s, r) => s + r.hours, 0);
-  const wh = costData.filter((r) => r.status === "done" || r.status === "in-progress").reduce((s, r) => s + r.hours, 0);
   console.log(`
 PDF generated: ${outPath}`);
-  console.log(`Pages: ${pageNum}  |  Total: ${h}h  |  Worked: ${wh}h  |  Pending: ${h - wh}h  |  Agent cost: $${(h * RATE).toLocaleString()}`);
+  console.log(`Pages: ${pageNum}  |  Agent sessions: ${agentSessions.length}  |  Total time: ${totalAgentMinutes} min (${totalHDisplay}h)  |  Cost @ $${RATE}/hr: $${totalUSD.toFixed(2)}`);
   process.exit(0);
 });
 writeStream.on("error", (err) => {
