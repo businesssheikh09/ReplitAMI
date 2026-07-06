@@ -27,13 +27,19 @@ function ServiceMetadataFields({
   serviceType,
   metadata,
   onChange,
+  onQuantityChange,
 }: {
   serviceType: string;
   metadata: ServiceMeta;
   onChange: (meta: ServiceMeta) => void;
+  onQuantityChange?: (qty: number) => void;
 }) {
   const set = (k: string, v: string) => onChange({ ...metadata, [k]: v });
   const v = (k: string) => metadata[k] ?? "";
+
+  function fireQtyIfHotel(rooms: number, nights: number) {
+    if (rooms > 0 && nights > 0) onQuantityChange?.(rooms * nights);
+  }
 
   if (serviceType === "hotel") {
     return (
@@ -59,7 +65,11 @@ function ServiceMetadataFields({
           </div>
           <div>
             <MLabel>No. of Rooms</MLabel>
-            <Input type="number" min={1} className="h-8 text-sm" placeholder="1" value={v("roomCount")} onChange={e => set("roomCount", e.target.value)} />
+            <Input type="number" min={1} className="h-8 text-sm" placeholder="1" value={v("roomCount")} onChange={e => {
+              const rooms = Number(e.target.value) || 1;
+              onChange({ ...metadata, roomCount: e.target.value });
+              fireQtyIfHotel(rooms, Number(v("nights")) || 0);
+            }} />
           </div>
         </div>
         <div className="grid grid-cols-4 gap-3">
@@ -71,7 +81,10 @@ function ServiceMetadataFields({
               const next: ServiceMeta = { ...metadata, checkIn };
               if (checkIn && checkOut) {
                 const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
-                if (diff > 0) next.nights = String(diff);
+                if (diff > 0) {
+                  next.nights = String(diff);
+                  fireQtyIfHotel(Number(v("roomCount")) || 1, diff);
+                }
               }
               onChange(next);
             }} />
@@ -84,14 +97,21 @@ function ServiceMetadataFields({
               const next: ServiceMeta = { ...metadata, checkOut };
               if (checkIn && checkOut) {
                 const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
-                if (diff > 0) next.nights = String(diff);
+                if (diff > 0) {
+                  next.nights = String(diff);
+                  fireQtyIfHotel(Number(v("roomCount")) || 1, diff);
+                }
               }
               onChange(next);
             }} />
           </div>
           <div>
             <MLabel>Nights</MLabel>
-            <Input type="number" min={1} className="h-8 text-sm" placeholder="5" value={v("nights")} onChange={e => set("nights", e.target.value)} />
+            <Input type="number" min={1} className="h-8 text-sm" placeholder="5" value={v("nights")} onChange={e => {
+              const nights = Number(e.target.value) || 0;
+              onChange({ ...metadata, nights: e.target.value });
+              fireQtyIfHotel(Number(v("roomCount")) || 1, nights);
+            }} />
           </div>
           <div>
             <MLabel>Meal Plan</MLabel>
@@ -770,10 +790,20 @@ export default function QuotationDetailPage() {
                         <div>{item.description}</div>
                         <MetaSummary serviceType={item.serviceType} metadata={item.metadata} />
                       </TableCell>
-                      <TableCell className="text-center">{item.quantity}</TableCell>
+                      <TableCell className="text-center">
+                        {item.serviceType === "hotel" && item.metadata?.roomCount && item.metadata?.nights ? (
+                          <span className="text-xs leading-tight">
+                            <span className="font-semibold">{item.metadata.roomCount}</span>
+                            <span className="text-muted-foreground"> rm × </span>
+                            <span className="font-semibold">{item.metadata.nights}</span>
+                            <span className="text-muted-foreground"> nts</span>
+                          </span>
+                        ) : item.quantity}
+                      </TableCell>
                       <TableCell className="text-center text-muted-foreground">
                         {fmt(Number(item.unitPrice), itemCurr)}
-                        {isDifferent && <div className="text-xs text-muted-foreground/60">{itemCurr}</div>}
+                        {item.serviceType === "hotel" && <div className="text-xs text-muted-foreground/60">/night/room</div>}
+                        {isDifferent && !item.metadata?.roomCount && <div className="text-xs text-muted-foreground/60">{itemCurr}</div>}
                       </TableCell>
                       <TableCell className="text-center font-semibold">
                         {fmt(Number(item.totalPrice), itemCurr)}
@@ -860,14 +890,21 @@ export default function QuotationDetailPage() {
                     className="col-span-2"
                   />
 
-                  {/* Qty */}
-                  <Input
-                    type="number"
-                    placeholder="Qty"
-                    min={1}
-                    value={itemForm.quantity}
-                    onChange={e => setItemForm(p => ({ ...p, quantity: Number(e.target.value) }))}
-                  />
+                  {/* Qty — auto-derived for hotel (rooms × nights); manual for all others */}
+                  {itemForm.serviceType === "hotel" ? (
+                    <div className="flex flex-col justify-center px-2 py-1 rounded-md border bg-muted/40 text-center">
+                      <span className="text-sm font-semibold">{itemForm.quantity || "—"}</span>
+                      <span className="text-xs text-muted-foreground leading-tight">rms × nts</span>
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      placeholder="Qty"
+                      min={1}
+                      value={itemForm.quantity}
+                      onChange={e => setItemForm(p => ({ ...p, quantity: Number(e.target.value) }))}
+                    />
+                  )}
 
                   {/* Currency + Unit Price */}
                   <div className="flex gap-1.5 col-span-2">
@@ -897,6 +934,7 @@ export default function QuotationDetailPage() {
                   serviceType={itemForm.serviceType}
                   metadata={itemForm.metadata}
                   onChange={meta => setItemForm(p => ({ ...p, metadata: meta }))}
+                  onQuantityChange={qty => setItemForm(p => ({ ...p, quantity: qty }))}
                 />
 
                 {/* Notes row */}
@@ -1047,8 +1085,19 @@ export default function QuotationDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>Quantity</Label>
-                <Input type="number" min={1} value={editItemForm.quantity} onChange={e => setEditItemForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
+                {editItemForm.serviceType === "hotel" ? (
+                  <>
+                    <Label>Qty <span className="text-muted-foreground text-xs">(auto — rooms × nights)</span></Label>
+                    <div className="h-10 px-3 flex items-center text-sm font-semibold border rounded-md bg-muted/40">
+                      {editItemForm.quantity}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Label>Quantity</Label>
+                    <Input type="number" min={1} value={editItemForm.quantity} onChange={e => setEditItemForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
+                  </>
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Currency</Label>
@@ -1102,6 +1151,7 @@ export default function QuotationDetailPage() {
               serviceType={editItemForm.serviceType}
               metadata={editItemForm.metadata}
               onChange={meta => setEditItemForm(p => ({ ...p, metadata: meta }))}
+              onQuantityChange={qty => setEditItemForm(p => ({ ...p, quantity: qty }))}
             />
 
             <div className="space-y-1">

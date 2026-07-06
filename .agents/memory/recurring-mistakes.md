@@ -17,6 +17,19 @@ When you rename a hook, route, component, endpoint, or export:
 
 ---
 
+## Rule 3 — Multi-dimension pricing: always derive quantity from all multipliers
+
+When a service has more than one quantity dimension (hotel = rooms × nights, group transport = vehicles × trips), the parent form's `quantity` field MUST be the product of ALL dimensions — not just one. UI must:
+- Auto-set `quantity = dim1 × dim2` whenever either changes
+- Hide the raw Qty input for these service types (replace with read-only derived display)
+- Show the breakdown in the table row (e.g. "2 rm × 2 nts") not just the raw product
+
+**Why:** Hotel items with 2 rooms and 2 nights showed `total = unitPrice × 1` because `quantity` stayed at 1 even though metadata had `roomCount=2` and `nights=2`. The user noticed the wrong total.
+
+**How to apply:** Before implementing any pricing form, list EVERY multiplier for that service type. Wire all of them into `onQuantityChange`. Pattern: `ServiceMetadataFields` receives `onQuantityChange?: (qty: number) => void` and fires it from every dimension's `onChange`.
+
+---
+
 ## Rule 2 — Build complete, immediately usable UIs — not stubs that need follow-up
 
 When adding a feature (button, form, section):
