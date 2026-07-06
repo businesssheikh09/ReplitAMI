@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { Globe, Save, Loader2, RefreshCw, ExternalLink, Building2, Upload, ImageIcon, Banknote, FileText, PenLine } from "lucide-react";
+import { Globe, Save, Loader2, RefreshCw, ExternalLink, Building2, Upload, ImageIcon, Banknote, FileText, PenLine, Trash2 } from "lucide-react";
 
 type ConfigDraft = {
   siteName: string;
@@ -175,6 +175,16 @@ export default function WebsiteSettingsPage() {
   };
 
   async function uploadLogo(file: File, field: "logo_url" | "print_logo_url") {
+    const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+    const ALLOWED = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp"];
+    if (!ALLOWED.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Please upload a PNG, JPG, SVG, or WebP image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      toast({ title: "File too large", description: "Maximum logo size is 2 MB.", variant: "destructive" });
+      return;
+    }
     const setState = field === "logo_url" ? setLogoUploading : setPrintLogoUploading;
     setState(true);
     try {
@@ -185,12 +195,14 @@ export default function WebsiteSettingsPage() {
       });
       if (!res.ok) throw new Error("Failed to get upload URL");
       const { uploadURL, objectPath } = await res.json() as { uploadURL: string; objectPath: string };
-      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      const publicUrl = `/api/storage/public-objects/${objectPath.replace(/^\//, "")}`;
-      setB(field, publicUrl);
-      toast({ title: "Logo uploaded", description: "Save branding to apply." });
+      const putRes = await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      if (!putRes.ok) throw new Error("Upload to storage failed");
+      // objectPath is like /objects/<uuid>; serve via the private objects endpoint (no auth required)
+      const serveUrl = `/api/storage/objects/${objectPath.replace(/^\/objects\//, "")}`;
+      setB(field, serveUrl);
+      toast({ title: "Logo uploaded", description: "Click 'Save Branding' to apply." });
     } catch {
-      toast({ title: "Upload failed", variant: "destructive" });
+      toast({ title: "Upload failed", description: "Could not store the logo. Please try again.", variant: "destructive" });
     } finally {
       setState(false);
     }
@@ -263,41 +275,55 @@ export default function WebsiteSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Main logo */}
               <div className="space-y-2">
-                <Label>Website & Print Logo</Label>
-                <div className="flex items-center gap-3">
+                <Label>Website &amp; Print Logo</Label>
+                <div className="flex items-center gap-3 flex-wrap">
                   {branding.logo_url ? (
-                    <img src={branding.logo_url} alt="Logo" className="h-12 max-w-[120px] object-contain border rounded" />
+                    <img src={branding.logo_url} alt="Logo" className="h-12 max-w-[120px] object-contain border rounded bg-gray-50" />
                   ) : (
                     <div className="h-12 w-24 bg-gray-100 border rounded flex items-center justify-center text-xs text-muted-foreground">No logo</div>
                   )}
-                  <div>
-                    <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0], "logo_url")} />
+                  <div className="flex gap-2">
+                    <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp" className="hidden"
+                      onChange={e => { if (e.target.files?.[0]) { uploadLogo(e.target.files[0], "logo_url"); e.target.value = ""; } }} />
                     <Button size="sm" variant="outline" onClick={() => logoRef.current?.click()} disabled={logoUploading}>
                       {logoUploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
                       Upload
                     </Button>
+                    {branding.logo_url && (
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setB("logo_url", "")} title="Remove logo">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <Input className="text-xs" placeholder="Or paste URL…" value={branding.logo_url} onChange={e => setB("logo_url", e.target.value)} />
+                <Input className="text-xs" placeholder="Or paste a direct image URL…" value={branding.logo_url} onChange={e => setB("logo_url", e.target.value)} />
+                <p className="text-xs text-muted-foreground">PNG, JPG, SVG or WebP · max 2 MB</p>
               </div>
               {/* Print logo override */}
               <div className="space-y-2">
-                <Label>Print-Only Logo <span className="text-xs text-muted-foreground">(optional, overrides above for print)</span></Label>
-                <div className="flex items-center gap-3">
+                <Label>Print-Only Logo <span className="text-xs text-muted-foreground">(optional — overrides above for printed documents)</span></Label>
+                <div className="flex items-center gap-3 flex-wrap">
                   {branding.print_logo_url ? (
-                    <img src={branding.print_logo_url} alt="Print Logo" className="h-12 max-w-[120px] object-contain border rounded" />
+                    <img src={branding.print_logo_url} alt="Print Logo" className="h-12 max-w-[120px] object-contain border rounded bg-gray-50" />
                   ) : (
                     <div className="h-12 w-24 bg-gray-100 border rounded flex items-center justify-center text-xs text-muted-foreground">Same as above</div>
                   )}
-                  <div>
-                    <input ref={printLogoRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0], "print_logo_url")} />
+                  <div className="flex gap-2">
+                    <input ref={printLogoRef} type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp" className="hidden"
+                      onChange={e => { if (e.target.files?.[0]) { uploadLogo(e.target.files[0], "print_logo_url"); e.target.value = ""; } }} />
                     <Button size="sm" variant="outline" onClick={() => printLogoRef.current?.click()} disabled={printLogoUploading}>
                       {printLogoUploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
                       Upload
                     </Button>
+                    {branding.print_logo_url && (
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setB("print_logo_url", "")} title="Remove print logo">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <Input className="text-xs" placeholder="Or paste URL…" value={branding.print_logo_url} onChange={e => setB("print_logo_url", e.target.value)} />
+                <Input className="text-xs" placeholder="Or paste a direct image URL…" value={branding.print_logo_url} onChange={e => setB("print_logo_url", e.target.value)} />
+                <p className="text-xs text-muted-foreground">Use a high-res version for sharp print output</p>
               </div>
             </div>
           </CardContent>
