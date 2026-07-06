@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "zwMvLE6rnjKDktCAMV7ZH"
@@ -30,3 +29,9 @@ id = "9y3q03R7PQ9gnuZlEJYjR"
 uri = "file://artifacts/frontend/src/assets/pattern.png"
 type = "image"
 title = "Islamic geometric pattern background"
+
+[[outputs]]
+id = "FujEbjIwWLpB2v5yLoPeu"
+uri = "file://scripts/project-map.pdf"
+type = "pdf"
+title = "Al Musafir International — ERP Project Map (10 pages)"
