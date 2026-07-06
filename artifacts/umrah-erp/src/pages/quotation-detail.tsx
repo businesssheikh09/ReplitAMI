@@ -197,6 +197,14 @@ export default function QuotationDetailPage() {
 
   const hasMixedCurrencies = items.some((i: any) => i.currency && i.currency !== baseCurrency);
 
+  // Per-currency subtotals (sum of totalPrice grouped by currency)
+  const currencySubtotals: Record<string, number> = {};
+  for (const item of items) {
+    const c = item.currency || baseCurrency;
+    currencySubtotals[c] = (currencySubtotals[c] || 0) + Number(item.totalPrice || 0);
+  }
+  const foreignSubtotals = Object.entries(currencySubtotals).filter(([c]) => c !== baseCurrency);
+
   return (
     <>
       {/* ── Print Styles ─────────────────────────────────────────────────────── */}
@@ -367,7 +375,19 @@ export default function QuotationDetailPage() {
           <Card><CardContent className="pt-6">
             <div className="text-xs text-muted-foreground">Total Amount</div>
             <div className="text-2xl font-bold text-green-600">{fmt(q.totalAmount || 0, baseCurrency)}</div>
-            {hasMixedCurrencies && <div className="text-xs text-muted-foreground mt-1">Converted to {baseCurrency}</div>}
+            {hasMixedCurrencies && foreignSubtotals.length > 0 && (
+              <div className="mt-1.5 space-y-0.5">
+                <div className="text-xs text-muted-foreground">Includes:</div>
+                {foreignSubtotals.map(([c, total]) => (
+                  <div key={c} className="text-xs text-amber-700 font-medium">
+                    {fmt(total, c)}
+                  </div>
+                ))}
+                {currencySubtotals[baseCurrency] > 0 && (
+                  <div className="text-xs text-muted-foreground">{fmt(currencySubtotals[baseCurrency], baseCurrency)}</div>
+                )}
+              </div>
+            )}
           </CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Valid Until</div><div className="font-semibold">{q.validUntil ? new Date(q.validUntil).toLocaleDateString() : "—"}</div></CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Created</div><div className="font-semibold">{new Date(q.createdAt).toLocaleDateString()}</div></CardContent></Card>
@@ -439,11 +459,35 @@ export default function QuotationDetailPage() {
                   );
                 })}
                 {items.length > 0 && (
-                  <TableRow className="bg-muted/30">
-                    <TableCell colSpan={hasMixedCurrencies ? 5 : 4} className="text-right font-bold">Grand Total</TableCell>
-                    <TableCell className="text-center font-bold text-green-600 text-base">{fmt(q.totalAmount || 0, baseCurrency)}</TableCell>
-                    <TableCell />
-                  </TableRow>
+                  <>
+                    {/* Per-currency subtotals row — shown when there are foreign currencies */}
+                    {hasMixedCurrencies && foreignSubtotals.length > 0 && (
+                      <TableRow className="bg-amber-50/60">
+                        <TableCell colSpan={hasMixedCurrencies ? 5 : 4} className="text-right text-xs text-amber-700 font-medium py-1.5">
+                          Subtotals by currency
+                        </TableCell>
+                        <TableCell className="text-center py-1.5">
+                          <div className="flex flex-col items-center gap-0.5">
+                            {foreignSubtotals.map(([c, total]) => (
+                              <span key={c} className="text-xs font-semibold text-amber-700">{fmt(total, c)}</span>
+                            ))}
+                            {currencySubtotals[baseCurrency] > 0 && (
+                              <span className="text-xs text-muted-foreground">{fmt(currencySubtotals[baseCurrency], baseCurrency)}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    )}
+                    <TableRow className="bg-muted/30">
+                      <TableCell colSpan={hasMixedCurrencies ? 5 : 4} className="text-right font-bold">
+                        Grand Total
+                        {hasMixedCurrencies && <div className="text-xs font-normal text-muted-foreground">converted to {baseCurrency}</div>}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-green-600 text-base">{fmt(q.totalAmount || 0, baseCurrency)}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </>
                 )}
               </TableBody>
             </Table>
