@@ -226,10 +226,19 @@ function appendMessages(incoming: StoredMessage[]): void {
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
+export type StatusReason = "connected" | "qr_required" | "reconnecting" | "retry_exhausted" | "disconnected";
+
 let connectionStatus: ConnectionStatus = "disconnected";
 
 /** Latest QR code string from Baileys; null once connected or before first generation. */
 let currentQR: string | null = null;
+
+/** How many consecutive reconnect attempts since the last successful connect. */
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 8;
+
+/** Whether the retry cap was reached and the service gave up auto-reconnecting. */
+let retryExhausted = false;
 
 export function getConnectionStatus(): ConnectionStatus {
   return connectionStatus;
@@ -241,6 +250,37 @@ export function getQRCode(): string | null {
 
 export function isQRReady(): boolean {
   return currentQR !== null;
+}
+
+/** Returns a single consolidated status payload for the API. */
+export function getStatusPayload(): { status: ConnectionStatus; qrReady: boolean; reason: StatusReason } {
+  const status = connectionStatus;
+  const qrReady = currentQR !== null;
+  let reason: StatusReason;
+  if (status === "connected") reason = "connected";
+  else if (retryExhausted) reason = "retry_exhausted";
+  else if (qrReady) reason = "qr_required";
+  else if (status === "connecting") reason = "reconnecting";
+  else reason = "disconnected";
+  return { status, qrReady, reason };
+}
+
+/**
+ * Clear Baileys auth state files from the session directory while preserving
+ * the local message store JSON (wa-message-store.json).  Forces a fresh QR on
+ * the next initWhatsApp() call.
+ */
+function clearSessionAuthFiles(dir: string): void {
+  try {
+    if (!fs.existsSync(dir)) return;
+    for (const f of fs.readdirSync(dir)) {
+      if (f === "wa-message-store.json") continue;
+      fs.rmSync(path.join(dir, f), { recursive: true, force: true });
+    }
+    logger.info("WhatsApp session auth files cleared — fresh QR will be generated on next init");
+  } catch (err) {
+    logger.warn({ err }, "Failed to clear WhatsApp session auth files");
+  }
 }
 
 /**
@@ -419,6 +459,8 @@ export async function initWhatsApp(dir: string): Promise<void> {
     if (connection === "open") {
       currentQR = null; // clear QR once linked
       connectionStatus = "connected";
+      reconnectAttempts = 0;
+      retryExhausted = false;
       logger.info("WhatsApp session connected");
       void backfillJsonStoreToDB();
       // Populate/refresh group name cache so the inbox can show real names
@@ -546,16 +588,45 @@ export async function initWhatsApp(dir: string): Promise<void> {
       const wasLogout = logoutRequested;
       logoutRequested = false;
       currentSock = null;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect || wasLogout) {
+
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+
+      if (wasLogout || !isLoggedOut) {
         if (wasLogout) {
-          logger.info("WhatsApp account disconnected by user — re-initialising with fresh QR…");
+          // User-initiated logout — clear session so a fresh QR appears immediately
+          logger.info("WhatsApp account disconnected by user — clearing session and re-initialising…");
+          clearSessionAuthFiles(dir);
+          reconnectAttempts = 0;
+          retryExhausted = false;
+          setTimeout(() => initWhatsApp(dir), 1000);
         } else {
-          logger.warn("WhatsApp disconnected — reconnecting in 5 s…");
+          reconnectAttempts++;
+          if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+            // Retry cap reached — clear stale auth and wait for manual QR scan
+            retryExhausted = true;
+            connectionStatus = "connecting"; // stays "connecting" so UI shows QR prompt
+            logger.warn(
+              { attempts: reconnectAttempts },
+              `WhatsApp retry cap (${MAX_RECONNECT_ATTEMPTS}) reached — clearing session and forcing fresh QR`,
+            );
+            clearSessionAuthFiles(dir);
+            reconnectAttempts = 0;
+            setTimeout(() => initWhatsApp(dir), 5000);
+          } else {
+            // Exponential backoff: 5 s, 10 s, 20 s, … capped at 60 s
+            const delay = Math.min(5000 * reconnectAttempts, 60_000);
+            logger.warn({ attempt: reconnectAttempts, delayMs: delay }, "WhatsApp disconnected — reconnecting…");
+            setTimeout(() => initWhatsApp(dir), delay);
+          }
         }
-        setTimeout(() => initWhatsApp(dir), wasLogout ? 1000 : 5000);
       } else {
-        logger.warn("WhatsApp logged out externally. Delete whatsapp-session/ and restart to re-link.");
+        // External logout (phone removed the linked device)
+        // Clear stale auth files and re-init so a fresh QR is shown automatically
+        logger.warn("WhatsApp logged out externally — clearing session and re-initialising for fresh QR…");
+        clearSessionAuthFiles(dir);
+        reconnectAttempts = 0;
+        retryExhausted = false;
+        setTimeout(() => initWhatsApp(dir), 2000);
       }
     }
   });

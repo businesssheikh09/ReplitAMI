@@ -118,6 +118,7 @@ function GroupTicketsTab() {
   const [syncing, setSyncing] = useState(false);
   const [whatsappStatus, setWhatsappStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [qrReady, setQrReady] = useState(false);
+  const [statusReason, setStatusReason] = useState<string>("disconnected");
   const [disconnecting, setDisconnecting] = useState(false);
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDest, setFilterDest] = useState("");
@@ -170,6 +171,7 @@ function GroupTicketsTab() {
         const data = await res.json();
         setWhatsappStatus(data.whatsappStatus);
         setQrReady(!!data.qrReady);
+        if (data.reason) setStatusReason(data.reason);
       } else if (res.status === 401 && !sessionExpiredShown.current) {
         sessionExpiredShown.current = true;
         setSessionExpired(true);
@@ -333,11 +335,13 @@ function GroupTicketsTab() {
                   "text-red-600 font-bold";
 
   const StatusDot = () =>
-    whatsappStatus === "connected"
+    statusReason === "connected"
       ? <><Wifi className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600 text-xs">Connected</span></>
-      : whatsappStatus === "connecting" && qrReady
+      : statusReason === "qr_required"
       ? <><ScanLine className="h-3.5 w-3.5 text-orange-500 animate-pulse" /> <span className="text-orange-600 text-xs font-medium">Scan QR to connect</span></>
-      : whatsappStatus === "connecting"
+      : statusReason === "retry_exhausted"
+      ? <><WifiOff className="h-3.5 w-3.5 text-red-500 animate-pulse" /> <span className="text-red-600 text-xs font-medium">Disconnected — scan QR</span></>
+      : statusReason === "reconnecting"
       ? <><Wifi className="h-3.5 w-3.5 text-amber-500 animate-pulse" /> <span className="text-amber-600 text-xs">Reconnecting…</span></>
       : <><WifiOff className="h-3.5 w-3.5 text-gray-400" /> <span className="text-gray-500 text-xs">Not linked</span></>;
 
