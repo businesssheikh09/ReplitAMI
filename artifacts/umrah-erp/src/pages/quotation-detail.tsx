@@ -72,6 +72,7 @@ export default function QuotationDetailPage() {
     quantity: number;
     unitPrice: number;
     currency: string;
+    customRate: string;
     notes: string;
   }>({
     serviceType: QuotationItemInputServiceType.hotel,
@@ -79,6 +80,7 @@ export default function QuotationDetailPage() {
     quantity: 1,
     unitPrice: 0,
     currency: "USD",
+    customRate: "",
     notes: "",
   });
 
@@ -123,20 +125,45 @@ export default function QuotationDetailPage() {
     }
   }, [quotation]);
 
+  // When item currency or base currency or live rates change, auto-populate customRate
+  // Rate is expressed as: how many [itemCurrency] per 1 [baseCurrency]
+  useEffect(() => {
+    if (!q) return;
+    const base = q.currency || "USD";
+    if (itemForm.currency === base) {
+      setItemForm(p => ({ ...p, customRate: "" }));
+      return;
+    }
+    const autoRate = convertToBase(1, base, itemForm.currency, rates);
+    if (autoRate != null) {
+      setItemForm(p => ({ ...p, customRate: autoRate.toFixed(4) }));
+    }
+  }, [itemForm.currency, q?.currency, rates]);
+
+  const customRateNum = parseFloat(itemForm.customRate);
+  const rateValid = !isNaN(customRateNum) && customRateNum > 0;
+
   const itemConvertedPrice = useMemo(() => {
-    if (!q) return null;
-    if (itemForm.currency === q.currency) return null;
-    return convertToBase(itemForm.unitPrice * itemForm.quantity, itemForm.currency, q.currency, rates);
-  }, [itemForm.currency, itemForm.unitPrice, itemForm.quantity, q, rates]);
+    if (!q || itemForm.currency === q.currency) return null;
+    if (!rateValid) return null;
+    // unitPriceBase = unitPrice / customRate  (itemCurrency / (itemCurrency per baseCurrency))
+    return (itemForm.unitPrice * itemForm.quantity) / customRateNum;
+  }, [itemForm.currency, itemForm.unitPrice, itemForm.quantity, customRateNum, rateValid, q]);
 
   function handleAddItem() {
-    const unitPriceBase = itemForm.currency !== q?.currency
-      ? convertToBase(itemForm.unitPrice, itemForm.currency, q.currency, rates) ?? undefined
+    const isDifferent = itemForm.currency !== q?.currency;
+    const unitPriceBase = isDifferent && rateValid
+      ? itemForm.unitPrice / customRateNum
       : undefined;
     addItem.mutate({
       id: Number(id),
       data: {
-        ...itemForm,
+        serviceType: itemForm.serviceType,
+        description: itemForm.description,
+        quantity: itemForm.quantity,
+        unitPrice: itemForm.unitPrice,
+        currency: itemForm.currency,
+        notes: itemForm.notes,
         unitPriceBase,
       } as any,
     });
@@ -479,28 +506,37 @@ export default function QuotationDetailPage() {
                   </div>
                 </div>
 
-                {/* Conversion Calculator */}
-                {itemForm.unitPrice > 0 && (
-                  <div className="mt-2">
-                    {itemForm.currency === baseCurrency ? (
-                      <p className="text-xs text-muted-foreground">
-                        Total: <strong>{fmt(itemForm.unitPrice * itemForm.quantity, baseCurrency)}</strong>
-                      </p>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className={`flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-1.5 border ${itemConvertedPrice != null ? "bg-teal-50 text-teal-800 border-teal-200" : "bg-amber-50 text-amber-800 border-amber-200"}`}>
-                          <ArrowRightLeft className="h-3.5 w-3.5" />
-                          {itemConvertedPrice != null ? (
-                            <span>
-                              {fmt(itemForm.unitPrice * itemForm.quantity, itemForm.currency)}
-                              {" = "}
-                              <strong>{fmt(itemConvertedPrice, baseCurrency)}</strong>
-                              {" (used for grand total)"}
-                            </span>
-                          ) : (
-                            <span>No exchange rate found for {itemForm.currency} → {baseCurrency}. Grand total may be inaccurate.</span>
-                          )}
-                        </div>
+                {/* Rate + Conversion row — shown when item currency differs from base */}
+                {itemForm.currency !== baseCurrency && (
+                  <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <ArrowRightLeft className="h-4 w-4 text-amber-600 shrink-0" />
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-xs text-amber-800 font-medium whitespace-nowrap">
+                        1 {baseCurrency} =
+                      </span>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        min="0.0001"
+                        value={itemForm.customRate}
+                        onChange={e => setItemForm(p => ({ ...p, customRate: e.target.value }))}
+                        className="w-32 h-8 text-sm font-mono bg-white border-amber-300 focus:ring-amber-400"
+                        placeholder="rate"
+                      />
+                      <span className="text-xs text-amber-800 font-medium">{itemForm.currency}</span>
+                      <span className="text-xs text-amber-600 ml-1">(edit to override)</span>
+                    </div>
+                    {itemForm.unitPrice > 0 && (
+                      <div className="text-xs font-semibold ml-auto whitespace-nowrap">
+                        {rateValid ? (
+                          <span className="text-teal-700">
+                            {fmt(itemForm.unitPrice * itemForm.quantity, itemForm.currency)}
+                            {" = "}
+                            <strong>{fmt((itemForm.unitPrice * itemForm.quantity) / customRateNum, baseCurrency)}</strong>
+                          </span>
+                        ) : (
+                          <span className="text-amber-600">Enter rate to convert</span>
+                        )}
                       </div>
                     )}
                   </div>
