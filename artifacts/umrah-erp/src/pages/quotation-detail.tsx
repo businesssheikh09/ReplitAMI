@@ -65,11 +65,29 @@ function ServiceMetadataFields({
         <div className="grid grid-cols-4 gap-3">
           <div>
             <MLabel>Check-in Date</MLabel>
-            <Input type="date" className="h-8 text-sm" value={v("checkIn")} onChange={e => set("checkIn", e.target.value)} />
+            <Input type="date" className="h-8 text-sm" value={v("checkIn")} onChange={e => {
+              const checkIn = e.target.value;
+              const checkOut = v("checkOut");
+              const next: ServiceMeta = { ...metadata, checkIn };
+              if (checkIn && checkOut) {
+                const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
+                if (diff > 0) next.nights = String(diff);
+              }
+              onChange(next);
+            }} />
           </div>
           <div>
             <MLabel>Check-out Date</MLabel>
-            <Input type="date" className="h-8 text-sm" value={v("checkOut")} onChange={e => set("checkOut", e.target.value)} />
+            <Input type="date" className="h-8 text-sm" value={v("checkOut")} onChange={e => {
+              const checkOut = e.target.value;
+              const checkIn = v("checkIn");
+              const next: ServiceMeta = { ...metadata, checkOut };
+              if (checkIn && checkOut) {
+                const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
+                if (diff > 0) next.nights = String(diff);
+              }
+              onChange(next);
+            }} />
           </div>
           <div>
             <MLabel>Nights</MLabel>
