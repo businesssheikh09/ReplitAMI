@@ -15,8 +15,12 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-b border-border/40 transition-all duration-300">
       <div className="container mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="font-serif text-2xl font-semibold tracking-wide text-primary">
-          {siteName}
+        <Link href="/" className="flex items-center gap-2">
+          {config?.logoUrl ? (
+            <img src={config.logoUrl} alt={siteName} className="h-10 max-w-[160px] object-contain" />
+          ) : (
+            <span className="font-serif text-2xl font-semibold tracking-wide text-primary">{siteName}</span>
+          )}
         </Link>
 
         {/* Desktop nav */}

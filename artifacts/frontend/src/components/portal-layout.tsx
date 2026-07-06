@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 
 interface WebsiteConfig {
   company_name?: string;
-  company_logo_url?: string;
+  logo_url?: string;
   company_tagline?: string;
 }
 
@@ -45,7 +45,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   const companyName = config?.company_name ?? "Al Musafir International";
-  const logoUrl = config?.company_logo_url;
+  const logoUrl = config?.logo_url;
 
   const handleLogout = async () => {
     await logout();
@@ -149,7 +149,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
 export function PrintHeader({ config }: { config?: WebsiteConfig }) {
   const companyName = config?.company_name ?? "Al Musafir International";
-  const logoUrl = config?.company_logo_url;
+  const logoUrl = config?.logo_url;
   return (
     <div className="flex items-center gap-4 border-b border-gray-300 pb-4 mb-6 print:flex">
       {logoUrl && <img src={logoUrl} alt={companyName} className="h-14 w-auto object-contain" />}

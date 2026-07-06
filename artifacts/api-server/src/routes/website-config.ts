@@ -131,6 +131,7 @@ function rowsToConfig(rows: { key: string; value: string }[]) {
     contactWhatsapp: map.contact_whatsapp,
     announcementBanner: map.announcement_banner,
     announcementEnabled: map.announcement_enabled === "true",
+    logoUrl: map.logo_url ?? "",
     // ── Company Branding ──────────────────────────────────────
     company_name: map.company_name,
     legal_company_name: map.legal_company_name,

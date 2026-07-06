@@ -2235,7 +2235,8 @@ export const GetWebsiteConfigResponse = zod.object({
   "contactPhone": zod.string(),
   "contactWhatsapp": zod.string(),
   "announcementBanner": zod.string(),
-  "announcementEnabled": zod.boolean()
+  "announcementEnabled": zod.boolean(),
+  "logoUrl": zod.string().optional().describe('Company logo URL (stored in object storage) for public website header')
 })
 
 
@@ -2271,7 +2272,8 @@ export const UpdateWebsiteConfigResponse = zod.object({
   "contactPhone": zod.string(),
   "contactWhatsapp": zod.string(),
   "announcementBanner": zod.string(),
-  "announcementEnabled": zod.boolean()
+  "announcementEnabled": zod.boolean(),
+  "logoUrl": zod.string().optional().describe('Company logo URL (stored in object storage) for public website header')
 })
 
 

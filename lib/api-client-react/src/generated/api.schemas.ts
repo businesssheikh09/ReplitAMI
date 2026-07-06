@@ -1257,6 +1257,8 @@ export interface WebsiteConfig {
   contactWhatsapp: string;
   announcementBanner: string;
   announcementEnabled: boolean;
+  /** Company logo URL (stored in object storage) for public website header */
+  logoUrl?: string;
 }
 
 export interface WebsiteConfigInput {

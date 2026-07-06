@@ -3807,6 +3807,9 @@ components:
           type: string
         announcementEnabled:
           type: boolean
+        logoUrl:
+          type: string
+          description: Company logo URL (stored in object storage) for public website header
 
     WebsiteConfigInput:
       type: object
