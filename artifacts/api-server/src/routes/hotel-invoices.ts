@@ -135,7 +135,7 @@ router.post("/invoices/hotel", requireAuth, async (req, res) => {
       payableCurrency: body.payableCurrency || "SAR",
       incomeHead: body.incomeHead || "Hotel Income",
       salesmanId: body.salesmanId ? Number(body.salesmanId) : null,
-      status: body.status || "draft",
+      status: body.status || "tentative",
     }).returning();
 
     const lookup = await buildLookup();
@@ -190,7 +190,7 @@ router.put("/invoices/hotel/:id", requireAuth, async (req, res) => {
       payableCurrency: body.payableCurrency || "SAR",
       incomeHead: body.incomeHead || "Hotel Income",
       salesmanId: body.salesmanId ? Number(body.salesmanId) : null,
-      status: body.status || "draft",
+      status: body.status || "tentative",
       updatedAt: new Date(),
     }).where(eq(hotelInvoicesTable.id, id)).returning();
 

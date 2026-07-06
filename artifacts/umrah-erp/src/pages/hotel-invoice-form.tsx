@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useListClients, useListUsers, useListHotels, useListVendors } from "@workspace/api-client-react";
-import { ArrowLeft, Printer, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Printer, FileText, CheckCircle2, Plus, Pencil } from "lucide-react";
 import { useBranding } from "@/components/print-layout";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -15,7 +15,7 @@ const HOTEL_VIEWS   = ["City View", "Haram View", "Pool View", "Garden View", "S
 const BED_TYPES     = ["DBL", "SGL", "TPL", "QUAD", "KNG", "TWN"];
 const INCOME_HEADS  = ["Hotel Income", "Commission", "Service Fee", "Other"];
 const NATIONALITIES = ["Pakistani", "British", "Saudi", "UAE", "American", "Indian", "Other"];
-const STATUSES      = ["tentative", "confirmed", "cancelled", "invoiced"];
+const STATUSES      = ["tentative", "confirmed"];
 
 function calcNights(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
@@ -25,6 +25,29 @@ function calcNights(checkIn: string, checkOut: string): number {
 
 function round2(n: number): string {
   return (Math.round(n * 100) / 100).toFixed(2).replace(/\.?0+$/, "");
+}
+
+const ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+              "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+              "Seventeen", "Eighteen", "Nineteen"];
+const TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+function toWords(n: number): string {
+  if (n === 0) return "";
+  if (n < 20) return ONES[n];
+  if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : "");
+  if (n < 1000) return ONES[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " and " + toWords(n % 100) : "");
+  if (n < 100000) return toWords(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + toWords(n % 1000) : "");
+  return toWords(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + toWords(n % 100000) : "");
+}
+
+function sarToWords(n: number): string {
+  if (!n || n <= 0) return "";
+  const intPart = Math.floor(n);
+  const decPart = Math.round((n - intPart) * 100);
+  let words = toWords(intPart) + " SAR";
+  if (decPart > 0) words += " and " + toWords(decPart) + " Halalas";
+  return words + " Only";
 }
 
 const EMPTY_FORM = {
@@ -324,16 +347,23 @@ export default function HotelInvoiceFormPage() {
   function handlePrintVoucher() {
     document.body.classList.add("print-voucher");
     window.print();
-    /* reset after print dialog closes */
     setTimeout(() => document.body.classList.remove("print-voucher"), 500);
+  }
+
+  function handlePrintFormalInvoice() {
+    document.body.classList.remove("print-voucher");
+    document.body.classList.add("print-formal");
+    window.print();
+    setTimeout(() => document.body.classList.remove("print-formal"), 500);
   }
 
   /* ── Derived ── */
   const income    = (Number(form.receivableSar) || 0) - (Number(form.payableSar) || 0);
   const incomePkr = (Number(form.receivablePkr) || 0) - (Number(form.payablePkr) || 0);
 
-  const partyName  = (clients as any[]).find((c: any) => String(c.id) === form.partyId)?.name ?? "";
-  const vendorName = (vendors as any[]).find((v: any) => String(v.id) === form.vendorId)?.name ?? "";
+  const partyName    = (clients as any[]).find((c: any) => String(c.id) === form.partyId)?.name ?? "";
+  const vendorName   = (vendors as any[]).find((v: any) => String(v.id) === form.vendorId)?.name ?? "";
+  const salesmanName = (savedInvoice?.salesmanName) || ((users as any[]).find((u: any) => String(u.id) === form.salesmanId)?.name ?? "");
 
   /* ════════════════════════════════════════════════════════════════════════
      RENDER
@@ -341,38 +371,109 @@ export default function HotelInvoiceFormPage() {
   return (
     <div className="space-y-0 max-w-4xl mx-auto">
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4 print:hidden">
-        <Button variant="ghost" size="sm" onClick={() => setLocation("/accounting/invoices")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
-          <Printer className="mr-2 h-4 w-4" /> Print Invoice
-        </Button>
-      </div>
+      {/* ── Toolbar (form mode only) ── */}
+      {!savedInvoice && (
+        <div className="flex items-center justify-between mb-4 print:hidden">
+          <Button variant="ghost" size="sm" onClick={() => setLocation("/accounting/invoices")}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
+            <Printer className="mr-2 h-4 w-4" /> Print Invoice
+          </Button>
+        </div>
+      )}
 
-      {/* ── Saved banner ── */}
+      {/* ── SAVED VIEW ── */}
       {savedInvoice && (
-        <div className="flex items-center justify-between gap-4 mb-3 px-4 py-3 rounded-md border border-green-300 bg-green-50 text-green-800 print:hidden">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            Saved — {savedInvoice.dnNumber}
+        <div className="print:hidden space-y-3 mb-2">
+          {/* Header row: back + status badge + DN number */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/accounting/invoices")}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold border ${
+                form.status === "confirmed"
+                  ? "bg-green-50 text-green-800 border-green-300"
+                  : "bg-amber-50 text-amber-800 border-amber-300"
+              }`}>
+                <CheckCircle2 className="h-4 w-4" />
+                {form.status === "confirmed" ? "CONFIRMED" : "TENTATIVE"}
+              </span>
+              <span className="text-base font-mono font-bold text-blue-900">{savedInvoice.dnNumber}</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" onClick={() => setLocation("/accounting/hotel-invoice/new")}>
+                <Plus className="h-4 w-4 mr-1" /> Add Record
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSavedInvoice(null)}>
+                <Pencil className="h-4 w-4 mr-1" /> Edit
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setLocation("/accounting/invoices")}>
+                Back to List
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="border-green-400 text-green-800 hover:bg-green-100" onClick={handlePrintInvoice}>
+          {/* Print buttons */}
+          <div className="flex gap-2 border-t pt-2">
+            <Button size="sm" variant="outline" onClick={handlePrintFormalInvoice}>
               <Printer className="h-4 w-4 mr-1" /> Print Invoice
             </Button>
-            <Button size="sm" variant="outline" className="border-blue-400 text-blue-800 hover:bg-blue-100" onClick={handlePrintVoucher}>
+            <Button size="sm" variant="outline" onClick={handlePrintVoucher}>
               <FileText className="h-4 w-4 mr-1" /> Print Voucher
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setLocation("/accounting/invoices")}>
-              Back to List
-            </Button>
+          </div>
+          {/* Read-only record card */}
+          <div className="border border-blue-200 bg-white rounded-sm overflow-hidden shadow-sm" style={{fontFamily: "Arial, sans-serif", fontSize: "13px"}}>
+            <div className="text-center py-3 border-b border-blue-700 bg-blue-900">
+              <span className="text-xl font-bold tracking-widest text-white">
+                DN &nbsp; I N V O I C E &nbsp;— Hotel Entry
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-blue-100 bg-blue-50">
+              <div className="text-sm"><span className="font-semibold">Invoice Date: </span>{form.invoiceDate}</div>
+              <div className="font-bold text-lg tracking-wide text-blue-900">{savedInvoice.dnNumber}</div>
+            </div>
+            <ROSection title="Passenger Information">
+              <RORow label="Party"       value={savedInvoice.partyName} />
+              <RORow label="Vendor"      value={savedInvoice.vendorName} />
+              <RORow label="Name"        value={form.passengerName} />
+              <RORow label="Nationality" value={form.nationality} />
+              <RORow label="No. of Pax"  value={form.noOfPax} />
+              <RORow label="Detail"      value={form.detail} />
+            </ROSection>
+            <ROSection title="Hotel Voucher">
+              <RORow label="Type"          value={form.voucherType} />
+              <RORow label="Option Date"   value={form.optionDate} />
+              <RORow label="Hotel"         value={form.hotelName} />
+              <RORow label="View"          value={form.hotelView} />
+              <RORow label="Room Type"     value={form.roomType} />
+              <RORow label="Bed Type"      value={form.bedType} />
+              <RORow label="Check In"      value={form.checkIn} />
+              <RORow label="Check Out"     value={form.checkOut} />
+              <RORow label="No. of Nights" value={form.noOfNights} />
+              <RORow label="No. of Rooms"  value={form.noOfRooms} />
+              <RORow label="Reference"     value={form.reference} />
+              <RORow label="CNF#"          value={form.cnfNumber} />
+              <RORow label="Room No."      value={form.roomNumber} />
+              <RORow label="Remarks"       value={form.remarks} />
+              <RORow label="Contact No."   value={form.contactNumber} />
+            </ROSection>
+            <ROSection title="Calculation">
+              <RORow label="Receivable"  value={form.receivableSar ? `${form.receivableSar} ${receivableCurrency}` : ""} />
+              <RORow label="Payable"     value={form.payableSar ? `${form.payableSar} ${payableCurrency}` : ""} />
+              <RORow label="PKR Recv."   value={form.receivablePkr ? `Rs ${form.receivablePkr}` : ""} />
+              <RORow label="PKR Pay."    value={form.payablePkr ? `Rs ${form.payablePkr}` : ""} />
+              <RORow label="Income Head" value={form.incomeHead} />
+              <RORow label="Salesman"    value={salesmanName} />
+              <RORow label="Status"      value={form.status.toUpperCase()} />
+            </ROSection>
           </div>
         </div>
       )}
 
       {/* ── DN Invoice Form ── */}
+      {!savedInvoice && (
       <div
         id="invoice-print-area"
         className="border border-blue-200 bg-white print:border-gray-400 rounded-sm overflow-hidden shadow-sm"
@@ -668,7 +769,7 @@ export default function HotelInvoiceFormPage() {
             </FormRow>
             <FormRow label="Status">
               <select className="border border-gray-400 px-1 py-0.5 text-sm bg-white w-full" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
-                {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                {STATUSES.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
               </select>
             </FormRow>
           </div>
@@ -697,6 +798,155 @@ export default function HotelInvoiceFormPage() {
             <span className="text-sm text-muted-foreground italic">View-only — your role cannot create or edit invoices</span>
           </div>
         )}
+      </div>
+      )}
+
+      {/* ── Formal Invoice Print Area (hidden on screen, shown when body.print-formal) ── */}
+      <div id="invoice-formal-print-area" style={{ display: "none", fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "720px", margin: "0 auto", position: "relative", border: "1px solid #ccc" }}>
+        {/* Diagonal status stamp */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10, pointerEvents: "none", overflow: "hidden" }}>
+          <span style={{
+            fontSize: "56px", fontWeight: 900,
+            color: form.status === "confirmed" ? "rgba(22,163,74,0.07)" : "rgba(245,158,11,0.09)",
+            transform: "rotate(-35deg)", whiteSpace: "nowrap", letterSpacing: "4px", textTransform: "uppercase",
+          }}>
+            {form.status === "confirmed" ? "Definite Confirmation" : "Tentative Booking"}
+          </span>
+        </div>
+
+        {/* Header */}
+        <div style={{ borderBottom: "3px solid #1e3a5f", padding: "14px 24px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: "15px", fontWeight: "bold", color: "#1e3a5f", textTransform: "uppercase", letterSpacing: "1px" }}>{branding.companyName}</div>
+            {branding.companyAddress && <div style={{ fontSize: "10px", color: "#555", marginTop: "2px" }}>{branding.companyAddress}</div>}
+            {branding.companyPhone && <div style={{ fontSize: "10px", color: "#555" }}>{branding.companyPhone}</div>}
+            {branding.companyEmail && <div style={{ fontSize: "10px", color: "#555" }}>{branding.companyEmail}</div>}
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "17px", fontWeight: "bold", color: "#1e3a5f", letterSpacing: "2px" }}>HOTEL INVOICE</div>
+            <div style={{ fontSize: "11px", color: form.status === "confirmed" ? "#16a34a" : "#d97706", fontWeight: "bold", marginTop: "4px" }}>
+              {form.status === "confirmed" ? "✔ Definite Confirmation" : "⚠ Tentative Booking"}
+            </div>
+          </div>
+          <div style={{ width: "90px", display: "flex", justifyContent: "flex-end" }}>
+            {(branding.printLogoUrl || branding.logoUrl) ? (
+              <img src={branding.printLogoUrl || branding.logoUrl} alt="Logo" style={{ maxHeight: "48px", maxWidth: "80px", objectFit: "contain" }} />
+            ) : (
+              <div style={{ height: "44px", width: "80px", background: "#1e3a5f", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "8px", fontWeight: "bold", textAlign: "center", padding: "4px" }}>
+                {branding.companyName}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Address block */}
+        <div style={{ padding: "10px 24px 6px", borderBottom: "1px solid #e5e7eb" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 16px", fontSize: "12px" }}>
+            <div><strong>Date:</strong> {form.invoiceDate || "—"}</div>
+            <div><strong>Ref:</strong> {savedInvoice?.dnNumber || dnNumber || "—"}</div>
+            <div><strong>To:</strong> {savedInvoice?.partyName || partyName || "—"}</div>
+            <div><strong>From:</strong> {branding.companyName}</div>
+          </div>
+        </div>
+
+        {/* Opening */}
+        <div style={{ padding: "8px 24px 4px", fontSize: "12px" }}>
+          Dear Sir / Madam,<br />
+          We are pleased to {form.status === "confirmed" ? "confirm" : "tentatively hold"} the following hotel reservation for your valued passengers:
+        </div>
+
+        {/* Hotel + Guest */}
+        <div style={{ padding: "4px 24px 8px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 16px", fontSize: "12px" }}>
+          <div><strong>Hotel:</strong> {form.hotelName || "—"}</div>
+          <div><strong>Guest Name:</strong> {form.passengerName || "—"}</div>
+        </div>
+
+        {/* Booking table */}
+        <div style={{ padding: "0 24px 10px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+            <thead>
+              <tr style={{ background: "#1e3a5f", color: "white" }}>
+                {["Pax","Qty","Room Type","Meal","View","Cnf.#","Check-In","Check-Out","Nights","Room Rate (SAR)"].map(h => (
+                  <th key={h} style={{ padding: "4px 5px", textAlign: h === "Room Rate (SAR)" ? "right" : "center", border: "1px solid #1e3a5f", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.noOfPax || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.noOfRooms || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.roomType || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.bedType || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.hotelView || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.cnfNumber || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.checkIn || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.checkOut || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.noOfNights || "—"}</td>
+                <td style={{ padding: "5px", textAlign: "right", border: "1px solid #ddd" }}>
+                  {Number(form.receivableSar) > 0
+                    ? Number(form.receivableSar).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : "—"}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Totals */}
+        <div style={{ padding: "0 24px 8px", display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ fontSize: "12px", minWidth: "280px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "1px solid #e5e7eb" }}>
+              <span><strong>Net Accommodation Charges SAR:</strong></span>
+              <span>{Number(form.receivableSar) > 0 ? Number(form.receivableSar).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "2px solid #1e3a5f", marginTop: "2px" }}>
+              <span><strong>Balance SAR:</strong></span>
+              <span><strong>{Number(form.receivableSar) > 0 ? Number(form.receivableSar).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Amount in words */}
+        {Number(form.receivableSar) > 0 && (
+          <div style={{ padding: "4px 24px 8px", fontSize: "11px", borderTop: "1px dashed #e5e7eb" }}>
+            <strong>Amount in Words: </strong>
+            <em>{sarToWords(Number(form.receivableSar))}</em>
+          </div>
+        )}
+
+        {/* Remarks */}
+        <div style={{ padding: "8px 24px", borderTop: "1px solid #e5e7eb" }}>
+          <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>Remarks:</div>
+          <ol style={{ fontSize: "10px", paddingLeft: "18px", margin: 0, lineHeight: 1.7 }}>
+            <li><strong>Option Date: </strong>{form.optionDate ? `This booking is subject to option date ${form.optionDate}. Reservation will be released automatically if payment is not received before this date.` : "Reservation is subject to the option date; please arrange payment on time to avoid automatic release."}</li>
+            <li><strong>Payment: </strong>Full payment is required prior to check-in unless a credit arrangement has been agreed in writing.</li>
+            <li><strong>Amendment: </strong>Any changes to dates, room type, or guest details must be requested in writing and are subject to availability and applicable supplier fees.</li>
+            <li><strong>Reservation: </strong>This document confirms the reservation only. The hotel has been notified of the guest's expected arrival.</li>
+            <li><strong>Cancellation: </strong>Cancellation or no-show charges apply as per the hotel's policy. All cancellation requests must be submitted in writing.</li>
+          </ol>
+        </div>
+
+        {/* Bank Details */}
+        {(branding.bankName || branding.bankAccount || branding.bankIban) && (
+          <div style={{ padding: "8px 24px", borderTop: "1px solid #e5e7eb", background: "#f9fafb" }}>
+            <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>Bank Details:</div>
+            <div style={{ fontSize: "11px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px" }}>
+              {branding.bankName    && <div><strong>Bank Name:</strong> {branding.bankName}</div>}
+              {branding.bankAccount && <div><strong>Account No:</strong> {branding.bankAccount}</div>}
+              {branding.bankIban    && <div><strong>IBAN:</strong> {branding.bankIban}</div>}
+              {branding.swiftCode   && <div><strong>Swift:</strong> {branding.swiftCode}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Signature / Footer */}
+        <div style={{ padding: "14px 24px 12px", borderTop: "1px solid #e5e7eb" }}>
+          <div style={{ fontSize: "11px", marginBottom: "28px" }}>Thanks &amp; Best Regards,</div>
+          <div style={{ display: "inline-block", borderTop: "1px dashed #999", paddingTop: "4px", minWidth: "160px" }}>
+            <div style={{ fontSize: "12px", fontWeight: "bold" }}>{salesmanName || branding.signatureName || "Reservation Officer"}</div>
+            <div style={{ fontSize: "10px", color: "#666" }}>{branding.signatureTitle || "Reservation Officer"} — {branding.companyName}</div>
+          </div>
+        </div>
       </div>
 
       {/* ── Hotel Accommodation Voucher (hidden on screen, printed when .print-voucher) ── */}
@@ -747,7 +997,7 @@ export default function HotelInvoiceFormPage() {
 
       {/* ── Print styles ── */}
       <style>{`
-        /* Default: print the invoice area */
+        /* Default: print the invoice form */
         @media print {
           body > * { visibility: hidden; }
           .print\\:hidden { display: none !important; }
@@ -755,12 +1005,14 @@ export default function HotelInvoiceFormPage() {
           #invoice-print-area * { visibility: visible; }
           #invoice-print-area { position: fixed; left: 0; top: 0; width: 100%; }
           #voucher-print-area { display: none !important; }
+          #invoice-formal-print-area { display: none !important; }
         }
 
-        /* When body.print-voucher: print only the voucher */
+        /* body.print-voucher: print only the accommodation voucher */
         body.print-voucher #invoice-print-area { display: none !important; }
         @media print {
           body.print-voucher #invoice-print-area { display: none !important; }
+          body.print-voucher #invoice-formal-print-area { display: none !important; }
           body.print-voucher #voucher-print-area {
             display: block !important;
             visibility: visible !important;
@@ -769,6 +1021,21 @@ export default function HotelInvoiceFormPage() {
             width: 100%;
           }
           body.print-voucher #voucher-print-area * { visibility: visible !important; }
+        }
+
+        /* body.print-formal: print only the formal hotel invoice */
+        body.print-formal #invoice-print-area { display: none !important; }
+        @media print {
+          body.print-formal #invoice-print-area { display: none !important; }
+          body.print-formal #voucher-print-area { display: none !important; }
+          body.print-formal #invoice-formal-print-area {
+            display: block !important;
+            visibility: visible !important;
+            position: fixed;
+            left: 0; top: 0;
+            width: 100%;
+          }
+          body.print-formal #invoice-formal-print-area * { visibility: visible !important; }
         }
       `}</style>
     </div>
@@ -813,6 +1080,28 @@ function VRow({ label, value }: { label: string; value?: string | number | null 
     <div style={{ display: "flex", gap: "6px", padding: "1px 0", fontSize: "12px" }}>
       <span style={{ fontWeight: "bold", minWidth: "110px", color: "#333" }}>{label}:</span>
       <span>{String(value)}</span>
+    </div>
+  );
+}
+
+function ROSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-center py-1.5 border-y border-blue-700 bg-blue-800 font-semibold tracking-widest text-sm text-white">
+        {title.split("").join(" ")}
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 px-4 py-2 bg-slate-50">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function RORow({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <div className="flex items-start gap-2 py-0.5">
+      <span className="w-36 text-sm font-semibold text-gray-500 shrink-0">{label}</span>
+      <span className="text-sm text-gray-900 font-medium">{value || "—"}</span>
     </div>
   );
 }
