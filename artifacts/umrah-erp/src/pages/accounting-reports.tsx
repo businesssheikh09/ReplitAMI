@@ -239,6 +239,19 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
         </Select>
       </div>
       <div>
+        <label className="text-xs font-medium text-muted-foreground">Voucher Type</label>
+        <Select value={f("voucherType") || "RV"} onValueChange={(v) => setFilter("voucherType", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-24"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="RV">RV</SelectItem>
+            <SelectItem value="PV">PV</SelectItem>
+            <SelectItem value="JV">JV</SelectItem>
+            <SelectItem value="CV">CV</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <label className="text-xs font-medium text-muted-foreground">Show</label>
         <Select value={f("filter") || "all"} onValueChange={(v) => setFilter("filter", v)}>
           <SelectTrigger className="mt-1 h-8 text-sm w-36"><SelectValue /></SelectTrigger>
@@ -272,6 +285,19 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
           <SelectContent>
             <SelectItem value="invoice">Invoice Date</SelectItem>
             <SelectItem value="checkin">Check-In Date</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Voucher Type</label>
+        <Select value={f("voucherType") || "PV"} onValueChange={(v) => setFilter("voucherType", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-24"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PV">PV</SelectItem>
+            <SelectItem value="RV">RV</SelectItem>
+            <SelectItem value="JV">JV</SelectItem>
+            <SelectItem value="CV">CV</SelectItem>
+            <SelectItem value="all">All</SelectItem>
           </SelectContent>
         </Select>
       </div>

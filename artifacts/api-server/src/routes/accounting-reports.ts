@@ -111,8 +111,11 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
       .where(and(...hotelConds))
       .orderBy(asc(hotelInvoicesTable.invoiceDate));
 
-    // Vouchers (all types) linked to this party
-    const vConds: ReturnType<typeof eq>[] = [eq(vouchersTable.partyId, pid) as ReturnType<typeof eq>];
+    // Vouchers (RV/PV/JV only) linked to this party
+    const vConds: ReturnType<typeof eq>[] = [
+      eq(vouchersTable.partyId, pid) as ReturnType<typeof eq>,
+      inArray(vouchersTable.type, ["RV", "PV", "JV"]) as ReturnType<typeof eq>,
+    ];
     if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
@@ -208,8 +211,11 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
       .where(and(...transConds))
       .orderBy(asc(transportBookingsTable.date));
 
-    // Vouchers linked to this vendor
-    const vConds: ReturnType<typeof eq>[] = [eq(vouchersTable.vendorId, vid) as ReturnType<typeof eq>];
+    // Vouchers (RV/PV/JV only) linked to this vendor
+    const vConds: ReturnType<typeof eq>[] = [
+      eq(vouchersTable.vendorId, vid) as ReturnType<typeof eq>,
+      inArray(vouchersTable.type, ["RV", "PV", "JV"]) as ReturnType<typeof eq>,
+    ];
     if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
@@ -270,11 +276,14 @@ router.get("/accounting/reports/party-summary", requireAuth, async (req, res) =>
       hotelByParty.set(pid, cur);
     }
 
-    // RV voucher amounts by partyId
-    const vConds: ReturnType<typeof eq>[] = [
-      eq(vouchersTable.type, "RV") as ReturnType<typeof eq>,
-      isNotNull(vouchersTable.partyId) as ReturnType<typeof eq>,
-    ];
+    // Voucher amounts by partyId — type filtered by voucherType param (default: RV)
+    const { voucherType: psVType } = req.query as Record<string, string>;
+    const vConds: ReturnType<typeof eq>[] = [isNotNull(vouchersTable.partyId) as ReturnType<typeof eq>];
+    if (psVType && psVType !== "all") {
+      vConds.push(eq(vouchersTable.type, psVType) as ReturnType<typeof eq>);
+    } else if (!psVType) {
+      vConds.push(eq(vouchersTable.type, "RV") as ReturnType<typeof eq>);
+    }
     if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
@@ -287,8 +296,7 @@ router.get("/accounting/reports/party-summary", requireAuth, async (req, res) =>
       receivedByParty.set(pid, (receivedByParty.get(pid) ?? 0) + (amtMap.get(v.id) ?? 0));
     }
 
-    // Build rows for all clients that have any hotel invoices (or all clients if filter = "all")
-    const showAll = filter === "all" || !filter;
+    // Build rows — filter=all returns every client; outstanding/negative apply threshold
     let rows = clients
       .map((c, i) => {
         const hotel = hotelByParty.get(c.id);
@@ -299,10 +307,9 @@ router.get("/accounting/reports/party-summary", requireAuth, async (req, res) =>
         return { serial: i + 1, partyId: c.id, partyName: c.name, paxCount, opening: 0, netAmount, amountReceived, outstanding };
       })
       .filter((r) => {
-        if (showAll) return r.netAmount > 0 || r.amountReceived > 0;
         if (filter === "outstanding") return r.outstanding > 0;
         if (filter === "negative") return r.outstanding < 0;
-        return r.netAmount > 0 || r.amountReceived > 0;
+        return true; // "all" or no filter — include every client
       })
       .map((r, i) => ({ ...r, serial: i + 1 }));
 
@@ -345,11 +352,14 @@ router.get("/accounting/reports/vendor-summary", requireAuth, async (req, res) =
       hotelByVendor.set(vid, (hotelByVendor.get(vid) ?? 0) + parseFloat(h.payableSar ?? "0"));
     }
 
-    // PV voucher amounts by vendorId
-    const vConds: ReturnType<typeof eq>[] = [
-      eq(vouchersTable.type, "PV") as ReturnType<typeof eq>,
-      isNotNull(vouchersTable.vendorId) as ReturnType<typeof eq>,
-    ];
+    // Voucher amounts by vendorId — type filtered by voucherType param (default: PV)
+    const { voucherType: vsVType } = req.query as Record<string, string>;
+    const vConds: ReturnType<typeof eq>[] = [isNotNull(vouchersTable.vendorId) as ReturnType<typeof eq>];
+    if (vsVType && vsVType !== "all") {
+      vConds.push(eq(vouchersTable.type, vsVType) as ReturnType<typeof eq>);
+    } else if (!vsVType) {
+      vConds.push(eq(vouchersTable.type, "PV") as ReturnType<typeof eq>);
+    }
     if (from) vConds.push(gte(vouchersTable.date, from) as ReturnType<typeof eq>);
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
@@ -362,7 +372,7 @@ router.get("/accounting/reports/vendor-summary", requireAuth, async (req, res) =
       paidByVendor.set(vid, (paidByVendor.get(vid) ?? 0) + (amtMap.get(v.id) ?? 0));
     }
 
-    const showAll = filter === "all" || !filter;
+    // filter=all returns every vendor; outstanding/negative apply threshold
     let rows = vendors
       .map((v, i) => {
         const netAmount = hotelByVendor.get(v.id) ?? 0;
@@ -371,10 +381,9 @@ router.get("/accounting/reports/vendor-summary", requireAuth, async (req, res) =
         return { serial: i + 1, vendorId: v.id, vendorName: v.name, opening: 0, netAmount, amountPaid, outstanding };
       })
       .filter((r) => {
-        if (showAll) return r.netAmount > 0 || r.amountPaid > 0;
         if (filter === "outstanding") return r.outstanding > 0;
         if (filter === "negative") return r.outstanding < 0;
-        return r.netAmount > 0 || r.amountPaid > 0;
+        return true; // "all" or no filter — include every vendor
       })
       .map((r, i) => ({ ...r, serial: i + 1 }));
 
