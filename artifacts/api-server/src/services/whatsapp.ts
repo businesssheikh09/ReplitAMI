@@ -239,6 +239,10 @@ export function getQRCode(): string | null {
   return currentQR;
 }
 
+export function isQRReady(): boolean {
+  return currentQR !== null;
+}
+
 /**
  * Resolver set when the socket is open.
  * Accepts target-group name substrings and returns filtered, timestamped messages.

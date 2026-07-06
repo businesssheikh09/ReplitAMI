@@ -117,6 +117,7 @@ function GroupTicketsTab() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [whatsappStatus, setWhatsappStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [qrReady, setQrReady] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDest, setFilterDest] = useState("");
@@ -168,6 +169,7 @@ function GroupTicketsTab() {
       if (res.ok) {
         const data = await res.json();
         setWhatsappStatus(data.whatsappStatus);
+        setQrReady(!!data.qrReady);
       } else if (res.status === 401 && !sessionExpiredShown.current) {
         sessionExpiredShown.current = true;
         setSessionExpired(true);
@@ -268,9 +270,16 @@ function GroupTicketsTab() {
     fetchTickets();
     fetchStatus();
     if (sessionExpired) return;
-    const iv = setInterval(fetchStatus, 30_000);
+    const iv = setInterval(fetchStatus, 8_000);
     return () => clearInterval(iv);
   }, [fetchTickets, fetchStatus, sessionExpired]);
+
+  // Auto-open QR dialog when server has a QR code ready to scan
+  useEffect(() => {
+    if (qrReady && !qrOpen && whatsappStatus !== "connected") {
+      setQrOpen(true);
+    }
+  }, [qrReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll for new QR while the modal is open (Baileys refreshes QR every ~60 s)
   useEffect(() => {
@@ -324,9 +333,13 @@ function GroupTicketsTab() {
                   "text-red-600 font-bold";
 
   const StatusDot = () =>
-    whatsappStatus === "connected"    ? <><Wifi className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600 text-xs">Connected</span></> :
-    whatsappStatus === "connecting"   ? <><Wifi className="h-3.5 w-3.5 text-amber-500 animate-pulse" /> <span className="text-amber-600 text-xs">Connecting…</span></> :
-                                        <><WifiOff className="h-3.5 w-3.5 text-gray-400" /> <span className="text-gray-500 text-xs">Not linked</span></>;
+    whatsappStatus === "connected"
+      ? <><Wifi className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600 text-xs">Connected</span></>
+      : whatsappStatus === "connecting" && qrReady
+      ? <><ScanLine className="h-3.5 w-3.5 text-orange-500 animate-pulse" /> <span className="text-orange-600 text-xs font-medium">Scan QR to connect</span></>
+      : whatsappStatus === "connecting"
+      ? <><Wifi className="h-3.5 w-3.5 text-amber-500 animate-pulse" /> <span className="text-amber-600 text-xs">Reconnecting…</span></>
+      : <><WifiOff className="h-3.5 w-3.5 text-gray-400" /> <span className="text-gray-500 text-xs">Not linked</span></>;
 
   return (
     <div className="space-y-4">
