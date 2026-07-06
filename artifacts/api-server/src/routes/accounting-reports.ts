@@ -45,6 +45,27 @@ async function getVoucherAmounts(voucherIds: number[]): Promise<Map<number, numb
   return totByV;
 }
 
+// ── Shared: get voucher amounts + first line description per voucher-id ────────
+
+async function getVoucherDetails(voucherIds: number[]): Promise<Map<number, { amount: number; detail: string | null }>> {
+  if (voucherIds.length === 0) return new Map();
+  const lineRows = await db
+    .select({ voucherId: voucherLinesTable.voucherId, debitAmount: voucherLinesTable.debitAmount, description: voucherLinesTable.description })
+    .from(voucherLinesTable)
+    .where(inArray(voucherLinesTable.voucherId, voucherIds));
+  const result = new Map<number, { amount: number; detail: string | null }>();
+  for (const l of lineRows) {
+    const cur = result.get(l.voucherId);
+    if (!cur) {
+      result.set(l.voucherId, { amount: parseFloat(l.debitAmount), detail: l.description ?? null });
+    } else {
+      cur.amount += parseFloat(l.debitAmount);
+      if (!cur.detail && l.description) cur.detail = l.description;
+    }
+  }
+  return result;
+}
+
 // ── Party Statement ───────────────────────────────────────────────────────────
 
 router.get("/accounting/reports/party-statement", requireAuth, async (req, res) => {
@@ -96,8 +117,8 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
     const rawVouchers = await db.select().from(vouchersTable).where(and(...vConds)).orderBy(asc(vouchersTable.date));
-    const amtMap = await getVoucherAmounts(rawVouchers.map((v) => v.id));
-    const vouchers = rawVouchers.map((v) => ({ ...v, amount: amtMap.get(v.id) ?? 0 }));
+    const detailMap = await getVoucherDetails(rawVouchers.map((v) => v.id));
+    const vouchers = rawVouchers.map((v) => { const d = detailMap.get(v.id) ?? { amount: 0, detail: null }; return { ...v, amount: d.amount, detail: d.detail }; });
 
     const totalSales = hotelBookings.reduce((s, h) => s + parseFloat(h.receivableSar ?? "0"), 0);
     const netVouchers = vouchers.reduce((s, v) => s + v.amount, 0);
@@ -193,8 +214,8 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
     if (to) vConds.push(lte(vouchersTable.date, to) as ReturnType<typeof eq>);
 
     const rawVouchers = await db.select().from(vouchersTable).where(and(...vConds)).orderBy(asc(vouchersTable.date));
-    const amtMap = await getVoucherAmounts(rawVouchers.map((v) => v.id));
-    const vouchers = rawVouchers.map((v) => ({ ...v, amount: amtMap.get(v.id) ?? 0 }));
+    const detailMapV = await getVoucherDetails(rawVouchers.map((v) => v.id));
+    const vouchers = rawVouchers.map((v) => { const d = detailMapV.get(v.id) ?? { amount: 0, detail: null }; return { ...v, amount: d.amount, detail: d.detail }; });
 
     const totalHotelPurchase = hotelRows.reduce((s, h) => s + parseFloat(h.payableSar ?? "0"), 0);
     const totalTransportPurchase = transportBookings.reduce((s, t) => s + parseFloat(t.amount), 0);
@@ -223,15 +244,16 @@ router.get("/accounting/reports/vendor-statement", requireAuth, async (req, res)
 
 router.get("/accounting/reports/party-summary", requireAuth, async (req, res) => {
   try {
-    const { from, to, filter } = req.query as Record<string, string>;
+    const { from, to, filter, dateType: summDateType } = req.query as Record<string, string>;
 
     // All clients
     const clients = await db.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable).orderBy(asc(clientsTable.name));
 
     // Hotel invoice totals by partyId
+    const useCheckInPS = summDateType === "checkin";
     const hotelConds: ReturnType<typeof eq>[] = [isNotNull(hotelInvoicesTable.partyId) as ReturnType<typeof eq>];
-    if (from) hotelConds.push(gte(hotelInvoicesTable.invoiceDate, from) as ReturnType<typeof eq>);
-    if (to) hotelConds.push(lte(hotelInvoicesTable.invoiceDate, to) as ReturnType<typeof eq>);
+    if (from) hotelConds.push((useCheckInPS ? gte(hotelInvoicesTable.checkIn, from) : gte(hotelInvoicesTable.invoiceDate, from)) as ReturnType<typeof eq>);
+    if (to) hotelConds.push((useCheckInPS ? lte(hotelInvoicesTable.checkIn, to) : lte(hotelInvoicesTable.invoiceDate, to)) as ReturnType<typeof eq>);
 
     const hotelRows = await db.select({
       partyId: hotelInvoicesTable.partyId,
@@ -302,14 +324,15 @@ router.get("/accounting/reports/party-summary", requireAuth, async (req, res) =>
 
 router.get("/accounting/reports/vendor-summary", requireAuth, async (req, res) => {
   try {
-    const { from, to, filter } = req.query as Record<string, string>;
+    const { from, to, filter, dateType: summVDateType } = req.query as Record<string, string>;
 
     const vendors = await db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable).orderBy(asc(vendorsTable.name));
 
     // Hotel payable totals by vendorId
+    const useCheckInVS = summVDateType === "checkin";
     const hotelConds: ReturnType<typeof eq>[] = [isNotNull(hotelInvoicesTable.vendorId) as ReturnType<typeof eq>];
-    if (from) hotelConds.push(gte(hotelInvoicesTable.invoiceDate, from) as ReturnType<typeof eq>);
-    if (to) hotelConds.push(lte(hotelInvoicesTable.invoiceDate, to) as ReturnType<typeof eq>);
+    if (from) hotelConds.push((useCheckInVS ? gte(hotelInvoicesTable.checkIn, from) : gte(hotelInvoicesTable.invoiceDate, from)) as ReturnType<typeof eq>);
+    if (to) hotelConds.push((useCheckInVS ? lte(hotelInvoicesTable.checkIn, to) : lte(hotelInvoicesTable.invoiceDate, to)) as ReturnType<typeof eq>);
 
     const hotelRows = await db.select({
       vendorId: hotelInvoicesTable.vendorId,

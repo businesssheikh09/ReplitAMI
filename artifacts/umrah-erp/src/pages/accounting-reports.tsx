@@ -229,6 +229,16 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
     <>
       {dateRange}
       <div>
+        <label className="text-xs font-medium text-muted-foreground">Date Type</label>
+        <Select value={f("dateType") || "invoice"} onValueChange={(v) => setFilter("dateType", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="invoice">Invoice Date</SelectItem>
+            <SelectItem value="checkin">Check-In Date</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <label className="text-xs font-medium text-muted-foreground">Show</label>
         <Select value={f("filter") || "all"} onValueChange={(v) => setFilter("filter", v)}>
           <SelectTrigger className="mt-1 h-8 text-sm w-36"><SelectValue /></SelectTrigger>
@@ -239,12 +249,32 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
           </SelectContent>
         </Select>
       </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Currency</label>
+        <Select value={f("currency") || "SAR"} onValueChange={(v) => setFilter("currency", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-24"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="SAR">SAR</SelectItem>
+            <SelectItem value="PKR">PKR</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </>
   );
 
   if (active === "vendor-summary") return (
     <>
       {dateRange}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Date Type</label>
+        <Select value={f("dateType") || "invoice"} onValueChange={(v) => setFilter("dateType", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="invoice">Invoice Date</SelectItem>
+            <SelectItem value="checkin">Check-In Date</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div>
         <label className="text-xs font-medium text-muted-foreground">Show</label>
         <Select value={f("filter") || "all"} onValueChange={(v) => setFilter("filter", v)}>
@@ -253,6 +283,16 @@ function FilterBar({ active, filters, setFilter, clients, vendors, accounts, hot
             <SelectItem value="all">All Vendors</SelectItem>
             <SelectItem value="outstanding">Outstanding</SelectItem>
             <SelectItem value="negative">Negative (Advance)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Currency</label>
+        <Select value={f("currency") || "SAR"} onValueChange={(v) => setFilter("currency", v)}>
+          <SelectTrigger className="mt-1 h-8 text-sm w-24"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="SAR">SAR</SelectItem>
+            <SelectItem value="PKR">PKR</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -519,9 +559,9 @@ function renderReport(
               <TableRow className="text-xs">
                 <TableHead>Date</TableHead>
                 <TableHead>V/No</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead>B/No</TableHead>
                 <TableHead>Narration</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Detail</TableHead>
                 <TableHead className="text-right">Amount (SAR)</TableHead>
               </TableRow>
             </TableHeader>
@@ -532,9 +572,9 @@ function renderReport(
                 <TableRow key={i} className="text-xs">
                   <TableCell>{String(v.date ?? "—")}</TableCell>
                   <TableCell className="font-mono">{String(v.voucherNumber ?? "—")}</TableCell>
-                  <TableCell><Badge className="text-xs font-mono px-1 py-0">{String(v.type)}</Badge></TableCell>
+                  <TableCell className="font-mono text-muted-foreground">{v.hotelInvoiceId ? String(v.hotelInvoiceId) : "—"}</TableCell>
                   <TableCell className="max-w-xs truncate">{String(v.narration ?? "—")}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(v.status)}</Badge></TableCell>
+                  <TableCell className="max-w-xs truncate text-muted-foreground">{v.detail ? String(v.detail) : "—"}</TableCell>
                   <TableCell className="text-right tabular-nums font-medium">{fmt(v.amount as number)}</TableCell>
                 </TableRow>
               ))}
@@ -683,9 +723,9 @@ function renderReport(
               <TableRow className="text-xs">
                 <TableHead>Date</TableHead>
                 <TableHead>V/No</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead>B/No</TableHead>
                 <TableHead>Narration</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Detail</TableHead>
                 <TableHead className="text-right">Amount (SAR)</TableHead>
               </TableRow>
             </TableHeader>
@@ -696,9 +736,9 @@ function renderReport(
                 <TableRow key={i} className="text-xs">
                   <TableCell>{String(v.date ?? "—")}</TableCell>
                   <TableCell className="font-mono">{String(v.voucherNumber ?? "—")}</TableCell>
-                  <TableCell><Badge className="text-xs font-mono px-1 py-0">{String(v.type)}</Badge></TableCell>
+                  <TableCell className="font-mono text-muted-foreground">{v.hotelInvoiceId ? String(v.hotelInvoiceId) : "—"}</TableCell>
                   <TableCell className="max-w-xs truncate">{String(v.narration ?? "—")}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs px-1 py-0 capitalize">{String(v.status)}</Badge></TableCell>
+                  <TableCell className="max-w-xs truncate text-muted-foreground">{v.detail ? String(v.detail) : "—"}</TableCell>
                   <TableCell className="text-right tabular-nums font-medium">{fmt(v.amount as number)}</TableCell>
                 </TableRow>
               ))}
@@ -1531,8 +1571,12 @@ export default function AccountingReportsPage() {
                 ) : (
                   renderReport(active, data as Record<string, unknown>, (report, newFilters) => {
                     setActive(report);
-                    setFilters(newFilters);
-                    setApplied({ ...newFilters, _run: String(Date.now()) });
+                    const preserved: Record<string, string> = {};
+                    if (applied.from) preserved.from = applied.from;
+                    if (applied.to) preserved.to = applied.to;
+                    const merged = { ...preserved, ...newFilters };
+                    setFilters(merged);
+                    setApplied({ ...merged, _run: String(Date.now()) });
                   })
                 )}
               </CardContent>
