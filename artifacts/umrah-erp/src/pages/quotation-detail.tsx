@@ -15,6 +15,7 @@ import { ArrowLeft, Plus, Trash2, Send, Edit2, Printer, CheckCircle, XCircle, Ar
 
 const SERVICE_TYPES = Object.values(QuotationItemInputServiceType) as QuotationItemInputServiceType[];
 const CURRENCIES = ["USD", "PKR", "SAR", "GBP", "EUR", "AED", "OMR", "KWD", "QAR"];
+const EMPTY_RATES: Record<string, number> = {};
 
 const SERVICE_COLORS: Record<string, string> = {
   hotel: "bg-blue-50 text-blue-700 border-blue-200",
@@ -100,7 +101,7 @@ export default function QuotationDetailPage() {
   }>({ id: 0, serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, currency: "USD", customRate: "", notes: "" });
 
   const { data: quotation, isLoading } = useGetQuotation(Number(id));
-  const { data: rates = {} } = useCurrencyRates();
+  const { data: rates = EMPTY_RATES } = useCurrencyRates();
 
   const addItem = useAddQuotationItem({
     mutation: {
@@ -140,20 +141,22 @@ export default function QuotationDetailPage() {
     }
   }, [quotation]);
 
-  // When item currency or base currency or live rates change, auto-populate customRate
+  // When item currency or base currency changes, auto-populate customRate
   // Rate is expressed as: how many [itemCurrency] per 1 [baseCurrency]
   useEffect(() => {
     if (!q) return;
     const base = q.currency || "USD";
     if (itemForm.currency === base) {
-      setItemForm(p => ({ ...p, customRate: "" }));
+      setItemForm(p => p.customRate === "" ? p : { ...p, customRate: "" });
       return;
     }
     const autoRate = convertToBase(1, base, itemForm.currency, rates);
     if (autoRate != null) {
-      setItemForm(p => ({ ...p, customRate: autoRate.toFixed(4) }));
+      const next = autoRate.toFixed(4);
+      setItemForm(p => p.customRate === next ? p : { ...p, customRate: next });
     }
-  }, [itemForm.currency, q?.currency, rates]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemForm.currency, q?.currency]);
 
   const customRateNum = parseFloat(itemForm.customRate);
   const rateValid = !isNaN(customRateNum) && customRateNum > 0;
@@ -189,14 +192,16 @@ export default function QuotationDetailPage() {
     if (!q || !editItemOpen) return;
     const base = q.currency || "USD";
     if (editItemForm.currency === base) {
-      setEditItemForm(p => ({ ...p, customRate: "" }));
+      setEditItemForm(p => p.customRate === "" ? p : { ...p, customRate: "" });
       return;
     }
     const autoRate = convertToBase(1, base, editItemForm.currency, rates);
     if (autoRate != null) {
-      setEditItemForm(p => ({ ...p, customRate: autoRate.toFixed(4) }));
+      const next = autoRate.toFixed(4);
+      setEditItemForm(p => p.customRate === next ? p : { ...p, customRate: next });
     }
-  }, [editItemForm.currency, editItemOpen, q?.currency, rates]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editItemForm.currency, editItemOpen, q?.currency]);
 
   function openEditItem(item: any) {
     const base = q?.currency || "USD";
