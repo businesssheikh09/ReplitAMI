@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { Globe, Save, Loader2, RefreshCw, ExternalLink, Building2, Upload, ImageIcon, Banknote, FileText, PenLine, Trash2 } from "lucide-react";
+import { Globe, Save, Loader2, RefreshCw, ExternalLink, Building2, Upload, ImageIcon, Banknote, FileText, PenLine, Trash2, MessageCircle } from "lucide-react";
 
 type ConfigDraft = {
   siteName: string;
@@ -28,6 +28,40 @@ type ConfigDraft = {
   announcementBanner: string;
   announcementEnabled: boolean;
 };
+
+type SupportDraft = {
+  support_wa_sales: string;
+  support_wa_sales_msg: string;
+  support_wa_support: string;
+  support_wa_support_msg: string;
+  support_wa_visa: string;
+  support_wa_visa_msg: string;
+  support_wa_accounts: string;
+  support_wa_accounts_msg: string;
+  support_wa_emergency: string;
+  support_wa_emergency_msg: string;
+};
+
+const SUPPORT_DEFAULTS: SupportDraft = {
+  support_wa_sales: "",
+  support_wa_sales_msg: "",
+  support_wa_support: "",
+  support_wa_support_msg: "",
+  support_wa_visa: "",
+  support_wa_visa_msg: "",
+  support_wa_accounts: "",
+  support_wa_accounts_msg: "",
+  support_wa_emergency: "",
+  support_wa_emergency_msg: "",
+};
+
+const SUPPORT_DEPTS: { label: string; phoneKey: keyof SupportDraft; msgKey: keyof SupportDraft }[] = [
+  { label: "Sales",     phoneKey: "support_wa_sales",     msgKey: "support_wa_sales_msg" },
+  { label: "Support",   phoneKey: "support_wa_support",   msgKey: "support_wa_support_msg" },
+  { label: "Visa",      phoneKey: "support_wa_visa",      msgKey: "support_wa_visa_msg" },
+  { label: "Accounts",  phoneKey: "support_wa_accounts",  msgKey: "support_wa_accounts_msg" },
+  { label: "Emergency", phoneKey: "support_wa_emergency", msgKey: "support_wa_emergency_msg" },
+];
 
 type BrandingDraft = {
   company_name: string;
@@ -92,6 +126,8 @@ export default function WebsiteSettingsPage() {
 
   const [draft, setDraft] = useState<ConfigDraft | null>(null);
   const [branding, setBranding] = useState<BrandingDraft>(BRANDING_DEFAULTS);
+  const [support, setSupport] = useState<SupportDraft>(SUPPORT_DEFAULTS);
+  const [supportSaving, setSupportSaving] = useState(false);
   const [brandingSaving, setBrandingSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [printLogoUploading, setPrintLogoUploading] = useState(false);
@@ -124,6 +160,24 @@ export default function WebsiteSettingsPage() {
     }
   }, [config, draft]);
 
+  // Populate support contacts from raw config when it loads
+  useEffect(() => {
+    if (rawConfig) {
+      setSupport({
+        support_wa_sales:         rawConfig.support_wa_sales         ?? "",
+        support_wa_sales_msg:     rawConfig.support_wa_sales_msg     ?? "",
+        support_wa_support:       rawConfig.support_wa_support       ?? "",
+        support_wa_support_msg:   rawConfig.support_wa_support_msg   ?? "",
+        support_wa_visa:          rawConfig.support_wa_visa          ?? "",
+        support_wa_visa_msg:      rawConfig.support_wa_visa_msg      ?? "",
+        support_wa_accounts:      rawConfig.support_wa_accounts      ?? "",
+        support_wa_accounts_msg:  rawConfig.support_wa_accounts_msg  ?? "",
+        support_wa_emergency:     rawConfig.support_wa_emergency     ?? "",
+        support_wa_emergency_msg: rawConfig.support_wa_emergency_msg ?? "",
+      });
+    }
+  }, [rawConfig]);
+
   // Populate branding from raw config when it loads
   useEffect(() => {
     if (rawConfig) {
@@ -150,6 +204,29 @@ export default function WebsiteSettingsPage() {
       });
     }
   }, [rawConfig]);
+
+  const setS = (field: keyof SupportDraft, value: string) =>
+    setSupport(prev => ({ ...prev, [field]: value }));
+
+  const handleSaveSupport = async () => {
+    setSupportSaving(true);
+    try {
+      await fetch("/api/website-config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(support),
+      });
+      qc.invalidateQueries({ queryKey: ["/api/website-config"] });
+      toast({ title: "Support contacts saved", description: "The WhatsApp button will now use these numbers." });
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    } finally {
+      setSupportSaving(false);
+    }
+  };
 
   const setB = (field: keyof BrandingDraft, value: string) =>
     setBranding(prev => ({ ...prev, [field]: value }));
@@ -426,6 +503,58 @@ export default function WebsiteSettingsPage() {
                 <Input value={branding.signature_title} onChange={e => setB("signature_title", e.target.value)} placeholder="Reservation Officer" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Separator />
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECTION 1b — WHATSAPP SUPPORT CONTACTS
+      ══════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+              WhatsApp Support Contacts
+            </h2>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              Phone numbers shown in the floating WhatsApp button. Leave a number blank to hide that department.
+            </p>
+          </div>
+          <Button onClick={handleSaveSupport} disabled={supportSaving}>
+            {supportSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save Contacts
+          </Button>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6 space-y-5">
+            {SUPPORT_DEPTS.map((dept) => (
+              <div key={dept.label} className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b last:border-b-0 last:pb-0">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <MessageCircle className="h-3.5 w-3.5 text-green-500" />
+                    {dept.label} — Phone Number
+                    <span className="text-xs text-muted-foreground font-normal">(with country code, no spaces)</span>
+                  </Label>
+                  <Input
+                    value={support[dept.phoneKey]}
+                    onChange={e => setS(dept.phoneKey, e.target.value)}
+                    placeholder="e.g. 923001234567"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Pre-filled Message <span className="text-xs font-normal">(optional)</span></Label>
+                  <Input
+                    value={support[dept.msgKey]}
+                    onChange={e => setS(dept.msgKey, e.target.value)}
+                    placeholder={`Hi, I need help with ${dept.label.toLowerCase()}.`}
+                  />
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

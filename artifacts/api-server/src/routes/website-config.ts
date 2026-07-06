@@ -169,6 +169,17 @@ function rowsToConfig(rows: { key: string; value: string }[]) {
     quotation_default_validity_days: map.quotation_default_validity_days,
     quotation_default_terms: map.quotation_default_terms,
     quotation_default_notes: map.quotation_default_notes,
+    // ── WhatsApp Support Contacts ──────────────────────────────────────────
+    support_wa_sales: map.support_wa_sales ?? "",
+    support_wa_sales_msg: map.support_wa_sales_msg ?? "",
+    support_wa_support: map.support_wa_support ?? "",
+    support_wa_support_msg: map.support_wa_support_msg ?? "",
+    support_wa_visa: map.support_wa_visa ?? "",
+    support_wa_visa_msg: map.support_wa_visa_msg ?? "",
+    support_wa_accounts: map.support_wa_accounts ?? "",
+    support_wa_accounts_msg: map.support_wa_accounts_msg ?? "",
+    support_wa_emergency: map.support_wa_emergency ?? "",
+    support_wa_emergency_msg: map.support_wa_emergency_msg ?? "",
   };
 }
 
@@ -229,6 +240,17 @@ router.put("/website-config", requireAuth, async (req, res) => {
     quotation_default_validity_days: "quotation_default_validity_days",
     quotation_default_terms: "quotation_default_terms",
     quotation_default_notes: "quotation_default_notes",
+    // ── WhatsApp Support Contacts ──────────────────────────────────────────
+    support_wa_sales: "support_wa_sales",
+    support_wa_sales_msg: "support_wa_sales_msg",
+    support_wa_support: "support_wa_support",
+    support_wa_support_msg: "support_wa_support_msg",
+    support_wa_visa: "support_wa_visa",
+    support_wa_visa_msg: "support_wa_visa_msg",
+    support_wa_accounts: "support_wa_accounts",
+    support_wa_accounts_msg: "support_wa_accounts_msg",
+    support_wa_emergency: "support_wa_emergency",
+    support_wa_emergency_msg: "support_wa_emergency_msg",
   };
 
   for (const [camel, dbKey] of Object.entries(keyMap)) {
