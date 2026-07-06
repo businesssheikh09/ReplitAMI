@@ -54,6 +54,7 @@ import PassengerDocumentsPage from "@/pages/passenger-documents-page";
 import AutomationSettingsPage from "@/pages/automation-settings";
 import AutomationLogsPage from "@/pages/automation-logs";
 import ErpSettingsPage from "@/pages/erp-settings";
+import ProjectMapPage from "@/pages/project-map";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -179,6 +180,9 @@ function Router() {
         {/* Automation */}
         <ProtectedRoute path="/automation-settings" component={AutomationSettingsPage} />
         <ProtectedRoute path="/automation-logs" component={AutomationLogsPage} />
+
+        {/* Management */}
+        <ProtectedRoute path="/project-map" component={ProjectMapPage} />
 
         <Route component={NotFound} />
       </Switch>

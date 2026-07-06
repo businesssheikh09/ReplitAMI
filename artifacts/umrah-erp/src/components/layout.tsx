@@ -40,6 +40,7 @@ import {
   Banknote,
   Zap,
   ScrollText,
+  Map,
   Bell,
   X,
 } from "lucide-react";
@@ -149,6 +150,7 @@ const navGroups = [
       { title: "Website Settings", href: "/website-settings", icon: Globe },
       { title: "Automation Engine", href: "/automation-settings", icon: Zap },
       { title: "Automation Logs", href: "/automation-logs", icon: ScrollText },
+      { title: "Project Map", href: "/project-map", icon: Map },
     ],
   },
 ];

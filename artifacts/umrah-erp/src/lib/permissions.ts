@@ -56,6 +56,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/automation-settings": ADMIN_MGMT,
   "/automation-logs": ADMIN_MGMT,
   "/reports": ADMIN_MGMT,
+  "/project-map": ADMIN_MGMT,
 };
 
 export function canAccess(role: string | undefined, route: string): boolean {
@@ -152,6 +153,7 @@ export const NAV_ITEM_ROLES: Record<string, UserRole[]> = {
   "/automation-settings": ADMIN_MGMT,
   "/automation-logs": ADMIN_MGMT,
   "/reports": ADMIN_MGMT,
+  "/project-map": ADMIN_MGMT,
 };
 
 export const ROLE_LABELS: Record<string, string> = {
