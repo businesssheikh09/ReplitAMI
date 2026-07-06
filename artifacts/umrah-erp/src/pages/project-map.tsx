@@ -15,7 +15,9 @@ interface RegenResult {
   generatedAt: string;
   sizeBytes: number;
   pages: number;
+  totalMinutes: number;
   totalHours: number;
+  costUSD: number;
 }
 
 function fmtSize(bytes: number) {
@@ -36,6 +38,28 @@ export default function ProjectMapPage() {
   const qc = useQueryClient();
   const headers = { Authorization: `Bearer ${token}` };
   const [regenResult, setRegenResult] = useState<RegenResult | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/project-map/download", { headers });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "al-musafir-project-map.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Download failed — try regenerating first.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const { data: status, isLoading: statusLoading } = useQuery<MapStatus>({
     queryKey: ["project-map-status", token],
@@ -110,7 +134,7 @@ export default function ProjectMapPage() {
           <p className="text-sm font-semibold text-teal-800">PDF regenerated successfully</p>
           <div className="grid grid-cols-3 gap-3 text-xs text-teal-700">
             <div><span className="font-medium">Pages:</span> {regenResult.pages}</div>
-            <div><span className="font-medium">Hours tracked:</span> {regenResult.totalHours}h</div>
+            <div><span className="font-medium">Agent time:</span> {regenResult.totalMinutes}m ({regenResult.totalHours}h) · ${regenResult.costUSD?.toFixed(2)}</div>
             <div><span className="font-medium">Size:</span> {fmtSize(regenResult.sizeBytes)}</div>
           </div>
         </div>
@@ -142,14 +166,14 @@ export default function ProjectMapPage() {
           </button>
 
           {hasFile && (
-            <a
-              href="/api/project-map/download"
-              download="al-musafir-project-map.pdf"
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-teal-500 text-teal-700 font-semibold text-sm hover:bg-teal-50 transition"
+            <button
+              onClick={downloadPdf}
+              disabled={downloading}
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-teal-500 text-teal-700 font-semibold text-sm hover:bg-teal-50 disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
-              <Download className="h-4 w-4" />
-              Download PDF
-            </a>
+              <Download className={`h-4 w-4 ${downloading ? "animate-bounce" : ""}`} />
+              {downloading ? "Downloading…" : "Download PDF"}
+            </button>
           )}
         </div>
 
@@ -171,7 +195,7 @@ export default function ProjectMapPage() {
           <li>Database Table Directory</li>
           <li>Key Operational Workflows</li>
           <li>Developer Quick-Reference</li>
-          <li>Estimated Development Cost — $5/hr agent rate with status badges</li>
+          <li>Actual Agent Working Time — live from git history, $5/hr rate</li>
         </ol>
       </div>
     </div>

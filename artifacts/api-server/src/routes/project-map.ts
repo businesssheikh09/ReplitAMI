@@ -30,21 +30,33 @@ router.get("/project-map/status", requireAuth, (_req, res) => {
 router.post("/project-map/regenerate", requireAuth, requireRole("admin", "management"), async (req, res) => {
   try {
     req.log.info("Starting project map PDF regeneration");
-    await execFileAsync("pnpm", ["--filter", "@workspace/scripts", "run", "generate-map"], {
+    const { stdout } = await execFileAsync("pnpm", ["--filter", "@workspace/scripts", "run", "generate-map"], {
       cwd: WORKSPACE_ROOT,
       timeout: 90_000,
       env: { ...process.env, FORCE_COLOR: "0" },
     });
 
+    // Parse actual hours from script output:
+    // "Total time: 1983 min (33.0h)  |  Cost @ $5/hr: $165.25"
+    let totalMinutes = 0;
+    let totalHours   = 0;
+    let costUSD      = 0;
+    const timeMatch = stdout.match(/Total time:\s*(\d+)\s*min\s*\(([0-9.]+)h\)/);
+    const costMatch = stdout.match(/Cost @ \$[\d.]+\/hr:\s*\$([0-9.]+)/);
+    if (timeMatch) { totalMinutes = parseInt(timeMatch[1], 10); totalHours = parseFloat(timeMatch[2]); }
+    if (costMatch) { costUSD = parseFloat(costMatch[1]); }
+
     const stat = fs.existsSync(PDF_PATH) ? fs.statSync(PDF_PATH) : null;
-    req.log.info({ sizeBytes: stat?.size }, "Project map PDF regenerated");
+    req.log.info({ sizeBytes: stat?.size, totalMinutes, totalHours }, "Project map PDF regenerated");
     return res.json({
       ok: true,
       downloadPath: "/api/project-map/download",
       generatedAt: stat ? stat.mtime.toISOString() : new Date().toISOString(),
       sizeBytes: stat?.size ?? 0,
       pages: 10,
-      totalHours: 695,
+      totalMinutes,
+      totalHours,
+      costUSD,
     });
   } catch (err) {
     req.log.error({ err }, "Project map regeneration failed");
