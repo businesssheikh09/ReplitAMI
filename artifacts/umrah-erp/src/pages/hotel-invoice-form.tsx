@@ -109,6 +109,10 @@ export default function HotelInvoiceFormPage() {
   const [receivableRate, setReceivableRate] = useState("");
   const [payableRate, setPayableRate] = useState("");
 
+  /* Per-night-per-room rate helpers (UI only — not stored; total is stored in receivableSar/payableSar) */
+  const [receivableRatePerNight, setReceivableRatePerNight] = useState("");
+  const [payableRatePerNight, setPayableRatePerNight] = useState("");
+
   /* Live rates from API — response shape: { base: "USD", rates: { PKR, SAR, USD, GBP, EUR, ... } } */
   const { data: liveRates = {} } = useQuery<Record<string, number>>({
     queryKey: ["/api/currency/rates"],
@@ -163,6 +167,12 @@ export default function HotelInvoiceFormPage() {
       if (pSar && pPkr && Number(pSar) > 0) setPayableRate(round2(Number(pPkr) / Number(pSar)));
       if (existing.receivableCurrency) setReceivableCurrency(existing.receivableCurrency);
       if (existing.payableCurrency) setPayableCurrency(existing.payableCurrency);
+      const nights = Number(existing.noOfNights ?? 0);
+      const rooms  = Number(existing.noOfRooms  ?? 1);
+      /* Back-calc per-night rate from stored total */
+      if (rSar && nights > 0 && rooms > 0) setReceivableRatePerNight(round2(Number(rSar) / (nights * rooms)));
+      const pSarStr = existing.payableSar != null ? String(existing.payableSar) : "";
+      if (pSarStr && nights > 0 && rooms > 0) setPayableRatePerNight(round2(Number(pSarStr) / (nights * rooms)));
       setForm({
         invoiceDate: existing.invoiceDate || today(),
         partyId: existing.partyId ? String(existing.partyId) : "",
@@ -188,7 +198,7 @@ export default function HotelInvoiceFormPage() {
         remarks: existing.remarks || "",
         contactNumber: existing.contactNumber || "",
         receivableSar: rSar,
-        payableSar: existing.payableSar != null ? String(existing.payableSar) : "",
+        payableSar: pSarStr,
         receivablePkr: rPkr,
         payablePkr: existing.payablePkr != null ? String(existing.payablePkr) : "",
         incomeHead: existing.incomeHead || "Hotel Income",
@@ -204,6 +214,38 @@ export default function HotelInvoiceFormPage() {
       setForm(p => ({ ...p, noOfNights: String(calcNights(p.checkIn, p.checkOut)) }));
     }
   }, [form.checkIn, form.checkOut]);
+
+  // Auto-calc receivable total: rate × nights × rooms → receivableSar (and PKR equiv)
+  useEffect(() => {
+    const rate   = Number(receivableRatePerNight);
+    const nights = Number(form.noOfNights);
+    const rooms  = Number(form.noOfRooms);
+    if (rate > 0 && nights > 0 && rooms > 0) {
+      const total = round2(rate * nights * rooms);
+      setForm(p => {
+        const pkrRate = Number(receivableRate);
+        const next = { ...p, receivableSar: total };
+        if (pkrRate > 0) next.receivablePkr = round2(Number(total) * pkrRate);
+        return next;
+      });
+    }
+  }, [receivableRatePerNight, form.noOfNights, form.noOfRooms, receivableRate]);
+
+  // Auto-calc payable total: rate × nights × rooms → payableSar (and PKR equiv)
+  useEffect(() => {
+    const rate   = Number(payableRatePerNight);
+    const nights = Number(form.noOfNights);
+    const rooms  = Number(form.noOfRooms);
+    if (rate > 0 && nights > 0 && rooms > 0) {
+      const total = round2(rate * nights * rooms);
+      setForm(p => {
+        const pkrRate = Number(payableRate);
+        const next = { ...p, payableSar: total };
+        if (pkrRate > 0) next.payablePkr = round2(Number(total) * pkrRate);
+        return next;
+      });
+    }
+  }, [payableRatePerNight, form.noOfNights, form.noOfRooms, payableRate]);
 
   // When hotel selected from dropdown, fill hotel name
   const onHotelSelect = (id: string) => {
@@ -240,6 +282,9 @@ export default function HotelInvoiceFormPage() {
   }
 
   function onAmountChange(side: "receivable" | "payable", val: string) {
+    /* When user edits the total directly, clear the rate-per-night so it doesn't auto-override */
+    if (side === "receivable") setReceivableRatePerNight("");
+    else setPayableRatePerNight("");
     const rate = side === "receivable" ? Number(receivableRate) : Number(payableRate);
     setForm(p => {
       const next = { ...p };
@@ -335,6 +380,8 @@ export default function HotelInvoiceFormPage() {
     setPayableRate("");
     setReceivableCurrency("SAR");
     setPayableCurrency("SAR");
+    setReceivableRatePerNight("");
+    setPayableRatePerNight("");
     setForm({ ...EMPTY_FORM, reference: dnNumber.replace("DN-", "") });
   };
 
@@ -644,9 +691,53 @@ export default function HotelInvoiceFormPage() {
 
           {/* Receivable side */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-            {/* Receivable amount + currency */}
+            {/* Receivable rate per night */}
             <div className="flex items-center gap-2">
-              <label className="w-40 font-semibold text-sm shrink-0">Receivable Amount</label>
+              <label className="w-40 font-semibold text-sm shrink-0">Rate/Night/Room ({receivableCurrency})</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Enter rate per night"
+                className="border border-gray-400 px-2 py-0.5 text-sm bg-white flex-1"
+                value={receivableRatePerNight}
+                onChange={e => setReceivableRatePerNight(e.target.value)}
+              />
+            </div>
+            {/* Payable rate per night */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-sm shrink-0">Rate/Night/Room ({payableCurrency})</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Enter rate per night"
+                className="border border-gray-400 px-2 py-0.5 text-sm bg-white flex-1"
+                value={payableRatePerNight}
+                onChange={e => setPayableRatePerNight(e.target.value)}
+              />
+            </div>
+
+            {/* Receivable breakdown display */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-xs text-muted-foreground shrink-0">↳ Breakdown</label>
+              <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                {Number(receivableRatePerNight) > 0
+                  ? `${receivableRatePerNight} × ${form.noOfNights || 0} nights × ${form.noOfRooms || 1} rooms = ${round2(Number(receivableRatePerNight) * Number(form.noOfNights || 0) * Number(form.noOfRooms || 1))} ${receivableCurrency}`
+                  : "—"}
+              </span>
+            </div>
+            {/* Payable breakdown display */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-xs text-muted-foreground shrink-0">↳ Breakdown</label>
+              <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                {Number(payableRatePerNight) > 0
+                  ? `${payableRatePerNight} × ${form.noOfNights || 0} nights × ${form.noOfRooms || 1} rooms = ${round2(Number(payableRatePerNight) * Number(form.noOfNights || 0) * Number(form.noOfRooms || 1))} ${payableCurrency}`
+                  : "—"}
+              </span>
+            </div>
+
+            {/* Receivable total (auto-computed, override allowed) + currency */}
+            <div className="flex items-center gap-2">
+              <label className="w-40 font-semibold text-sm shrink-0">Receivable Total</label>
               <div className="flex-1 flex gap-1">
                 <select
                   className="border border-gray-400 px-1 py-0.5 text-sm bg-white w-20"
@@ -658,15 +749,15 @@ export default function HotelInvoiceFormPage() {
                 <input
                   type="number"
                   step="0.01"
-                  className="border border-gray-400 px-2 py-0.5 text-sm bg-white flex-1"
+                  className="border border-gray-400 px-2 py-0.5 text-sm bg-yellow-50 flex-1"
                   value={form.receivableSar}
                   onChange={e => onAmountChange("receivable", e.target.value)}
                 />
               </div>
             </div>
-            {/* Payable amount + currency */}
+            {/* Payable total (auto-computed, override allowed) + currency */}
             <div className="flex items-center gap-2">
-              <label className="w-40 font-semibold text-sm shrink-0">Payable Amount</label>
+              <label className="w-40 font-semibold text-sm shrink-0">Payable Total</label>
               <div className="flex-1 flex gap-1">
                 <select
                   className="border border-gray-400 px-1 py-0.5 text-sm bg-white w-20"
@@ -678,7 +769,7 @@ export default function HotelInvoiceFormPage() {
                 <input
                   type="number"
                   step="0.01"
-                  className="border border-gray-400 px-2 py-0.5 text-sm bg-white flex-1"
+                  className="border border-gray-400 px-2 py-0.5 text-sm bg-yellow-50 flex-1"
                   value={form.payableSar}
                   onChange={e => onAmountChange("payable", e.target.value)}
                 />
@@ -883,9 +974,13 @@ export default function HotelInvoiceFormPage() {
                 <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.checkOut || "—"}</td>
                 <td style={{ padding: "5px", textAlign: "center", border: "1px solid #ddd" }}>{form.noOfNights || "—"}</td>
                 <td style={{ padding: "5px", textAlign: "right", border: "1px solid #ddd" }}>
-                  {Number(form.receivableSar) > 0
-                    ? Number(form.receivableSar).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : "—"}
+                  {(() => {
+                    const nights = Number(form.noOfNights) || 0;
+                    const rooms  = Number(form.noOfRooms)  || 1;
+                    const total  = Number(form.receivableSar) || 0;
+                    const rate   = Number(receivableRatePerNight) || (nights > 0 && rooms > 0 && total > 0 ? total / (nights * rooms) : 0);
+                    return rate > 0 ? rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+                  })()}
                 </td>
               </tr>
             </tbody>
@@ -894,15 +989,31 @@ export default function HotelInvoiceFormPage() {
 
         {/* Totals */}
         <div style={{ padding: "0 24px 8px", display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ fontSize: "12px", minWidth: "280px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "1px solid #e5e7eb" }}>
-              <span><strong>Net Accommodation Charges SAR:</strong></span>
-              <span>{Number(form.receivableSar) > 0 ? Number(form.receivableSar).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "2px solid #1e3a5f", marginTop: "2px" }}>
-              <span><strong>Balance SAR:</strong></span>
-              <span><strong>{Number(form.receivableSar) > 0 ? Number(form.receivableSar).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}</strong></span>
-            </div>
+          <div style={{ fontSize: "12px", minWidth: "320px" }}>
+            {(() => {
+              const nights = Number(form.noOfNights) || 0;
+              const rooms  = Number(form.noOfRooms)  || 1;
+              const total  = Number(form.receivableSar) || 0;
+              const rate   = Number(receivableRatePerNight) || (nights > 0 && rooms > 0 && total > 0 ? total / (nights * rooms) : 0);
+              return (
+                <>
+                  {rate > 0 && nights > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "1px solid #e5e7eb", color: "#555", fontSize: "11px" }}>
+                      <span>{rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {nights} nights × {rooms} rooms</span>
+                      <span>= {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "1px solid #e5e7eb" }}>
+                    <span><strong>Net Accommodation Charges SAR:</strong></span>
+                    <span>{total > 0 ? total.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "2px solid #1e3a5f", marginTop: "2px" }}>
+                    <span><strong>Balance SAR:</strong></span>
+                    <span><strong>{total > 0 ? total.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "0.00"}</strong></span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 
