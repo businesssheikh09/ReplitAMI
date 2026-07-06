@@ -46,13 +46,13 @@ router.post(
     }
     try {
       const uuid = randomUUID();
-      const objectPath = `logos/${uuid}.${ext}`;
-      const localPath = await objectStorageService.uploadBuffer(
-        objectPath,
+      const relPath = `logos/${uuid}.${ext}`;
+      await objectStorageService.uploadPublicBuffer(
+        relPath,
         req.file.buffer,
         req.file.mimetype,
       );
-      const url = `/api/storage/objects/${localPath.replace(/^\/objects\//, "")}`;
+      const url = `/api/storage/public-objects/${relPath}`;
       res.json({ url });
     } catch (err) {
       req.log.error({ err }, "Logo upload failed");

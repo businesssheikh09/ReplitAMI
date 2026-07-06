@@ -201,6 +201,24 @@ export class ObjectStorageService {
     return `/objects/${objectPath}`;
   }
 
+  /**
+   * Upload a buffer to the first public search path.
+   * Returns the relative file path (e.g. "logos/<uuid>.ext") which can be
+   * served unauthenticated via GET /api/storage/public-objects/<relPath>.
+   */
+  async uploadPublicBuffer(relPath: string, buffer: Buffer, contentType: string): Promise<string> {
+    const searchPaths = this.getPublicObjectSearchPaths();
+    const publicDir = searchPaths[0];
+    let dir = publicDir;
+    if (!dir.endsWith("/")) dir = `${dir}/`;
+    const fullPath = `${dir}${relPath}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(buffer, { contentType });
+    return relPath;
+  }
+
   async canAccessObjectEntity({
     userId,
     objectFile,
