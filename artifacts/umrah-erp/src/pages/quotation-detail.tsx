@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useGetQuotation, useUpdateQuotation, useAddQuotationItem, useDeleteQuotationItem, useSendQuotation, QuotationItemInputServiceType } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,25 +11,101 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Trash2, Send, Edit2, Printer, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Send, Edit2, Printer, CheckCircle, XCircle, ArrowRightLeft } from "lucide-react";
 
 const SERVICE_TYPES = Object.values(QuotationItemInputServiceType) as QuotationItemInputServiceType[];
-const CURRENCIES = ["PKR", "SAR", "USD", "GBP", "EUR", "AED"];
+const CURRENCIES = ["USD", "PKR", "SAR", "GBP", "EUR", "AED", "OMR", "KWD", "QAR"];
+
+const SERVICE_COLORS: Record<string, string> = {
+  hotel: "bg-blue-50 text-blue-700 border-blue-200",
+  flight: "bg-purple-50 text-purple-700 border-purple-200",
+  transport: "bg-orange-50 text-orange-700 border-orange-200",
+  visa: "bg-green-50 text-green-700 border-green-200",
+  other: "bg-gray-50 text-gray-700 border-gray-200",
+};
+
+function fmt(amount: number, currency: string) {
+  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function useCurrencyRates() {
+  return useQuery<Record<string, number>>({
+    queryKey: ["currency-rates"],
+    queryFn: () =>
+      fetch("/api/currency/rates").then((r) => r.json()).then((d) => d.rates || {}),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+function convertToBase(amount: number, fromCurrency: string, baseCurrency: string, rates: Record<string, number>): number | null {
+  if (fromCurrency === baseCurrency) return amount;
+  const fromRate = rates[fromCurrency];
+  const toRate = rates[baseCurrency];
+  if (!fromRate || !toRate) return null;
+  return (amount / fromRate) * toRate;
+}
+
+function CurrencyConverter({ itemCurrency, baseCurrency, unitPrice, quantity, rates }: {
+  itemCurrency: string; baseCurrency: string; unitPrice: number; quantity: number; rates: Record<string, number>;
+}) {
+  if (itemCurrency === baseCurrency) return null;
+  const converted = convertToBase(unitPrice * quantity, itemCurrency, baseCurrency, rates);
+  if (converted == null) return (
+    <p className="text-xs text-amber-600 mt-1">No rate found for {itemCurrency} → {baseCurrency}</p>
+  );
+  return (
+    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-teal-700 bg-teal-50 rounded-md px-2 py-1">
+      <ArrowRightLeft className="h-3 w-3" />
+      <span>{fmt(unitPrice * quantity, itemCurrency)} = <strong>{fmt(converted, baseCurrency)}</strong></span>
+    </div>
+  );
+}
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [itemForm, setItemForm] = useState<{ serviceType: QuotationItemInputServiceType; description: string; quantity: number; unitPrice: number; notes: string }>({ serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, notes: "" });
+
+  const [itemForm, setItemForm] = useState<{
+    serviceType: QuotationItemInputServiceType;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    currency: string;
+    notes: string;
+  }>({
+    serviceType: QuotationItemInputServiceType.hotel,
+    description: "",
+    quantity: 1,
+    unitPrice: 0,
+    currency: "USD",
+    notes: "",
+  });
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", validUntil: "", currency: "PKR", discount: "", notes: "", termsAndConditions: "" });
+  const [editForm, setEditForm] = useState({ title: "", validUntil: "", currency: "USD", discount: "", notes: "", termsAndConditions: "" });
 
   const { data: quotation, isLoading } = useGetQuotation(Number(id));
-  const addItem = useAddQuotationItem({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); setItemForm({ serviceType: QuotationItemInputServiceType.hotel, description: "", quantity: 1, unitPrice: 0, notes: "" }); toast({ title: "Item added" }); } } });
-  const deleteItem = useDeleteQuotationItem({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Item removed" }); } } });
-  const sendQuotation = useSendQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Quotation sent to client" }); } } });
-  const updateQuotation = useUpdateQuotation({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Quotation updated" }); setEditOpen(false); } } });
+  const { data: rates = {} } = useCurrencyRates();
+
+  const addItem = useAddQuotationItem({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] });
+        setItemForm(p => ({ ...p, description: "", quantity: 1, unitPrice: 0 }));
+        toast({ title: "Item added" });
+      },
+    },
+  });
+  const deleteItem = useDeleteQuotationItem({
+    mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Item removed" }); } },
+  });
+  const sendQuotation = useSendQuotation({
+    mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Quotation sent to client" }); } },
+  });
+  const updateQuotation = useUpdateQuotation({
+    mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/quotations", Number(id)] }); toast({ title: "Quotation updated" }); setEditOpen(false); } },
+  });
 
   const q = quotation as any;
 
@@ -38,13 +114,33 @@ export default function QuotationDetailPage() {
       setEditForm({
         title: q.title || "",
         validUntil: q.validUntil ? q.validUntil.split("T")[0] : "",
-        currency: q.currency || "PKR",
+        currency: q.currency || "USD",
         discount: q.discount != null ? String(q.discount) : "",
         notes: q.notes || "",
         termsAndConditions: q.termsAndConditions || "",
       });
+      setItemForm(p => ({ ...p, currency: q.currency || "USD" }));
     }
   }, [quotation]);
+
+  const itemConvertedPrice = useMemo(() => {
+    if (!q) return null;
+    if (itemForm.currency === q.currency) return null;
+    return convertToBase(itemForm.unitPrice * itemForm.quantity, itemForm.currency, q.currency, rates);
+  }, [itemForm.currency, itemForm.unitPrice, itemForm.quantity, q, rates]);
+
+  function handleAddItem() {
+    const unitPriceBase = itemForm.currency !== q?.currency
+      ? convertToBase(itemForm.unitPrice, itemForm.currency, q.currency, rates) ?? undefined
+      : undefined;
+    addItem.mutate({
+      id: Number(id),
+      data: {
+        ...itemForm,
+        unitPriceBase,
+      } as any,
+    });
+  }
 
   function handleSaveEdit() {
     updateQuotation.mutate({
@@ -60,39 +156,138 @@ export default function QuotationDetailPage() {
     });
   }
 
-  function handlePrint() {
-    window.print();
-  }
+  function handlePrint() { window.print(); }
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading...</div>;
   if (!quotation) return <div className="p-6">Quotation not found.</div>;
 
   const items = q.items || [];
-  const statusColor = q.status === "accepted" ? "bg-green-100 text-green-700" : q.status === "sent" ? "bg-blue-100 text-blue-700" : q.status === "rejected" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700";
+  const baseCurrency = q.currency || "USD";
+  const statusColor = q.status === "accepted"
+    ? "bg-green-100 text-green-700" : q.status === "sent"
+    ? "bg-blue-100 text-blue-700" : q.status === "rejected"
+    ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700";
+
+  const hasMixedCurrencies = items.some((i: any) => i.currency && i.currency !== baseCurrency);
 
   return (
     <>
-      {/* Print-only styles */}
+      {/* ── Print Styles ─────────────────────────────────────────────────────── */}
       <style>{`
         @media print {
-          nav, aside, header, .print\\:hidden, button { display: none !important; }
-          .print-show { display: block !important; }
-          body { font-family: Arial, sans-serif; }
+          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { font-family: 'Arial', sans-serif; margin: 0; padding: 0; background: white; }
+          .print-hide { display: none !important; }
+          .print-only { display: block !important; }
+          .print-page {
+            display: block !important;
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 9999;
+            padding: 32px 40px;
+            box-sizing: border-box;
+          }
         }
-        @media screen { .print-show { display: none; } }
+        @media screen {
+          .print-only { display: none; }
+          .print-page { display: none; }
+        }
       `}</style>
 
-      {/* Print-only header */}
-      <div className="print-show mb-6 border-b-2 border-gray-800 pb-4">
-        <div className="text-xl font-bold">Al Musafir International</div>
-        <div className="text-sm text-gray-600">Umrah Travel Agency</div>
-        <div className="mt-3 text-lg font-semibold">QUOTATION — {q.referenceNo}</div>
-        <div className="text-sm text-gray-600">Client: {q.clientName} | Date: {new Date(q.createdAt).toLocaleDateString()} | Valid Until: {q.validUntil ? new Date(q.validUntil).toLocaleDateString() : "—"}</div>
+      {/* ── Print Layout (shown only when printing) ───────────────────────── */}
+      <div className="print-page">
+        {/* Company Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #0f766e", paddingBottom: "16px", marginBottom: "20px" }}>
+          <div>
+            <div style={{ fontSize: "22px", fontWeight: "800", color: "#0f766e", letterSpacing: "-0.5px" }}>Al Musafir International</div>
+            <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>Umrah Travel Agency · Licensed & Certified</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "18px", fontWeight: "700", color: "#111827" }}>QUOTATION</div>
+            <div style={{ fontSize: "13px", fontWeight: "600", color: "#0f766e" }}>{q.referenceNo}</div>
+            <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>
+              Date: {new Date(q.createdAt).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}
+            </div>
+          </div>
+        </div>
+
+        {/* Client & Summary Info */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+          {[
+            { label: "Client", value: q.clientName },
+            { label: "Package", value: q.title || "—" },
+            { label: "Valid Until", value: q.validUntil ? new Date(q.validUntil).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
+            { label: "Total Amount", value: fmt(q.totalAmount || 0, baseCurrency), highlight: true },
+          ].map(({ label, value, highlight }) => (
+            <div key={label} style={{ background: highlight ? "#f0fdf4" : "#f9fafb", border: `1px solid ${highlight ? "#bbf7d0" : "#e5e7eb"}`, borderRadius: "8px", padding: "10px 12px" }}>
+              <div style={{ fontSize: "10px", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "3px" }}>{label}</div>
+              <div style={{ fontSize: highlight ? "15px" : "13px", fontWeight: highlight ? "800" : "600", color: highlight ? "#15803d" : "#111827" }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Line Items Table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px", fontSize: "12px" }}>
+          <thead>
+            <tr style={{ background: "#0f766e" }}>
+              {["Service", "Description", "Qty", "Unit Price", hasMixedCurrencies ? "Currency" : "", "Total", hasMixedCurrencies ? `In ${baseCurrency}` : ""].filter(Boolean).map((h) => (
+                <th key={h} style={{ padding: "8px 10px", color: "white", fontWeight: "600", textAlign: h === "Description" ? "left" : "center", fontSize: "11px" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item: any, idx: number) => (
+              <tr key={item.id} style={{ background: idx % 2 === 0 ? "white" : "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+                <td style={{ padding: "8px 10px", textAlign: "center" }}>
+                  <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: "999px", fontSize: "10px", fontWeight: "600", background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}>
+                    {item.serviceType}
+                  </span>
+                </td>
+                <td style={{ padding: "8px 10px", color: "#111827" }}>{item.description}</td>
+                <td style={{ padding: "8px 10px", textAlign: "center", color: "#374151" }}>{item.quantity}</td>
+                <td style={{ padding: "8px 10px", textAlign: "center", color: "#374151" }}>{fmt(Number(item.unitPrice), item.currency || baseCurrency)}</td>
+                {hasMixedCurrencies && (
+                  <td style={{ padding: "8px 10px", textAlign: "center", fontSize: "10px", color: "#6b7280" }}>{item.currency || baseCurrency}</td>
+                )}
+                <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#111827" }}>{fmt(Number(item.totalPrice), item.currency || baseCurrency)}</td>
+                {hasMixedCurrencies && (
+                  <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#0f766e" }}>
+                    {item.totalPriceBase != null ? fmt(Number(item.totalPriceBase), baseCurrency) : fmt(Number(item.totalPrice), baseCurrency)}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #0f766e" }}>
+              <td colSpan={hasMixedCurrencies ? 5 : 3} style={{ padding: "10px", textAlign: "right", fontWeight: "700", fontSize: "13px", color: "#111827" }}>Grand Total</td>
+              <td colSpan={hasMixedCurrencies ? 2 : 2} style={{ padding: "10px", textAlign: "center", fontWeight: "800", fontSize: "14px", color: "#15803d" }}>
+                {fmt(q.totalAmount || 0, baseCurrency)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Terms & Conditions */}
+        {q.termsAndConditions && (
+          <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "12px", marginBottom: "16px" }}>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#374151", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Terms & Conditions</div>
+            <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: "1.6", whiteSpace: "pre-line" }}>{q.termsAndConditions}</div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ borderTop: "2px solid #0f766e", paddingTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: "10px", color: "#9ca3af" }}>Al Musafir International · Umrah Travel Agency</div>
+          <div style={{ fontSize: "10px", color: "#9ca3af" }}>This quotation is valid until {q.validUntil ? new Date(q.validUntil).toLocaleDateString("en-PK") : "—"}</div>
+        </div>
       </div>
 
-      <div className="space-y-6">
+      {/* ── Screen Layout ─────────────────────────────────────────────────────── */}
+      <div className="space-y-6 print-hide">
         {/* Header toolbar */}
-        <div className="flex items-center gap-4 print:hidden">
+        <div className="flex items-center gap-4">
           <Link href="/quotations"><Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button></Link>
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -115,36 +310,24 @@ export default function QuotationDetailPage() {
                 onClick={() => sendQuotation.mutate({ id: Number(id) })}
                 disabled={sendQuotation.isPending}
               >
-                <Send className="mr-2 h-4 w-4" />
-                Send Quotation
+                <Send className="mr-2 h-4 w-4" />Send Quotation
               </Button>
             )}
             {q.status === "sent" && (
               <>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => updateQuotation.mutate({ id: Number(id), data: { status: "accepted" } as any })}
-                >
+                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => updateQuotation.mutate({ id: Number(id), data: { status: "accepted" } as any })}>
                   <CheckCircle className="mr-2 h-4 w-4" />Accept
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                  onClick={() => updateQuotation.mutate({ id: Number(id), data: { status: "rejected" } as any })}
-                >
+                <Button size="sm" variant="outline" className="border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={() => updateQuotation.mutate({ id: Number(id), data: { status: "rejected" } as any })}>
                   <XCircle className="mr-2 h-4 w-4" />Reject
                 </Button>
               </>
             )}
             {q.status === "draft" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-green-300 text-green-700 hover:bg-green-50"
-                onClick={() => updateQuotation.mutate({ id: Number(id), data: { status: "accepted" } as any })}
-              >
+              <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50"
+                onClick={() => updateQuotation.mutate({ id: Number(id), data: { status: "accepted" } as any })}>
                 <CheckCircle className="mr-2 h-4 w-4" />Approve Directly
               </Button>
             )}
@@ -154,67 +337,180 @@ export default function QuotationDetailPage() {
         {/* Summary cards */}
         <div className="grid grid-cols-4 gap-4">
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Client</div><div className="font-semibold">{q.clientName}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Total Amount</div><div className="text-2xl font-bold text-green-600">{q.currency} {(q.totalAmount || 0).toLocaleString()}</div></CardContent></Card>
+          <Card><CardContent className="pt-6">
+            <div className="text-xs text-muted-foreground">Total Amount</div>
+            <div className="text-2xl font-bold text-green-600">{fmt(q.totalAmount || 0, baseCurrency)}</div>
+            {hasMixedCurrencies && <div className="text-xs text-muted-foreground mt-1">Converted to {baseCurrency}</div>}
+          </CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Valid Until</div><div className="font-semibold">{q.validUntil ? new Date(q.validUntil).toLocaleDateString() : "—"}</div></CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Created</div><div className="font-semibold">{new Date(q.createdAt).toLocaleDateString()}</div></CardContent></Card>
         </div>
 
         {/* Line items */}
         <Card>
-          <CardHeader><CardTitle>Line Items</CardTitle></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Line Items</CardTitle>
+              {hasMixedCurrencies && (
+                <span className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2.5 py-1 flex items-center gap-1">
+                  <ArrowRightLeft className="h-3 w-3" /> Multi-currency — totals converted to {baseCurrency}
+                </span>
+              )}
+            </div>
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Service</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Unit Price</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead className="print:hidden"></TableHead>
+                  <TableHead className="text-center">Qty</TableHead>
+                  <TableHead className="text-center">Unit Price</TableHead>
+                  <TableHead className="text-center">Total</TableHead>
+                  {hasMixedCurrencies && <TableHead className="text-center text-teal-700">In {baseCurrency}</TableHead>}
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No items added yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No items added yet</TableCell></TableRow>
                 )}
-                {items.map((item: any) => (
-                  <TableRow key={item.id}>
-                    <TableCell><Badge variant="outline">{item.serviceType}</Badge></TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>{q.currency} {Number(item.unitPrice).toLocaleString()}</TableCell>
-                    <TableCell className="font-semibold">{q.currency} {Number(item.totalPrice).toLocaleString()}</TableCell>
-                    <TableCell className="print:hidden">
-                      <Button size="sm" variant="ghost" onClick={() => deleteItem.mutate({ id: Number(id), itemId: item.id })}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {items.map((item: any) => {
+                  const itemCurr = item.currency || baseCurrency;
+                  const isDifferent = itemCurr !== baseCurrency;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${SERVICE_COLORS[item.serviceType] || SERVICE_COLORS.other}`}>
+                          {item.serviceType}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-xs">{item.description}</TableCell>
+                      <TableCell className="text-center">{item.quantity}</TableCell>
+                      <TableCell className="text-center text-muted-foreground">
+                        {fmt(Number(item.unitPrice), itemCurr)}
+                        {isDifferent && <div className="text-xs text-muted-foreground/60">{itemCurr}</div>}
+                      </TableCell>
+                      <TableCell className="text-center font-semibold">
+                        {fmt(Number(item.totalPrice), itemCurr)}
+                      </TableCell>
+                      {hasMixedCurrencies && (
+                        <TableCell className="text-center font-semibold text-teal-700">
+                          {isDifferent
+                            ? (item.totalPriceBase != null ? fmt(Number(item.totalPriceBase), baseCurrency) : <span className="text-amber-500 text-xs">No rate</span>)
+                            : fmt(Number(item.totalPrice), baseCurrency)}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        {q.status === "draft" && (
+                          <Button size="sm" variant="ghost" onClick={() => deleteItem.mutate({ id: Number(id), itemId: item.id })}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {items.length > 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-right font-bold">Grand Total</TableCell>
-                    <TableCell className="font-bold text-green-600">{q.currency} {(q.totalAmount || 0).toLocaleString()}</TableCell>
-                    <TableCell className="print:hidden" />
+                  <TableRow className="bg-muted/30">
+                    <TableCell colSpan={hasMixedCurrencies ? 5 : 4} className="text-right font-bold">Grand Total</TableCell>
+                    <TableCell className="text-center font-bold text-green-600 text-base">{fmt(q.totalAmount || 0, baseCurrency)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 )}
               </TableBody>
             </Table>
 
+            {/* Add Item Form */}
             {q.status === "draft" && (
-              <div className="mt-6 p-4 border rounded-lg bg-muted/30 print:hidden">
-                <h4 className="font-medium mb-3">Add Line Item</h4>
-                <div className="grid grid-cols-5 gap-3">
-                  <Select value={itemForm.serviceType} onValueChange={v => setItemForm(p => ({ ...p, serviceType: v as QuotationItemInputServiceType }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{SERVICE_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</SelectItem>)}</SelectContent>
+              <div className="mt-6 p-4 border rounded-xl bg-muted/20">
+                <h4 className="font-semibold mb-3 text-sm">Add Line Item</h4>
+                <div className="grid grid-cols-6 gap-3">
+                  {/* Service Type */}
+                  <Select
+                    value={itemForm.serviceType}
+                    onValueChange={v => setItemForm(p => ({ ...p, serviceType: v as QuotationItemInputServiceType }))}
+                  >
+                    <SelectTrigger className="col-span-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SERVICE_TYPES.map(t => (
+                        <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
-                  <Input placeholder="Description" value={itemForm.description} onChange={e => setItemForm(p => ({ ...p, description: e.target.value }))} className="col-span-2" />
-                  <Input type="number" placeholder="Qty" value={itemForm.quantity} onChange={e => setItemForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
-                  <Input type="number" placeholder="Unit Price" value={itemForm.unitPrice} onChange={e => setItemForm(p => ({ ...p, unitPrice: Number(e.target.value) }))} />
+
+                  {/* Description */}
+                  <Input
+                    placeholder="Description"
+                    value={itemForm.description}
+                    onChange={e => setItemForm(p => ({ ...p, description: e.target.value }))}
+                    className="col-span-2"
+                  />
+
+                  {/* Qty */}
+                  <Input
+                    type="number"
+                    placeholder="Qty"
+                    min={1}
+                    value={itemForm.quantity}
+                    onChange={e => setItemForm(p => ({ ...p, quantity: Number(e.target.value) }))}
+                  />
+
+                  {/* Currency + Unit Price */}
+                  <div className="flex gap-1.5 col-span-2">
+                    <Select
+                      value={itemForm.currency}
+                      onValueChange={v => setItemForm(p => ({ ...p, currency: v }))}
+                    >
+                      <SelectTrigger className="w-24 shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      placeholder="Unit Price"
+                      value={itemForm.unitPrice || ""}
+                      onChange={e => setItemForm(p => ({ ...p, unitPrice: Number(e.target.value) }))}
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
-                <Button className="mt-3" onClick={() => addItem.mutate({ id: Number(id), data: itemForm })} disabled={!itemForm.description || !itemForm.unitPrice || addItem.isPending}>
+
+                {/* Conversion Calculator */}
+                {itemForm.unitPrice > 0 && (
+                  <div className="mt-2">
+                    {itemForm.currency === baseCurrency ? (
+                      <p className="text-xs text-muted-foreground">
+                        Total: <strong>{fmt(itemForm.unitPrice * itemForm.quantity, baseCurrency)}</strong>
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-1.5 border ${itemConvertedPrice != null ? "bg-teal-50 text-teal-800 border-teal-200" : "bg-amber-50 text-amber-800 border-amber-200"}`}>
+                          <ArrowRightLeft className="h-3.5 w-3.5" />
+                          {itemConvertedPrice != null ? (
+                            <span>
+                              {fmt(itemForm.unitPrice * itemForm.quantity, itemForm.currency)}
+                              {" = "}
+                              <strong>{fmt(itemConvertedPrice, baseCurrency)}</strong>
+                              {" (used for grand total)"}
+                            </span>
+                          ) : (
+                            <span>No exchange rate found for {itemForm.currency} → {baseCurrency}. Grand total may be inaccurate.</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  className="mt-3 bg-teal-600 hover:bg-teal-700 text-white"
+                  onClick={handleAddItem}
+                  disabled={!itemForm.description || !itemForm.unitPrice || addItem.isPending}
+                >
                   <Plus className="mr-2 h-4 w-4" />Add Item
                 </Button>
               </div>
@@ -229,8 +525,8 @@ export default function QuotationDetailPage() {
           </Card>
         )}
         {q.notes && (
-          <Card className="print:hidden">
-            <CardHeader><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Internal Notes</CardTitle></CardHeader>
             <CardContent><p className="text-sm text-muted-foreground">{q.notes}</p></CardContent>
           </Card>
         )}
@@ -239,9 +535,7 @@ export default function QuotationDetailPage() {
       {/* Edit modal */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Quotation</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Edit Quotation</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label>Title</Label>
@@ -249,11 +543,12 @@ export default function QuotationDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>Currency</Label>
+                <Label>Base Currency</Label>
                 <Select value={editForm.currency} onValueChange={v => setEditForm(p => ({ ...p, currency: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">Grand total shown in this currency</p>
               </div>
               <div className="space-y-1">
                 <Label>Valid Until</Label>

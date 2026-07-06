@@ -97,6 +97,7 @@ router.get("/quotations/:id", requireAuth, async (req, res) => {
         ...i,
         unitPrice: parseFloat(i.unitPrice),
         totalPrice: parseFloat(i.totalPrice),
+        totalPriceBase: i.totalPriceBase != null ? parseFloat(i.totalPriceBase) : null,
       })),
     });
   } catch (err) {
@@ -146,6 +147,10 @@ router.post("/quotations/:id/items", requireAuth, async (req, res) => {
     const unitPrice = req.body.unitPrice;
     const quantity = req.body.quantity || 1;
     const totalPrice = unitPrice * quantity;
+    const currency = req.body.currency || "USD";
+    const unitPriceBase = req.body.unitPriceBase;
+    const totalPriceBase = unitPriceBase != null ? (unitPriceBase * quantity).toString() : null;
+
     const [item] = await db.insert(quotationItemsTable).values({
       quotationId,
       serviceType: req.body.serviceType,
@@ -153,18 +158,24 @@ router.post("/quotations/:id/items", requireAuth, async (req, res) => {
       quantity,
       unitPrice: unitPrice.toString(),
       totalPrice: totalPrice.toString(),
+      currency,
+      totalPriceBase,
       notes: req.body.notes,
     }).returning();
 
-    // Recalculate total
+    // Recalculate total using base-converted values when available
     const allItems = await db.select().from(quotationItemsTable).where(eq(quotationItemsTable.quotationId, quotationId));
-    const newTotal = allItems.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0);
+    const newTotal = allItems.reduce((sum, i) => {
+      const base = i.totalPriceBase != null ? parseFloat(i.totalPriceBase) : parseFloat(i.totalPrice);
+      return sum + base;
+    }, 0);
     await db.update(quotationsTable).set({ totalAmount: newTotal.toString() }).where(eq(quotationsTable.id, quotationId));
 
     return res.status(201).json({
       ...item,
       unitPrice: parseFloat(item.unitPrice),
       totalPrice: parseFloat(item.totalPrice),
+      totalPriceBase: item.totalPriceBase != null ? parseFloat(item.totalPriceBase) : null,
     });
   } catch (err) {
     req.log.error({ err }, "Add quotation item error");
@@ -210,7 +221,10 @@ router.delete("/quotations/:id/items/:itemId", requireAuth, async (req, res) => 
     const quotationId = parseInt(String(req.params.id));
     await db.delete(quotationItemsTable).where(eq(quotationItemsTable.id, itemId));
     const allItems = await db.select().from(quotationItemsTable).where(eq(quotationItemsTable.quotationId, quotationId));
-    const newTotal = allItems.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0);
+    const newTotal = allItems.reduce((sum, i) => {
+      const base = i.totalPriceBase != null ? parseFloat(i.totalPriceBase) : parseFloat(i.totalPrice);
+      return sum + base;
+    }, 0);
     await db.update(quotationsTable).set({ totalAmount: newTotal.toString() }).where(eq(quotationsTable.id, quotationId));
     return res.json({ message: "Item deleted" });
   } catch (err) {

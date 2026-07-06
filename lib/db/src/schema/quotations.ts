@@ -26,6 +26,8 @@ export const quotationItemsTable = pgTable("quotation_items", {
   quantity: integer("quantity").notNull().default(1),
   unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
   totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("USD"),
+  totalPriceBase: numeric("total_price_base", { precision: 12, scale: 2 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
