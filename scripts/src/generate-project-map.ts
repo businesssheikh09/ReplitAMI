@@ -85,6 +85,19 @@ function arrowH(x1: number, y: number, x2: number, color: string) {
   doc.restore();
 }
 
+function arrowHL(x1: number, y: number, x2: number, color: string) {
+  // Left-pointing arrow: x1 > x2; arrowhead points at x2
+  const aLen = 7;
+  doc.save();
+  doc.moveTo(x1, y).lineTo(x2 + aLen, y)
+    .strokeColor(color).lineWidth(1.5).stroke();
+  doc.moveTo(x2, y)
+    .lineTo(x2 + aLen, y - 4)
+    .lineTo(x2 + aLen, y + 4)
+    .closePath().fill(color);
+  doc.restore();
+}
+
 function arrowV(x: number, y1: number, y2: number, color: string) {
   const aLen = 7;
   doc.save();
@@ -180,9 +193,9 @@ doc.rect(M, logoY + 80, CW, 1.5).fill(C.sky);
 const descY = logoY + 100;
 doc.fontSize(11).font("Helvetica").fillColor("#e2e8f0")
   .text(
-    "This document is a complete reference guide for the Al Musafir International travel management platform. " +
-    "It covers every module, every user role, how data flows between systems, key operational workflows, " +
-    "and a developer cost estimate — all in plain language so anyone can understand the system at a glance.",
+    "This document is a complete reference guide for the Al Musafir International Umrah travel ERP. " +
+    "It maps every module, every user role, and how data flows between the staff dashboard, public website, and API server. " +
+    "Use it to understand the system at a glance, onboard new developers, or review the full development cost estimate.",
     M, descY, { width: CW, lineGap: 3 }
   );
 
@@ -231,6 +244,7 @@ doc.fontSize(8.5).font("Helvetica").fillColor("#64748b")
   .text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}   •   Confidential — Internal Use Only`,
     M, H - 50, { width: CW, align: "center" });
 
+footer("Cover — Project Overview");
 doc.rect(0, H - 8, W, 8).fill(C.sky);
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -293,7 +307,7 @@ doc.fontSize(7).font("Helvetica-Bold").fillColor(C.muted)
 // Arrows between app boxes
 const p2mid = p2row1Y + p2bH / 2;
 arrowH(p2erpX + p2bW, p2mid, p2apiX, C.navy);
-arrowH(p2webX, p2mid, p2apiX + p2bW, C.sky);
+arrowHL(p2webX, p2mid, p2apiX + p2bW, C.sky);
 doc.fontSize(7).font("Helvetica").fillColor(C.navy)
   .text("REST", p2erpX + p2bW + 2, p2mid - 8, { width: p2gap - 4, lineBreak: false });
 doc.fontSize(7).font("Helvetica").fillColor(C.sky)
