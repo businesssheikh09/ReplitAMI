@@ -71,7 +71,9 @@ function footer(left) {
 }
 function pageTitle(title, subtitle, bgColor = C.navy) {
   doc.rect(0, 0, W, 56).fill(bgColor);
+  safeText(CW, "pageTitle/title");
   doc.fontSize(16).font("Helvetica-Bold").fillColor(C.white).text(title, M, 14, { width: CW });
+  safeText(CW, "pageTitle/subtitle");
   doc.fontSize(9).font("Helvetica").fillColor("#bfdbfe").text(subtitle, M, 34, { width: CW });
 }
 function sectionBar(label, x, y, w, color) {
@@ -121,6 +123,7 @@ function table(x, y, totalW, headers, rows, colW, headerBg, rowH = 20, fontSize 
       let tx = cx2 + 4;
       const cellW = colW[ci] - 8;
       const raw = items[0];
+      safeText(cellW, `table/col${ci}`);
       if (typeof raw === "string") {
         doc.fontSize(fontSize).font("Helvetica").fillColor(C.text).text(raw, tx, ry + (rowH - fontSize - 2) / 2, { width: cellW, lineBreak: false });
       } else {
@@ -134,6 +137,9 @@ function table(x, y, totalW, headers, rows, colW, headerBg, rowH = 20, fontSize 
   });
   doc.rect(x, y, totalW, ry - y).lineWidth(0.5).stroke("#94a3b8");
   return ry;
+}
+function safeText(width, caller) {
+  if (width < 12) throw new Error(`[safeText] width=${width} too small (< 12) in ${caller} \u2014 would hang PDFKit`);
 }
 function safeColor(c, caller) {
   if (c.toLowerCase().startsWith("rgba")) throw new Error(`[safeColor] rgba() colors hang PDFKit in ${caller} \u2014 use hex strings`);
@@ -203,6 +209,7 @@ var p2erpX = M;
 var p2apiX = M + p2bW + p2gap;
 var p2webX = M + 2 * (p2bW + p2gap);
 var p2bH = 140;
+safeText(p2bW - 12, "page2/app-boxes");
 drawBox(p2erpX, p2row1Y, p2bW, p2bH, "#eff6ff", C.navy, 8);
 doc.rect(p2erpX, p2row1Y, p2bW, 26).fill(C.navy);
 doc.fontSize(10).font("Helvetica-Bold").fillColor(C.white).text("ERP Dashboard", p2erpX + 6, p2row1Y + 8, { width: p2bW - 12, lineBreak: false });
@@ -250,6 +257,7 @@ var p2panels = [
   { label: "Monorepo Structure", color: C.purple, items: ["pnpm workspaces \u2014 3 apps + 2 libs", "lib/db (Drizzle schema)", "lib/api-spec (OpenAPI + codegen)"] },
   { label: "Deployment", color: C.green, items: ["Single server + path-based proxy", "One PostgreSQL DB for all services", "esbuild bundle, Node.js 24"] }
 ];
+safeText(p2panelW - 16, "page2/panels");
 p2panels.forEach((p, i) => {
   const px = M + i * (p2panelW + 8);
   drawBox(px, p2panelY, p2panelW, 78, C.lightBg, p.color, 6);
@@ -736,7 +744,7 @@ var costData = [
   { module: "AI / OCR Integration", features: "Document scanning stub, AI settings page, OpenAI key management", hours: 15, status: "done" },
   { module: "ERP Settings & Admin", features: "Website settings, automation, GDS/AI/ERP config pages", hours: 20, status: "done" },
   { module: "Portal Users Management", features: "Staff approval workflow, portal user list, status management", hours: 15, status: "done" },
-  { module: "Testing, Bug Fixes & Polish", features: "Cross-module testing, UI polish, error handling, security hardening", hours: 50, status: "in-progress" }
+  { module: "Testing, Bug Fixes & Polish", features: "Cross-module testing, UI polish, error handling, security hardening", hours: 50, status: "pending" }
 ];
 var workedHours = costData.filter((r) => r.status === "done" || r.status === "in-progress").reduce((s, r) => s + r.hours, 0);
 var pendingHours = costData.filter((r) => r.status === "pending").reduce((s, r) => s + r.hours, 0);

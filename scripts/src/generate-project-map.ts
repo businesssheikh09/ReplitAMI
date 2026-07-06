@@ -54,8 +54,10 @@ function footer(left: string) {
 
 function pageTitle(title: string, subtitle: string, bgColor = C.navy) {
   doc.rect(0, 0, W, 56).fill(bgColor);
+  safeText(CW, "pageTitle/title");
   doc.fontSize(16).font("Helvetica-Bold").fillColor(C.white)
     .text(title, M, 14, { width: CW });
+  safeText(CW, "pageTitle/subtitle");
   doc.fontSize(9).font("Helvetica").fillColor("#bfdbfe")
     .text(subtitle, M, 34, { width: CW });
 }
@@ -137,6 +139,7 @@ function table(
       const cellW = colW[ci] - 8;
       // Simple: each cell is an array of segments or a plain string
       const raw = items[0];
+      safeText(cellW, `table/col${ci}`);
       if (typeof raw === "string") {
         doc.fontSize(fontSize).font("Helvetica").fillColor(C.text)
           .text(raw, tx, ry + (rowH - fontSize - 2) / 2, { width: cellW, lineBreak: false });
@@ -158,6 +161,7 @@ function table(
 
 function bullet(x: number, y: number, w: number, text: string, color = C.navy, size = 8.5): number {
   doc.circle(x + 4, y + size / 2 + 1, 2).fill(color);
+  safeText(w - 10, "bullet");
   doc.fontSize(size).font("Helvetica").fillColor(C.text)
     .text(text, x + 10, y, { width: w - 10 });
   return doc.y + 2;
@@ -274,6 +278,9 @@ const p2apiX = M + p2bW + p2gap;
 const p2webX = M + 2 * (p2bW + p2gap);
 const p2bH = 140;
 
+// Guard: all three boxes use p2bW - 12 as text width
+safeText(p2bW - 12, "page2/app-boxes");
+
 // ERP Box
 drawBox(p2erpX, p2row1Y, p2bW, p2bH, "#eff6ff", C.navy, 8);
 doc.rect(p2erpX, p2row1Y, p2bW, 26).fill(C.navy);
@@ -349,6 +356,8 @@ const p2panels = [
   { label: "Monorepo Structure", color: C.purple, items: ["pnpm workspaces — 3 apps + 2 libs", "lib/db (Drizzle schema)", "lib/api-spec (OpenAPI + codegen)"] },
   { label: "Deployment", color: C.green, items: ["Single server + path-based proxy", "One PostgreSQL DB for all services", "esbuild bundle, Node.js 24"] },
 ];
+// Guard: panels use p2panelW - 16 as text width
+safeText(p2panelW - 16, "page2/panels");
 p2panels.forEach((p, i) => {
   const px = M + i * (p2panelW + 8);
   drawBox(px, p2panelY, p2panelW, 78, C.lightBg, p.color, 6);
@@ -868,7 +877,7 @@ const costData: { module: string; features: string; hours: number; status: Modul
   { module: "AI / OCR Integration", features: "Document scanning stub, AI settings page, OpenAI key management", hours: 15, status: "done" },
   { module: "ERP Settings & Admin", features: "Website settings, automation, GDS/AI/ERP config pages", hours: 20, status: "done" },
   { module: "Portal Users Management", features: "Staff approval workflow, portal user list, status management", hours: 15, status: "done" },
-  { module: "Testing, Bug Fixes & Polish", features: "Cross-module testing, UI polish, error handling, security hardening", hours: 50, status: "in-progress" },
+  { module: "Testing, Bug Fixes & Polish", features: "Cross-module testing, UI polish, error handling, security hardening", hours: 50, status: "pending" },
 ];
 
 const workedHours = costData.filter(r => r.status === "done" || r.status === "in-progress").reduce((s, r) => s + r.hours, 0);
