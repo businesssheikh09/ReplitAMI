@@ -504,7 +504,7 @@ function renderReport(
   data: Record<string, unknown>,
   onNavigate?: (report: ReportType, filters: Record<string, string>) => void,
 ) {
-  const rows: Record<string, unknown>[] = (data.entries ?? data.rows ?? []) as Record<string, unknown>[];
+  const rows: Record<string, unknown>[] = (Array.isArray(data) ? data : (data.entries ?? data.rows ?? [])) as Record<string, unknown>[];
 
   // ── Party Statement ─────────────────────────────────────────
   if (active === "party-statement") {
