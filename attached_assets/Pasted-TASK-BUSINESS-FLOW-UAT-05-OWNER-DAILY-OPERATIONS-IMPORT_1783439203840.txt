@@ -1,0 +1,191 @@
+TASK: BUSINESS FLOW UAT 05 — OWNER DAILY OPERATIONS
+
+IMPORTANT
+
+Read the complete repository.
+
+Read previous UAT-01 to UAT-04 reports.
+
+Do NOT fix bugs.
+
+Do NOT redesign modules.
+
+Do NOT add features.
+
+Only test this business flow exactly as the owner of Al Musafir International would use the ERP every morning.
+
+==================================================
+
+BUSINESS SCENARIO
+
+You are the owner of Al Musafir International.
+
+You open the ERP at the beginning of the day.
+
+Your objective is to know the complete health of the business within 5 minutes.
+
+If any information requires navigating through multiple screens unnecessarily, document it as a business improvement.
+
+==================================================
+
+STEP 1 — Dashboard
+
+Verify the dashboard shows:
+
+• Today's quotations
+• Today's bookings
+• Today's arrivals
+• Today's departures
+• Today's customer payments
+• Today's vendor payments
+• Today's receivables
+• Today's payables
+• Cash balance
+• Bank balance
+• Profit today
+• Pending approvals
+• Pending hotel requests
+
+Verify calculations.
+
+PASS / FAIL
+
+==================================================
+
+STEP 2 — Daily Sales
+
+Verify owner can immediately see:
+
+• Number of quotations today
+• Accepted quotations
+• Bookings confirmed
+• Revenue today
+• Gross profit today
+• Outstanding quotations
+
+PASS / FAIL
+
+==================================================
+
+STEP 3 — Financial Position
+
+Verify owner can view:
+
+• Trial Balance
+• Balance Sheet
+• Profit & Loss
+• Cash Book
+• Bank Book
+• Party Summary
+• Vendor Summary
+
+Verify consistency between all reports.
+
+PASS / FAIL
+
+==================================================
+
+STEP 4 — Outstanding Management
+
+Verify owner can instantly identify:
+
+• Customers who owe money
+• Vendors awaiting payment
+• Partial payments
+• Advance payments
+• Overdue balances
+
+PASS / FAIL
+
+==================================================
+
+STEP 5 — Search & Navigation
+
+Search using:
+
+• Client name
+• Vendor name
+• Hotel
+• Booking number
+• Invoice number
+• Receipt number
+• Voucher number
+• Passport number
+• Mobile number
+
+Judge whether information is found quickly.
+
+PASS / FAIL
+
+==================================================
+
+STEP 6 — Print Review
+
+Review owner-facing reports.
+
+Verify:
+
+• Professional appearance
+• Branding
+• Totals
+• Readability
+• Export readiness
+
+PASS / FAIL
+
+==================================================
+
+STEP 7 — Owner Review
+
+Answer these questions:
+
+Can I know today's business health within five minutes?
+
+Can I immediately know:
+
+• Cash available
+• Bank available
+• Receivables
+• Payables
+• Today's sales
+• Today's profit
+• Pending collections
+• Pending payments
+
+If not,
+
+List every missing KPI.
+
+List every unnecessary click.
+
+List every suggested dashboard improvement.
+
+==================================================
+
+FINAL REPORT
+
+Do NOT fix anything.
+
+Provide only:
+
+Business Flow Status
+
+PASS / FAIL
+
+Dashboard Score
+
+Accounting Visibility Score
+
+Owner Visibility Score
+
+Search Score
+
+Report Score
+
+Bug List
+
+Suggested Improvements
+
+Production Readiness
+
+STOP.
