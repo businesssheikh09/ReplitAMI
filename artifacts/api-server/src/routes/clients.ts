@@ -51,6 +51,15 @@ router.post("/clients", requireAuth, async (req, res) => {
     });
     if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
 
+    // Duplicate email check
+    const emailNorm = String(req.body.email).trim().toLowerCase();
+    const [dup] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+      .from(clientsTable)
+      .where(eq(clientsTable.email, emailNorm));
+    if (dup) {
+      return res.status(409).json({ error: `A client with this email already exists (${dup.name})`, existingId: dup.id });
+    }
+
     const [client] = await db.insert(clientsTable).values({
       name: req.body.name,
       email: req.body.email,

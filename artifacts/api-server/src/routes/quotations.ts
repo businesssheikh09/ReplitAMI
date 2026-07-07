@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
 import { quotationsTable, quotationItemsTable, clientsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -280,6 +280,59 @@ router.post("/quotations/:id/send", requireAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Send quotation error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Convert quotation to booking ──────────────────────────────────────────────
+
+router.post("/quotations/:id/convert-to-booking", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const id = parseInt(String(req.params.id));
+    const [quotation] = await db.select().from(quotationsTable).where(eq(quotationsTable.id, id));
+    if (!quotation) return res.status(404).json({ error: "Quotation not found" });
+
+    if (quotation.bookingNumber) {
+      return res.status(409).json({ error: `Already converted to booking ${quotation.bookingNumber}`, bookingNumber: quotation.bookingNumber });
+    }
+    if (!["draft", "sent"].includes(quotation.status)) {
+      return res.status(400).json({ error: `Cannot convert quotation with status '${quotation.status}'` });
+    }
+
+    // Generate next booking number (BK-YYYY-XXXX)
+    const converted = await db.select({ bn: quotationsTable.bookingNumber }).from(quotationsTable).where(isNotNull(quotationsTable.bookingNumber));
+    const nums = converted.map((q) => {
+      const n = parseInt((q.bn ?? "").split("-").pop() ?? "0");
+      return isNaN(n) ? 0 : n;
+    });
+    const nextSeq = nums.length > 0 ? Math.max(...nums) + 1 : 1001;
+    const bookingNumber = `BK-${new Date().getFullYear()}-${String(nextSeq).padStart(4, "0")}`;
+
+    const [updated] = await db.update(quotationsTable)
+      .set({
+        status: "accepted",
+        bookingNumber,
+        convertedAt: new Date(),
+        convertedBy: user?.id ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotationsTable.id, id))
+      .returning();
+
+    const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, quotation.clientId));
+
+    return res.json({
+      ...updated,
+      clientName: client?.name ?? "",
+      bookingNumber,
+      totalAmount: parseFloat(updated.totalAmount),
+      validUntil: updated.validUntil.toISOString(),
+      createdAt: updated.createdAt.toISOString(),
+      convertedAt: updated.convertedAt?.toISOString() ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Convert to booking error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

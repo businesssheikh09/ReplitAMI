@@ -22,10 +22,13 @@ export const invoicesTable = pgTable("invoices", {
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
   invoiceId: integer("invoice_id").notNull(),
+  receiptNumber: text("receipt_number"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("USD"),
   method: text("method").notNull(),
   reference: text("reference"),
+  notes: text("notes"),
+  collectedBy: integer("collected_by"),
   paidAt: timestamp("paid_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -88,26 +91,22 @@ export const generalJournalTable = pgTable("general_journal", {
 });
 
 // ── Crash-safe atomic sequence counters ──────────────────────────────────────
-// Uses INSERT … ON CONFLICT DO UPDATE SET last_seq = last_seq + 1 RETURNING last_seq
-// so numbers survive restarts and are free of race conditions.
 
 export const journalCountersTable = pgTable("journal_counters", {
-  type: text("type").primaryKey(), // e.g. "JE-2026", "RV-2026"
+  type: text("type").primaryKey(),
   lastSeq: integer("last_seq").notNull().default(0),
 });
 
 // ── Voucher system ────────────────────────────────────────────────────────────
-// RV=Receipt, PV=Payment, JV=Journal, CV=Contra/Cash
 
 export const vouchersTable = pgTable("vouchers", {
   id: serial("id").primaryKey(),
   voucherNumber: text("voucher_number").notNull().unique(),
-  type: text("type").notNull(),          // RV | PV | JV | CV
+  type: text("type").notNull(),
   date: date("date").notNull(),
   narration: text("narration").notNull(),
-  status: text("status").notNull().default("draft"), // draft | approved | posted | cancelled
+  status: text("status").notNull().default("draft"),
 
-  // Optional source record links
   partyId: integer("party_id"),
   vendorId: integer("vendor_id"),
   hotelInvoiceId: integer("hotel_invoice_id"),
@@ -115,10 +114,8 @@ export const vouchersTable = pgTable("vouchers", {
   transportId: integer("transport_id"),
   visaId: integer("visa_id"),
 
-  // Reversal tracking
   reversalOf: integer("reversal_of"),
 
-  // Full audit trail
   createdBy: integer("created_by").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedBy: integer("updated_by"),
@@ -146,10 +143,10 @@ export const voucherLinesTable = pgTable("voucher_lines", {
 
 export const financialYearsTable = pgTable("financial_years", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),         // "FY 2024-25"
+  name: text("name").notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
-  status: text("status").notNull().default("open"), // open | closed
+  status: text("status").notNull().default("open"),
   closedBy: integer("closed_by"),
   closedAt: timestamp("closed_at"),
   createdBy: integer("created_by"),

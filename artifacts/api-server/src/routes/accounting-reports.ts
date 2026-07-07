@@ -1167,4 +1167,155 @@ router.get("/accounting/reports/fx-ledger", requireAuth, async (req, res) => {
   }
 });
 
+// ── Profit & Loss ─────────────────────────────────────────────────────────────
+
+router.get("/accounting/reports/profit-loss", requireAuth, async (req, res) => {
+  try {
+    const { from, to } = req.query as Record<string, string>;
+
+    const accounts = await db.select().from(chartOfAccountsTable);
+    let entries = await db.select().from(generalJournalTable).orderBy(asc(generalJournalTable.date));
+    if (from) entries = entries.filter((e) => e.date >= new Date(from));
+    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); entries = entries.filter((e) => e.date <= t); }
+
+    const acctMap = new Map(accounts.map((a) => [a.id, a]));
+
+    // Revenue = net CR in revenue-type accounts
+    // Expense = net DR in expense-type accounts
+    const revByAcct = new Map<number, number>();
+    const expByAcct = new Map<number, number>();
+
+    for (const e of entries) {
+      const amt = parseFloat(e.amount);
+      const crAcct = acctMap.get(e.creditAccountId);
+      const drAcct = acctMap.get(e.debitAccountId);
+
+      if (crAcct?.type === "revenue") {
+        revByAcct.set(e.creditAccountId, (revByAcct.get(e.creditAccountId) ?? 0) + amt);
+      }
+      if (drAcct?.type === "revenue") {
+        revByAcct.set(e.debitAccountId, (revByAcct.get(e.debitAccountId) ?? 0) - amt);
+      }
+      if (drAcct?.type === "expense") {
+        expByAcct.set(e.debitAccountId, (expByAcct.get(e.debitAccountId) ?? 0) + amt);
+      }
+      if (crAcct?.type === "expense") {
+        expByAcct.set(e.creditAccountId, (expByAcct.get(e.creditAccountId) ?? 0) - amt);
+      }
+    }
+
+    // Cost of Sales = HOTEL DR side going to vendor/vendor_ledger accounts
+    const hotelAcct = accounts.find((a) => a.code === "HOTEL");
+    let costOfSales = 0;
+    if (hotelAcct) {
+      for (const e of entries) {
+        if (e.debitAccountId === hotelAcct.id) {
+          const crAcct = acctMap.get(e.creditAccountId);
+          if (crAcct && (crAcct.type === "liability" || crAcct.type === "vendor_ledger")) {
+            costOfSales += parseFloat(e.amount);
+          }
+        }
+      }
+    }
+
+    const revenueLines = accounts
+      .filter((a) => a.type === "revenue")
+      .map((a) => ({ account: a, amount: revByAcct.get(a.id) ?? 0 }))
+      .filter((l) => l.amount !== 0);
+
+    const expenseLines = accounts
+      .filter((a) => a.type === "expense")
+      .map((a) => ({ account: a, amount: expByAcct.get(a.id) ?? 0 }))
+      .filter((l) => l.amount !== 0);
+
+    const totalRevenue = revenueLines.reduce((s, l) => s + l.amount, 0);
+    const totalExpenses = expenseLines.reduce((s, l) => s + l.amount, 0);
+    const grossProfit = totalRevenue - costOfSales;
+    const netProfit = grossProfit - totalExpenses;
+
+    return res.json({
+      period: { from: from ?? null, to: to ?? null },
+      revenue: revenueLines,
+      expenses: expenseLines,
+      totalRevenue,
+      totalExpenses,
+      costOfSales,
+      grossProfit,
+      netProfit,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Profit & Loss error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Balance Sheet ─────────────────────────────────────────────────────────────
+
+router.get("/accounting/reports/balance-sheet", requireAuth, async (req, res) => {
+  try {
+    const { asAt } = req.query as Record<string, string>;
+
+    const accounts = await db.select().from(chartOfAccountsTable);
+    let entries = await db.select().from(generalJournalTable).orderBy(asc(generalJournalTable.date));
+    if (asAt) { const t = new Date(asAt); t.setHours(23, 59, 59, 999); entries = entries.filter((e) => e.date <= t); }
+
+    // Accumulate DR/CR per account
+    const totals: Record<number, { dr: number; cr: number }> = {};
+    for (const acct of accounts) totals[acct.id] = { dr: 0, cr: 0 };
+    for (const e of entries) {
+      const amt = parseFloat(e.amount);
+      if (totals[e.debitAccountId])  totals[e.debitAccountId].dr  += amt;
+      if (totals[e.creditAccountId]) totals[e.creditAccountId].cr += amt;
+    }
+
+    function netBalance(acct: (typeof accounts)[0]): number {
+      const t = totals[acct.id] ?? { dr: 0, cr: 0 };
+      const drNormal = ["asset", "expense", "party_ledger"].includes(acct.type);
+      return drNormal ? t.dr - t.cr : t.cr - t.dr;
+    }
+
+    const assetTypes      = ["asset", "party_ledger"];
+    const liabilityTypes  = ["liability", "vendor_ledger"];
+    const equityTypes     = ["equity"];
+    const revenueTypes    = ["revenue"];
+    const expenseTypes    = ["expense"];
+
+    const assets      = accounts.filter((a) => assetTypes.includes(a.type)).map((a) => ({ account: a, balance: netBalance(a) })).filter((l) => l.balance !== 0);
+    const liabilities = accounts.filter((a) => liabilityTypes.includes(a.type)).map((a) => ({ account: a, balance: netBalance(a) })).filter((l) => l.balance !== 0);
+    const equity      = accounts.filter((a) => equityTypes.includes(a.type)).map((a) => ({ account: a, balance: netBalance(a) })).filter((l) => l.balance !== 0);
+
+    // P&L feeds retained earnings into equity
+    const revTotal = accounts.filter((a) => revenueTypes.includes(a.type)).reduce((s, a) => s + netBalance(a), 0);
+    const expTotal = accounts.filter((a) => expenseTypes.includes(a.type)).reduce((s, a) => s + netBalance(a), 0);
+    const retainedEarnings = revTotal - expTotal;
+
+    const totalAssets      = assets.reduce((s, l) => s + l.balance, 0);
+    const totalLiabilities = liabilities.reduce((s, l) => s + l.balance, 0);
+    const totalEquityBase  = equity.reduce((s, l) => s + l.balance, 0);
+    const totalEquity      = totalEquityBase + retainedEarnings;
+    const totalLE          = totalLiabilities + totalEquity;
+    const difference       = totalAssets - totalLE;
+    const isBalanced       = Math.abs(difference) < 1;
+
+    return res.json({
+      asAt: asAt ?? new Date().toISOString().slice(0, 10),
+      assets,
+      liabilities,
+      equity: [
+        ...equity,
+        { account: { id: -1, code: "RETAINED_EARNINGS", name: "Retained Earnings (Net P&L)", type: "equity", isActive: true, description: null, createdAt: null }, balance: retainedEarnings },
+      ],
+      totalAssets,
+      totalLiabilities,
+      totalEquity,
+      totalLiabilitiesAndEquity: totalLE,
+      isBalanced,
+      difference,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Balance sheet error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;

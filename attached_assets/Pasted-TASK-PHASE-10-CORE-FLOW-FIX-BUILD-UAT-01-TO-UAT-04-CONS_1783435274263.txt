@@ -1,0 +1,329 @@
+TASK: PHASE 10 CORE FLOW FIX BUILD — UAT-01 TO UAT-04 CONSOLIDATED FIX
+
+IMPORTANT:
+Read the full repository first.
+Read all docs.
+Read UAT-01, UAT-02, UAT-03, UAT-04 findings from this prompt.
+Do NOT rebuild the ERP.
+Do NOT refactor unrelated modules.
+Do NOT touch public website or customer portal unless required by shared API changes.
+Do NOT change business meaning without preserving existing data.
+Focus only on making the core Al Musafir business flow production-safe.
+
+MAIN OBJECTIVE:
+Fix the real business flow:
+
+Client Inquiry
+→ Quotation
+→ Booking
+→ Vendor Procurement
+→ Customer Invoice / DN
+→ Customer Receipt
+→ Vendor Payment
+→ JV Settlement
+→ Party/Vendor Statements
+→ Trial Balance / P&L / Balance Sheet
+→ Print / PDF
+
+==================================================
+PRIORITY 1 — ACCOUNTING INTEGRITY
+==================================================
+
+Fix first before UI polish.
+
+1. Fix aggregate vs sub-ledger mismatch.
+   - Client transactions must post to correct client ledger C-{id}.
+   - Vendor transactions must post to correct vendor ledger V-{id}.
+   - Do not post business transactions only to aggregate PARTY/VENDOR if sub-ledgers exist.
+   - Trial Balance, Ledger, Party Statement, Vendor Statement must all reconcile.
+
+2. Fix double-posting risk.
+   - Prevent same booking from being posted twice through both INV and DN.
+   - If both documents exist, define one accounting source of truth.
+   - Avoid duplicate DR PARTY / CR HOTEL postings.
+
+3. Fix balance sheet.
+   - Balance sheet must return balanced figures.
+   - Assets = Liabilities + Equity.
+   - Re-test after all accounting fixes.
+
+4. Fix customer payment workflow.
+   - Unify invoice payment and Receipt Voucher workflow.
+   - Payment must create a traceable receipt/voucher.
+   - Payment must reduce invoice/DN outstanding.
+   - Prevent overpayment unless explicitly recorded as advance.
+   - Prevent duplicate receipts.
+   - Store collectedBy, payment method, receipt number, exchange rate.
+
+5. Fix vendor payment workflow.
+   - Vendor payable must reduce when PV is posted.
+   - DN/AP payable status must update to partial/paid.
+   - Prevent duplicate/overpayment against vendor payable.
+   - Vendor ledger must show invoice, payments, JV, running balance.
+
+6. Fix JV settlement.
+   - JV must support structured settlement between same party customer/vendor ledgers.
+   - JV must link to party/vendor/invoice/DN where applicable.
+   - JV settlement must reduce outstanding receivable/payable.
+   - Trial Balance must remain balanced.
+
+==================================================
+PRIORITY 2 — DOCUMENT RELATIONSHIPS
+==================================================
+
+Create proper traceability:
+
+Quotation
+→ Booking
+→ Hotel Request
+→ Vendor Procurement / DN
+→ Customer Invoice
+→ Receipt
+→ Vendor Payment
+→ JV
+
+Requirements:
+
+1. Add or use existing reference fields to link:
+   - quotationId
+   - bookingId / bookingNumber
+   - hotelRequestId
+   - hotelInvoiceId / DN
+   - invoiceId / INV
+   - clientId
+   - vendorId
+
+2. Add booking workflow:
+   - Accepted quotation can convert to booking.
+   - Generate dedicated booking number.
+   - Prevent duplicate booking from same quotation.
+   - Quotation status should move to booked after conversion.
+   - Hotel request should move to confirmed where applicable.
+
+3. Add duplicate guards:
+   - Same quotation cannot create multiple bookings accidentally.
+   - Same DN cannot be duplicated.
+   - Same receipt/payment cannot be duplicated.
+   - Same vendor payment cannot exceed payable.
+
+==================================================
+PRIORITY 3 — CLIENT / MASTER DATA FIXES
+==================================================
+
+Fix UAT-01 issues:
+
+1. Client validation:
+   - Prevent duplicate email/phone where appropriate.
+   - Validate email format.
+   - Validate phone format.
+   - Search clients by phone and WhatsApp.
+
+2. Add business fields if missing:
+   - customerType: direct / agent / corporate / walk-in
+   - referralSource or agent reference
+   - openingBalance
+   - openingBalanceType DR/CR if required
+
+3. Add audit trail:
+   - Client create/edit/delete/status changes.
+   - Invoice changes.
+   - Payment changes.
+   - Voucher approval/post/cancel/reverse.
+
+4. Hotel request:
+   - Add adults and children fields.
+   - Make pax editable in UI.
+   - noOfPax should calculate correctly.
+   - Hotel selection should use hotel master dropdown, not only free text.
+
+==================================================
+PRIORITY 4 — QUOTATION FIXES
+==================================================
+
+1. Add vendor cost and profit/margin visibility.
+2. Add discount amount/percentage.
+3. Add tax/VAT field if applicable.
+4. Enforce quotation status transitions:
+   - draft → sent
+   - sent → accepted/rejected
+   - accepted → booked
+   - prevent invalid jumps.
+5. Add “Import from Hotel Request” into quotation item.
+6. Make client dropdown searchable.
+7. Improve quotation search:
+   - reference
+   - client name
+   - mobile
+   - date range
+   - salesperson
+   - status
+   - sorting/pagination.
+
+==================================================
+PRIORITY 5 — REPORTS & STATEMENTS
+==================================================
+
+Implement or fix:
+
+1. Party statement:
+   - invoices
+   - receipts
+   - JV settlements
+   - opening balance
+   - running balance
+   - closing balance
+
+2. Vendor statement:
+   - DN/AP invoice
+   - PV payments
+   - JV settlements
+   - opening balance
+   - running balance
+   - closing balance
+
+3. Owner reports:
+   - collections report
+   - receivables aging
+   - payables aging
+   - P&L
+   - balance sheet
+   - cash book
+   - bank book
+   - booking summary
+   - profit per booking
+   - vendor payable summary
+   - customer outstanding summary
+
+4. Fix ledger endpoints:
+   - account metadata must show correctly.
+   - account code/name must not be undefined.
+   - ledger filtering must support accountId/accountCode, date range, party/vendor.
+
+==================================================
+PRIORITY 6 — PRINTING / PDF STANDARDIZATION
+==================================================
+
+Standardize print layouts.
+
+Use company branding config everywhere.
+
+Fix:
+
+1. Quotation print:
+   - logo
+   - bank details
+   - footer
+   - signature
+   - quotation reference
+   - decoded meal plans
+
+2. Invoice / DN print:
+   - quote reference
+   - booking reference
+   - payment status
+   - customer details
+   - hotel/room/nights/pax details
+
+3. Receipt Voucher print:
+   - receipt number
+   - customer name
+   - amount in words
+   - invoice/DN reference
+   - payment method
+   - prepared by / received by / approved by
+   - signature area
+
+4. PV / JV print:
+   - vendor/customer name
+   - amount in words
+   - settlement reference
+   - signatures
+   - branding
+
+5. Statements:
+   - printable party statement
+   - printable vendor statement
+   - printable ledger
+
+6. Add PDF export if existing architecture supports it safely.
+   If full PDF generation is too large, document exactly what is needed and keep print layout production-ready.
+
+==================================================
+PRIORITY 7 — SEARCH / FILTER / PERFORMANCE
+==================================================
+
+Add server-side filters and pagination where missing:
+
+- invoices
+- hotel invoices
+- vouchers
+- payments
+- clients
+- vendors
+- quotations
+- statements
+
+Filters should include:
+
+- date range
+- client name
+- vendor name
+- phone/mobile
+- invoice number
+- DN number
+- booking number
+- payment mode
+- amount
+- status
+- salesperson/collector where available.
+
+==================================================
+TESTING REQUIREMENTS
+==================================================
+
+After fixes, run these tests:
+
+1. Re-run UAT-01.
+2. Re-run UAT-02.
+3. Re-run UAT-03.
+4. Re-run UAT-04.
+
+Also verify:
+
+- Trial Balance balanced.
+- Balance Sheet balanced.
+- No duplicate postings.
+- No zero amount vouchers.
+- No overpayments unless advance.
+- Client ledger reconciles.
+- Vendor ledger reconciles.
+- Party statement correct.
+- Vendor statement correct.
+- P&L works.
+- Receivables/payables reports work.
+- Print layouts professional.
+- Public website still works.
+- Portal still works.
+- Auth still works.
+- RBAC still works.
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+Provide:
+
+1. Files changed.
+2. Database/schema changes.
+3. API changes.
+4. UI changes.
+5. Accounting logic changes.
+6. Print/report changes.
+7. Migration notes.
+8. Re-test results for UAT-01 to UAT-04.
+9. Remaining known issues.
+10. Whether core ERP is production-ready.
+
+Suggested commit message:
+
+Phase 10 Core Flow Fixes: unify booking, payments, JV, ledgers, reports and print flows

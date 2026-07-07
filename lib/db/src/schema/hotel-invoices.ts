@@ -39,6 +39,9 @@ export const hotelInvoicesTable = pgTable("hotel_invoices", {
   payableCurrency: text("payable_currency").notNull().default("SAR"),
   incomeHead: text("income_head").notNull().default("Hotel Income"),
   salesmanId: integer("salesman_id"),
+  // Payment tracking (vendor side)
+  paidAmount: numeric("paid_amount", { precision: 14, scale: 2 }).default("0"),
+  paidStatus: text("paid_status").default("unpaid"),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -130,31 +130,55 @@ router.patch("/invoices/:id", requireAuth, async (req, res) => {
 
 router.post("/invoices/:id/payments", requireAuth, async (req, res) => {
   try {
+    const user = (req as any).user;
     const invoiceId = parseInt(String(req.params.id));
+    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+    const paymentAmount = parseFloat(String(req.body.amount ?? 0));
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({ error: "Payment amount must be positive" });
+    }
+
+    // Overpayment guard
+    const currentPaid = parseFloat(invoice.paidAmount);
+    const totalAmount = parseFloat(invoice.amount);
+    const outstanding = totalAmount - currentPaid;
+    if (paymentAmount > outstanding + 0.01) {
+      return res.status(400).json({
+        error: `Payment (${paymentAmount.toFixed(2)}) exceeds outstanding balance (${outstanding.toFixed(2)})`,
+        outstanding,
+      });
+    }
+
+    const receiptNumber = await nextEntryNumber("RCT");
+
     const [payment] = await db.insert(paymentsTable).values({
       invoiceId,
-      amount: req.body.amount.toString(),
-      currency: req.body.currency || "USD",
-      method: req.body.method,
-      reference: req.body.reference,
-      paidAt: new Date(req.body.paidAt),
+      receiptNumber,
+      amount: paymentAmount.toString(),
+      currency: req.body.currency || invoice.currency,
+      method: req.body.method || "cash",
+      reference: req.body.reference || null,
+      notes: req.body.notes || null,
+      collectedBy: user?.id ?? null,
+      paidAt: req.body.paidAt ? new Date(req.body.paidAt) : new Date(),
     }).returning();
 
-    // Update invoice paid amount and status
-    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
-    if (invoice) {
-      const newPaid = parseFloat(invoice.paidAmount) + req.body.amount;
-      const totalAmount = parseFloat(invoice.amount);
-      const newStatus = newPaid >= totalAmount ? "paid" : "partial";
-      await db.update(invoicesTable).set({ paidAmount: newPaid.toString(), status: newStatus }).where(eq(invoicesTable.id, invoiceId));
-      // Post journal entry (non-blocking, fire-and-forget on error)
-      postInvoicePayment({
-        invoiceId,
-        amount: req.body.amount,
-        currency: req.body.currency ?? invoice.currency,
-        invoiceType: invoice.type,
-      }).catch(() => {});
-    }
+    const newPaid = currentPaid + paymentAmount;
+    const newStatus = newPaid >= totalAmount - 0.01 ? "paid" : "partial";
+    await db.update(invoicesTable)
+      .set({ paidAmount: newPaid.toString(), status: newStatus, updatedAt: new Date() })
+      .where(eq(invoicesTable.id, invoiceId));
+
+    // Post sub-ledger journal entry (non-blocking)
+    postInvoicePayment({
+      invoiceId,
+      amount: paymentAmount,
+      currency: req.body.currency ?? invoice.currency,
+      invoiceType: invoice.type,
+      clientId: invoice.clientId ?? undefined,
+    }).catch(() => {});
 
     return res.status(201).json({
       ...payment,

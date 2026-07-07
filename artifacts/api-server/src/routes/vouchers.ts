@@ -7,6 +7,7 @@ import {
   generalJournalTable,
   clientsTable,
   vendorsTable,
+  hotelInvoicesTable,
 } from "@workspace/db";
 import { eq, desc, and, gte, lte, or, ilike } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
@@ -367,6 +368,26 @@ router.post("/accounting/vouchers/:id/post", requireAuth, async (req, res) => {
       })
       .where(eq(vouchersTable.id, id))
       .returning();
+
+    // If PV linked to a hotel DN, update its vendor paidAmount/paidStatus
+    if (voucher.type === "PV" && voucher.hotelInvoiceId) {
+      try {
+        const voucherTotal = drLines.reduce((s, l) => s + parseFloat(l.debitAmount), 0);
+        const [dnInv] = await db.select().from(hotelInvoicesTable).where(eq(hotelInvoicesTable.id, voucher.hotelInvoiceId));
+        if (dnInv) {
+          const newPaid = parseFloat(dnInv.paidAmount ?? "0") + voucherTotal;
+          const payable = parseFloat(dnInv.payableSar ?? "0");
+          const newPaidStatus = payable > 0
+            ? (newPaid >= payable - 0.01 ? "paid" : newPaid > 0 ? "partial" : "unpaid")
+            : "paid";
+          await db.update(hotelInvoicesTable)
+            .set({ paidAmount: newPaid.toString(), paidStatus: newPaidStatus, updatedAt: new Date() })
+            .where(eq(hotelInvoicesTable.id, voucher.hotelInvoiceId));
+        }
+      } catch (dnErr) {
+        req.log.warn({ dnErr }, "Could not update DN paidAmount (non-fatal)");
+      }
+    }
 
     return res.json(updated);
   } catch (err) {

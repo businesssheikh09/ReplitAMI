@@ -139,12 +139,16 @@ router.post("/invoices/hotel", requireAuth, async (req, res) => {
     }).returning();
 
     const lookup = await buildLookup();
-    // Post journal entries (fire-and-forget)
+    // Post journal entries to sub-ledger accounts (fire-and-forget)
     postHotelInvoice({
-      invoiceId: row.id,
+      invoiceId:    row.id,
       receivableSar: row.receivableSar != null ? parseFloat(row.receivableSar) : null,
-      payableSar: row.payableSar != null ? parseFloat(row.payableSar) : null,
-      dnNumber: row.dnNumber,
+      payableSar:   row.payableSar != null ? parseFloat(row.payableSar) : null,
+      dnNumber:     row.dnNumber,
+      partyId:      row.partyId ?? undefined,
+      partyName:    row.partyId ? lookup.clientMap.get(row.partyId) : undefined,
+      vendorId:     row.vendorId ?? undefined,
+      vendorName:   row.vendorId ? lookup.vendorMap.get(row.vendorId) : undefined,
     }).catch(() => {});
     return res.status(201).json(serializeInvoice(row, lookup));
   } catch (err) {
