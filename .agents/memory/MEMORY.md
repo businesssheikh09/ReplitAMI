@@ -8,3 +8,4 @@
 - [Forced password-change enforcement](force-change-password.md) — must_change_password enforced in requireAuth (403 + allowlist), never UI-only; login still issues a full token
 - [API Create Operation Patterns](api-create-patterns.md) — amount.toString() guard, async generateRef(), FK undefined→Drizzle-default crash, voucher format, portal types
 - [Agency Business Workflow](agency-workflow.md) — Quotation→Invoice→RV(receive)→PV(pay vendor); 3-sided ledger; client codes C-{id} party_ledger, vendor codes V-{id} vendor_ledger auto-seeded
+- [Phase 10 UAT Fix Patterns](phase10-fixes.md) — sub-ledger posting, balance sheet equity, quotation conversion, DN tracking

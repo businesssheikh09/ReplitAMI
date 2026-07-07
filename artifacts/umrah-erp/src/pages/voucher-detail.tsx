@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, CheckCircle, FileText, XCircle, RotateCcw } from "lucide-react";
 import { useBranding } from "@/components/print-layout";
+import { amountToWords } from "@/lib/amount-in-words";
 
 interface VoucherLine {
   id: number;
@@ -251,6 +252,14 @@ export default function VoucherDetailPage() {
             </TableFooter>
           </Table>
         </CardContent>
+
+        {/* Amount in words */}
+        <div className="border-t px-4 py-2 text-sm">
+          <span className="text-muted-foreground text-xs">Amount in Words: </span>
+          <span className="italic font-medium">
+            {amountToWords(voucher.totalDebit, voucher.lines[0]?.currency ?? "PKR")}
+          </span>
+        </div>
 
         <div className="border-t px-4 py-4 grid grid-cols-3 gap-8 text-sm print:mt-12">
           {["Prepared By", "Checked By", "Approved By"].map((label) => (
