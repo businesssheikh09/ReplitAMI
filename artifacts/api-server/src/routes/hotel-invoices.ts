@@ -11,7 +11,7 @@ const router = Router();
 
 async function getNextDnNumber(): Promise<string> {
   const result = await db.execute(
-    sql`SELECT COALESCE(MAX(CAST(REPLACE(dn_number, 'DN-', '') AS INTEGER)), 2186) + 1 AS seq FROM hotel_invoices`,
+    sql`SELECT COALESCE(MAX(CAST(REPLACE(dn_number, 'DN-', '') AS INTEGER)), 2186) + 1 AS seq FROM hotel_invoices WHERE dn_number ~ '^DN-[0-9]+$'`,
   );
   const seq = (result.rows[0] as any)?.seq ?? 2187;
   return `DN-${seq}`;
