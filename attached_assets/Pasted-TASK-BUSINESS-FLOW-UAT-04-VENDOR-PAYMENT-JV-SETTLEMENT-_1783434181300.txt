@@ -1,0 +1,349 @@
+TASK: BUSINESS FLOW UAT 04 — VENDOR PAYMENT & JV SETTLEMENT
+
+IMPORTANT
+
+Read the complete repository.
+
+Read UAT-01.
+
+Read UAT-02.
+
+Read UAT-03.
+
+Understand previous bugs.
+
+Do NOT fix anything.
+
+Do NOT redesign anything.
+
+Only test.
+
+If bugs are found,
+
+document them.
+
+Continue testing.
+
+==================================================
+
+BUSINESS SCENARIO
+
+A hotel booking has already been completed.
+
+Customer has already been invoiced.
+
+Vendor has already supplied the hotel.
+
+Customer has already paid.
+
+Now Al Musafir International must pay the Vendor.
+
+Later, that SAME company also becomes our customer.
+
+Both receivable and payable now exist.
+
+The accountant settles both through a Journal Voucher.
+
+Test this complete business flow.
+
+==================================================
+
+STEP 1
+
+Locate an unpaid Vendor Invoice (DN).
+
+Verify
+
+Vendor
+
+Hotel
+
+Amount
+
+Currency
+
+Outstanding
+
+Booking Reference
+
+Customer Reference
+
+PASS / FAIL
+
+==================================================
+
+STEP 2
+
+Create Vendor Payment.
+
+Example
+
+Pay 50%.
+
+Verify
+
+Payment Voucher generated.
+
+Voucher Number.
+
+Correct Accounts.
+
+Narration.
+
+Currency.
+
+Exchange Rate.
+
+Vendor Ledger updated.
+
+Outstanding reduced.
+
+Trial Balance balanced.
+
+PASS / FAIL
+
+==================================================
+
+STEP 3
+
+Pay Remaining Balance.
+
+Verify
+
+Outstanding becomes zero.
+
+Vendor marked Paid.
+
+Payment history retained.
+
+Duplicate payment prevented.
+
+PASS / FAIL
+
+==================================================
+
+STEP 4
+
+Same Party Test
+
+Create scenario.
+
+ABC Travels
+
+↓
+
+Vendor
+
+AND
+
+Customer
+
+Verify
+
+Separate Ledgers.
+
+Separate balances.
+
+No mixing.
+
+PASS / FAIL
+
+==================================================
+
+STEP 5
+
+Journal Voucher Settlement
+
+Pass JV.
+
+Adjust
+
+Customer Receivable
+
+against
+
+Vendor Payable.
+
+Verify
+
+Correct DR
+
+Correct CR
+
+Correct Narration
+
+Correct Accounts
+
+No duplicate posting
+
+Trial Balance balanced
+
+PASS / FAIL
+
+==================================================
+
+STEP 6
+
+Statements
+
+Verify
+
+Vendor Statement
+
+Party Statement
+
+JV visible
+
+Payment visible
+
+Invoice visible
+
+Outstanding correct
+
+Opening Balance
+
+Closing Balance
+
+Running Balance
+
+PASS / FAIL
+
+==================================================
+
+STEP 7
+
+Accounting Review
+
+Verify
+
+General Ledger
+
+Sub Ledger
+
+Trial Balance
+
+Profit & Loss
+
+Balance Sheet
+
+Cash Book
+
+Bank Book
+
+Vendor Ledger
+
+Customer Ledger
+
+JV Register
+
+Voucher Register
+
+PASS / FAIL
+
+==================================================
+
+STEP 8
+
+Print Review
+
+Review
+
+Payment Voucher
+
+Journal Voucher
+
+Vendor Statement
+
+Party Statement
+
+Ledger
+
+Verify
+
+Logo
+
+Branding
+
+Margins
+
+Alignment
+
+Amount in Words
+
+Signature
+
+Footer
+
+A4 Layout
+
+WhatsApp PDF readability
+
+PASS / FAIL
+
+==================================================
+
+STEP 9
+
+Owner Review
+
+Imagine you own Al Musafir International.
+
+Questions
+
+Can I instantly know
+
+How much each vendor owes me?
+
+How much I owe each vendor?
+
+Can the same company become Vendor and Customer?
+
+Can I settle balances through JV?
+
+Can I avoid paying both directions unnecessarily?
+
+Would my accountant trust this system?
+
+List every business gap.
+
+==================================================
+
+FINAL REPORT
+
+Provide ONLY
+
+Business Flow Status
+
+PASS / FAIL
+
+Accounting Score
+
+JV Score
+
+Vendor Management Score
+
+Statement Score
+
+Printing Score
+
+Owner Visibility Score
+
+Bug List
+
+Business Gaps
+
+Suggested Improvements
+
+Production Readiness
+
+STOP.
+
+Wait for UAT-05.
+
+IMPORTANT
+
+Do NOT fix anything.
+
+Do NOT modify the repository.
+
+Only test.
