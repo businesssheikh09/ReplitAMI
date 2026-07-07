@@ -138,6 +138,21 @@ router.post("/accounting/vouchers", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "At least 2 lines required (one DR, one CR)" });
     }
 
+    // Validate each line uses debitAmount/creditAmount format
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l.accountId) return res.status(400).json({ error: `Line ${i + 1}: accountId is required` });
+      const dr = parseFloat(l.debitAmount);
+      const cr = parseFloat(l.creditAmount);
+      const hasDebit  = !isNaN(dr) && dr > 0;
+      const hasCredit = !isNaN(cr) && cr > 0;
+      if (!hasDebit && !hasCredit) {
+        return res.status(400).json({
+          error: `Line ${i + 1}: each line must have a positive debitAmount or creditAmount (not both zero). Use { debitAmount: "X", creditAmount: "0" } format.`,
+        });
+      }
+    }
+
     // Validate balance
     const totalDr = lines.reduce((s: number, l: any) => s + (parseFloat(l.debitAmount) || 0), 0);
     const totalCr = lines.reduce((s: number, l: any) => s + (parseFloat(l.creditAmount) || 0), 0);

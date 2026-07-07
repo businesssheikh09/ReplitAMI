@@ -44,6 +44,13 @@ router.get("/clients", requireAuth, async (req, res) => {
 
 router.post("/clients", requireAuth, async (req, res) => {
   try {
+    const required = ["name", "email", "phone", "country"] as const;
+    const missing = required.filter(f => {
+      const v = req.body[f];
+      return v === undefined || v === null || String(v).trim() === "";
+    });
+    if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
+
     const [client] = await db.insert(clientsTable).values({
       name: req.body.name,
       email: req.body.email,

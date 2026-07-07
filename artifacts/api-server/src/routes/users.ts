@@ -28,11 +28,19 @@ router.get("/users", requireAuth, async (req, res) => {
 
 router.post("/users", requireAuth, async (req, res) => {
   try {
-    const { name, email, password, role, phone, canIssueTickets, ticketingPin } = req.body;
+    const { name, email, password, role, phone, canIssueTickets, ticketingPin, mustChangePassword } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: "name is required" });
+    if (!email || !String(email).trim()) return res.status(400).json({ error: "email is required" });
+
+    // Check for duplicate email
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
+    if (existing.length > 0) return res.status(409).json({ error: "A user with this email already exists" });
+
     const [user] = await db.insert(usersTable).values({
       name, email, passwordHash: await hashPassword(password || "admin123"), role: role || "sales", phone,
       canIssueTickets: canIssueTickets || false,
       ticketingPin: ticketingPin || null,
+      mustChangePassword: mustChangePassword === true,
     }).returning();
     await writeAuthAudit({ event: "user_created", userId: user.id, email: user.email, performedBy: req.user!.id, req });
     const { passwordHash: _, ticketingPin: __, ...safeUser } = user;
@@ -79,7 +87,7 @@ router.get("/users/:id", requireAuth, async (req, res) => {
 router.patch("/users/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
-    const { name, email, role, phone, isActive, canIssueTickets, ticketingPin } = req.body;
+    const { name, email, role, phone, isActive, canIssueTickets, ticketingPin, mustChangePassword } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = name;
     if (email !== undefined) updates.email = email;
@@ -88,6 +96,7 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
     if (isActive !== undefined) updates.isActive = isActive;
     if (canIssueTickets !== undefined) updates.canIssueTickets = canIssueTickets;
     if (ticketingPin !== undefined) updates.ticketingPin = ticketingPin || null;
+    if (mustChangePassword !== undefined) updates.mustChangePassword = mustChangePassword;
     const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
     if (!user) return res.status(404).json({ error: "User not found" });
     const { passwordHash: _, ticketingPin: __, ...safeUser } = user;

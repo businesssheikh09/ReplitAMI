@@ -94,6 +94,13 @@ router.get("/hotels", requireAuth, async (req, res) => {
 
 router.post("/hotels",requireAuth, async (req, res) => {
   try {
+    const required = ["name", "city", "distanceFromHaram"] as const;
+    const missing = required.filter(f => {
+      const v = req.body[f];
+      return v === undefined || v === null || String(v).trim() === "";
+    });
+    if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
+
     const [hotel] = await db
       .insert(hotelsTable)
       .values({

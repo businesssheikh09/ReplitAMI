@@ -23,7 +23,10 @@ router.get("/quotations", requireAuth, async (req, res) => {
     if (status) quotations = quotations.filter(q => q.status === status);
     if (search) {
       const s = search.toLowerCase();
-      quotations = quotations.filter(q => q.referenceNo.toLowerCase().includes(s));
+      quotations = quotations.filter(q =>
+        q.referenceNo.toLowerCase().includes(s) ||
+        (q.title ?? "").toLowerCase().includes(s)
+      );
     }
     const [clients, users] = await Promise.all([
       db.select().from(clientsTable),

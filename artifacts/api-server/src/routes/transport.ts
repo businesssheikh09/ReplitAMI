@@ -29,6 +29,13 @@ router.get("/transport", requireAuth, async (req, res) => {
 
 router.post("/transport", requireAuth, async (req, res) => {
   try {
+    const required = ["clientId", "type", "vehicleType", "pickupLocation", "dropoffLocation", "date"] as const;
+    const missing = required.filter(f => {
+      const v = req.body[f];
+      return v === undefined || v === null || String(v).trim() === "";
+    });
+    if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
+
     const [booking] = await db.insert(transportBookingsTable).values({
       clientId: req.body.clientId,
       type: req.body.type,
