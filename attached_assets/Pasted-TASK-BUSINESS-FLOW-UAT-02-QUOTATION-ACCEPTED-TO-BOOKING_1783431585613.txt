@@ -1,0 +1,363 @@
+TASK: BUSINESS FLOW UAT 02 — QUOTATION ACCEPTED TO BOOKING
+
+IMPORTANT
+
+Read the complete repository.
+
+Read all documentation.
+
+Read previous UAT results.
+
+Do NOT fix bugs.
+
+Do NOT redesign modules.
+
+Do NOT optimize anything.
+
+Only test this business flow.
+
+If a bug is found:
+
+Document it.
+
+Do NOT fix it.
+
+Continue testing.
+
+==================================================
+
+BUSINESS SCENARIO
+
+The customer has accepted the quotation.
+
+The office now has to fulfil the booking.
+
+Follow the exact sequence used by Al Musafir International.
+
+==================================================
+
+STEP 1
+
+Locate an existing ACCEPTED quotation.
+
+OR
+
+Use the quotation created during UAT-01.
+
+Verify
+
+Customer
+
+Dates
+
+Hotel
+
+Rooms
+
+Nights
+
+Meal Plan
+
+Passengers
+
+Currency
+
+Amounts
+
+PASS / FAIL
+
+==================================================
+
+STEP 2
+
+Convert quotation into Booking.
+
+Verify
+
+Booking created successfully.
+
+Quotation status updated correctly.
+
+Booking number generated.
+
+Reference links preserved.
+
+Customer linked correctly.
+
+No duplicate booking.
+
+No duplicate quotation.
+
+Audit history maintained.
+
+PASS / FAIL
+
+==================================================
+
+STEP 3
+
+Procurement
+
+Purchase the same booking from Vendor.
+
+Select Vendor.
+
+Select Hotel.
+
+Enter Vendor Cost.
+
+Verify
+
+Vendor linked correctly.
+
+Hotel linked correctly.
+
+Vendor quotation preserved.
+
+Purchase record created.
+
+No duplicate purchase.
+
+PASS / FAIL
+
+==================================================
+
+STEP 4
+
+Profit Verification
+
+Verify
+
+Selling Price
+
+Vendor Cost
+
+Gross Profit
+
+Currency Conversion
+
+Exchange Rate
+
+Profit calculations
+
+If profit is not available,
+
+document it as a business gap.
+
+PASS / FAIL
+
+==================================================
+
+STEP 5
+
+Customer Invoice
+
+Generate customer invoice.
+
+Verify
+
+Invoice Number
+
+Invoice Date
+
+Customer
+
+Hotel
+
+Rooms
+
+Nights
+
+Amounts
+
+Currency
+
+Exchange Rate
+
+Outstanding Amount
+
+Status
+
+PASS / FAIL
+
+==================================================
+
+STEP 6
+
+Accounting Verification
+
+Verify automatic accounting.
+
+Journal Entries
+
+Voucher
+
+Customer Ledger
+
+Vendor Ledger
+
+Hotel Ledger
+
+Trial Balance
+
+General Ledger
+
+P&L
+
+Balance Sheet
+
+Verify every posting.
+
+Verify DR = CR.
+
+Verify account selection.
+
+Verify voucher narration.
+
+Verify posting dates.
+
+PASS / FAIL
+
+==================================================
+
+STEP 7
+
+Print Review
+
+Review
+
+Booking Confirmation
+
+Invoice
+
+Accommodation Voucher
+
+Hotel Voucher
+
+Any printable document generated during this flow.
+
+Verify
+
+Logo
+
+Branding
+
+Alignment
+
+Margins
+
+Fonts
+
+Bank Details
+
+Signature
+
+Footer
+
+Professional appearance
+
+WhatsApp PDF readability
+
+A4 compatibility
+
+Suggest improvements.
+
+==================================================
+
+STEP 8
+
+Search Review
+
+Search using
+
+Booking Number
+
+Invoice Number
+
+Customer Name
+
+Vendor
+
+Hotel
+
+Mobile
+
+Passport
+
+Date
+
+Status
+
+Verify
+
+Filters
+
+Sorting
+
+Performance
+
+PASS / FAIL
+
+==================================================
+
+STEP 9
+
+Owner Review
+
+Imagine you own Al Musafir International.
+
+Questions
+
+Can your booking team complete this process without confusion?
+
+Are unnecessary clicks present?
+
+Can fields auto-fill?
+
+Can hotel request automatically become booking?
+
+Can quotation automatically populate invoice?
+
+Can vendor procurement automatically populate hotel invoice?
+
+Would your employees make mistakes?
+
+List all recommendations.
+
+==================================================
+
+FINAL REPORT
+
+Do NOT fix anything.
+
+Only provide:
+
+Business Flow Status
+
+PASS / FAIL
+
+Business Logic Score
+
+Accounting Score
+
+Calculation Score
+
+UI Score
+
+Printing Score
+
+Search Score
+
+Audit Score
+
+Bug List
+
+Business Gaps
+
+Suggested Improvements
+
+Production Readiness
+
+STOP.
+
+Wait for UAT-03.
