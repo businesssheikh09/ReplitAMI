@@ -1,0 +1,299 @@
+TASK: BUSINESS FLOW UAT 01 — CUSTOMER INQUIRY TO QUOTATION
+
+IMPORTANT
+
+Read the entire repository before making assumptions.
+
+Read all documentation.
+
+Understand the existing business flow.
+
+Do NOT test random APIs.
+
+Do NOT jump to another module.
+
+Do NOT perform unrelated improvements.
+
+Do NOT fix anything unless it is required for this business flow.
+
+Act as a Senior QA Engineer, Travel Agent, Accountant, and Business Owner simultaneously.
+
+Your goal is NOT to test modules.
+
+Your goal is to complete one real business transaction exactly as it would happen inside Al Musafir International.
+
+==================================================
+
+BUSINESS SCENARIO
+
+A brand-new customer contacts Al Musafir International asking for an Umrah package quotation.
+
+Nothing exists in the ERP yet.
+
+The salesperson must complete the entire quotation process.
+
+Do NOT continue to the next step until the current step passes.
+
+==================================================
+
+STEP 1
+
+Create a new customer.
+
+Verify
+
+• Required fields
+• Duplicate prevention
+• Mobile validation
+• Email validation
+• WhatsApp
+• Address
+• Country
+• City
+• Customer Type
+• Agent / Direct Customer
+
+Verify accounting
+
+• Ledger auto-created
+• Correct account type
+• Opening balance
+• Audit trail
+
+Review UI
+
+Could this screen be simplified?
+
+Are unnecessary fields shown?
+
+Should anything auto-fill?
+
+PASS / FAIL
+
+==================================================
+
+STEP 2
+
+Create Hotel Request.
+
+Verify
+
+• Hotel selection
+• Check-in
+• Check-out
+• Nights
+• Rooms
+• Adults
+• Children
+• Meal Plan
+• Notes
+
+Verify
+
+Saved correctly
+
+Searchable
+
+Editable
+
+History maintained
+
+PASS / FAIL
+
+==================================================
+
+STEP 3
+
+Prepare Customer Quotation.
+
+Use realistic values.
+
+Vendor Cost
+
+Selling Price
+
+Profit
+
+Discount
+
+Taxes
+
+Currency
+
+Verify
+
+Every calculation.
+
+Every total.
+
+Profit calculation.
+
+Discount calculation.
+
+Currency conversion.
+
+Status workflow
+
+Draft
+
+Sent
+
+Confirmed
+
+PASS / FAIL
+
+==================================================
+
+STEP 4
+
+Review Sales Workflow.
+
+Ask yourself:
+
+Can an employee prepare this quotation within 2 minutes?
+
+Are unnecessary clicks present?
+
+Are dropdowns searchable?
+
+Are labels understandable?
+
+Can keyboard shortcuts improve speed?
+
+Suggest improvements.
+
+==================================================
+
+STEP 5
+
+Review Printing.
+
+Print quotation.
+
+Review
+
+Logo
+
+Margins
+
+Alignment
+
+Header
+
+Footer
+
+Currency
+
+Totals
+
+Professional appearance
+
+A4 compatibility
+
+WhatsApp PDF readability
+
+Suggest improvements.
+
+==================================================
+
+STEP 6
+
+Review Search.
+
+Search quotation by
+
+Quotation Number
+
+Customer Name
+
+Mobile
+
+Hotel
+
+Date
+
+Status
+
+Salesperson
+
+Verify
+
+Search speed
+
+Accuracy
+
+Filters
+
+Sorting
+
+==================================================
+
+STEP 7
+
+Accounting Verification.
+
+Quotation should NOT affect accounting.
+
+Verify
+
+No Journal Entry
+
+No Voucher
+
+No Ledger Posting
+
+No Trial Balance movement
+
+PASS if accounting remains unchanged.
+
+==================================================
+
+STEP 8
+
+Owner Review.
+
+Imagine you own the company.
+
+Would you approve this quotation screen for daily use?
+
+Would your salesperson need training?
+
+Would your salesperson make mistakes?
+
+Would you redesign anything?
+
+List recommendations.
+
+==================================================
+
+FINAL REPORT
+
+Provide only:
+
+Business Flow Status
+
+PASS / FAIL
+
+Business Logic Score
+
+Calculation Score
+
+UI Score
+
+Printing Score
+
+Search Score
+
+Usability Score
+
+Bug List
+
+Suggested Improvements
+
+Production Readiness
+
+STOP.
+
+Do NOT continue to booking.
+
+Wait for the next command.
