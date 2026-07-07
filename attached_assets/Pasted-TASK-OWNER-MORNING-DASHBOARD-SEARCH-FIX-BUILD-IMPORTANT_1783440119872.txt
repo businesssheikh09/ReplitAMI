@@ -1,0 +1,134 @@
+TASK: OWNER MORNING DASHBOARD + SEARCH FIX BUILD
+
+IMPORTANT
+
+Read the repository.
+Read UAT-05 report.
+
+Do NOT redesign the ERP.
+Do NOT add new modules.
+Do NOT work on mobile app.
+Do NOT work on OCR.
+Do NOT work on WhatsApp automation except the unread count bug.
+Do NOT work on public website.
+Do NOT work on customer portal.
+Keep this build small, fast, and focused.
+
+Goal:
+Before deployment, the owner must be able to open the ERP dashboard and understand daily business health within 5 minutes.
+
+==================================================
+PART 1 — OWNER MORNING DASHBOARD
+==================================================
+
+Add/fix dashboard KPIs for Management role:
+
+1. Cash balance
+2. Total receivables
+3. Total payables
+4. Today's revenue
+5. Today's profit
+6. Today's customer collections
+7. Today's vendor payments
+8. Pending collections
+9. Pending payments
+10. Draft vouchers / pending approvals count
+11. Today's quotations
+12. Today's accepted quotations / bookings
+13. Pending hotel requests
+
+Add quick filters if practical:
+
+- Today
+- This week
+- This month
+
+Do not make a complex analytics system.
+Simple accurate numbers are better than beautiful wrong numbers.
+
+==================================================
+PART 2 — FIX BROKEN DASHBOARD CALCULATIONS
+==================================================
+
+Fix these UAT-05 issues:
+
+1. revenueByService returns all zeros despite revenue existing.
+2. WhatsApp unread count shows unrealistic number like 18,229.
+3. Recent Hotel Invoices should not show regression/test records if they are test-prefixed like REGDN-*.
+4. Dashboard financial values should use the same accounting source as reports.
+
+==================================================
+PART 3 — SEARCH FIXES
+==================================================
+
+Fix these searches:
+
+1. Client search by phone/mobile.
+2. Client search by WhatsApp.
+3. Client search by passport number if passport/document data exists.
+4. Hotel invoice/DN search by DN number.
+5. Invoice search by invoice number.
+6. Receipt search by receipt number.
+7. Voucher search by voucher number.
+8. Booking search by booking number.
+
+If a data field does not exist yet, document it clearly instead of inventing a large schema change.
+
+==================================================
+PART 4 — OWNER SHORTCUTS
+==================================================
+
+Add dashboard shortcut links/cards to:
+
+- Cash Book
+- Trial Balance
+- Balance Sheet
+- Profit & Loss
+- Party Summary
+- Vendor Summary
+- Receipt Book
+- Payment Book
+- Pending Vouchers
+- Hotel Requests
+- Quotations
+- Invoices
+
+==================================================
+PART 5 — TESTING
+==================================================
+
+After fixes, test only these:
+
+1. Dashboard loads for Management user.
+2. Cash balance matches Cash Book.
+3. Receivables match Party Summary.
+4. Payables match Vendor Summary.
+5. Today's revenue is not lifetime revenue.
+6. Today's profit is calculated correctly or clearly marked unavailable.
+7. Pending approvals count matches draft vouchers.
+8. revenueByService is not all zero when revenue exists.
+9. WhatsApp unread count is realistic.
+10. Phone search filters correctly.
+11. Passport search filters correctly or is documented unsupported.
+12. DN search filters correctly.
+13. Receipt number search works.
+14. Voucher number search works.
+15. Existing accounting regression test still passes 10/10.
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+Return:
+
+1. Files changed
+2. Dashboard KPIs added/fixed
+3. Search fixes completed
+4. Anything documented as unsupported
+5. Test results
+6. Remaining issues
+7. Production readiness percentage
+
+Suggested commit message:
+
+Phase 10 owner dashboard and search fixes before deployment

@@ -5,9 +5,9 @@ import {
   followUpsTable, transportBookingsTable, expensesTable, usersTable, activityLogsTable,
   hotelInvoicesTable, flightQuotationsTable, whatsappMessagesTable,
   portalUsersTable, flightRequestsTable, vouchersTable, publicBookingInquiriesTable,
-  generalJournalTable,
+  generalJournalTable, chartOfAccountsTable, paymentsTable, hotelRequestsTable,
 } from "@workspace/db";
-import { eq, and, gte, lte, or, sql, lt } from "drizzle-orm";
+import { eq, and, gte, lte, or, sql, lt, ne } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
@@ -15,7 +15,8 @@ const router = Router();
 router.get("/dashboard/stats", requireAuth, async (req, res) => {
   try {
     const [
-      clients, quotations, invoices, visas, followUps, transport, expenses
+      clients, quotations, invoices, visas, followUps, transport,
+      revAccounts, allJournal,
     ] = await Promise.all([
       db.select().from(clientsTable),
       db.select().from(quotationsTable),
@@ -23,7 +24,11 @@ router.get("/dashboard/stats", requireAuth, async (req, res) => {
       db.select().from(visaApplicationsTable),
       db.select().from(followUpsTable),
       db.select().from(transportBookingsTable),
-      db.select().from(expensesTable),
+      db.select({ id: chartOfAccountsTable.id, code: chartOfAccountsTable.code })
+        .from(chartOfAccountsTable)
+        .where(eq(chartOfAccountsTable.type, "revenue")),
+      db.select({ creditAccountId: generalJournalTable.creditAccountId, amount: generalJournalTable.amount })
+        .from(generalJournalTable),
     ]);
 
     const totalRevenue = invoices
@@ -49,13 +54,19 @@ router.get("/dashboard/stats", requireAuth, async (req, res) => {
     const wonDeals = quotations.filter(q => q.status === "accepted").length;
     const conversionRate = quotations.length > 0 ? (wonDeals / quotations.length) * 100 : 0;
 
-    const revenueByService: Record<string, number> = {
-      hotel: 0,
-      flight: 0,
-      transport: 0,
-      visa: 0,
-      custom: 0,
-    };
+    // Revenue by service — computed from general journal credits to revenue accounts
+    const revAcctMap = new Map(revAccounts.map(a => [a.id, a.code]));
+    const revenueByService: Record<string, number> = { hotel: 0, flight: 0, transport: 0, visa: 0, custom: 0 };
+    for (const entry of allJournal) {
+      const code = revAcctMap.get(entry.creditAccountId ?? -1);
+      if (!code) continue;
+      const amt = parseFloat(entry.amount ?? "0");
+      if (code === "HOTEL") revenueByService.hotel += amt;
+      else if (code === "AIR") revenueByService.flight += amt;
+      else if (code === "TRANS") revenueByService.transport += amt;
+      else if (code === "VISA") revenueByService.visa += amt;
+      else revenueByService.custom += amt;
+    }
 
     return res.json({
       totalClients: clients.length,
@@ -214,10 +225,13 @@ router.get("/dashboard/operational",requireAuth, async (req, res) => {
             lte(flightQuotationsTable.issuedAt, todayEnd),
           )
         ),
-      // WhatsApp unread messages
+      // WhatsApp unread messages — last 7 days only to avoid accumulation
       db.select({ id: whatsappMessagesTable.id })
         .from(whatsappMessagesTable)
-        .where(eq(whatsappMessagesTable.isRead, false)),
+        .where(and(
+          eq(whatsappMessagesTable.isRead, false),
+          gte(whatsappMessagesTable.createdAt, new Date(new Date().toISOString().split("T")[0] + "T00:00:00.000Z")),
+        )),
       // Portal users pending approval
       db.select({ id: portalUsersTable.id })
         .from(portalUsersTable)
@@ -271,19 +285,134 @@ router.get("/dashboard/operational",requireAuth, async (req, res) => {
         narration: v.narration,
         createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : v.createdAt,
       })),
-      recentHotelInvoices: recentHotelInvoices.map((h) => ({
-        id: h.id,
-        dnNumber: h.dnNumber,
-        passengerName: h.passengerName,
-        receivablePkr: h.receivablePkr ? parseFloat(h.receivablePkr) : 0,
-        status: h.status,
-        checkIn: h.checkIn,
-        checkOut: h.checkOut,
-        createdAt: h.createdAt instanceof Date ? h.createdAt.toISOString() : h.createdAt,
-      })),
+      recentHotelInvoices: recentHotelInvoices
+        .filter(h => !h.dnNumber?.startsWith("REGDN-"))
+        .map((h) => ({
+          id: h.id,
+          dnNumber: h.dnNumber,
+          passengerName: h.passengerName,
+          receivablePkr: h.receivablePkr ? parseFloat(h.receivablePkr) : 0,
+          status: h.status,
+          checkIn: h.checkIn,
+          checkOut: h.checkOut,
+          createdAt: h.createdAt instanceof Date ? h.createdAt.toISOString() : h.createdAt,
+        })),
     });
   } catch (err) {
     req.log.error({ err }, "Operational dashboard error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Owner Morning Dashboard ───────────────────────────────────────────────────
+router.get("/dashboard/owner", requireAuth, async (req, res) => {
+  try {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStart = new Date(todayStr + "T00:00:00.000Z");
+    const todayEnd = new Date(todayStr + "T23:59:59.999Z");
+
+    // Fetch everything we need in one round-trip
+    const [
+      allAccounts,
+      allJournal,
+      todayVouchers,
+      draftVouchers,
+      allQuotations,
+      pendingInvoices,
+      todayPayments,
+      pendingHotelRequests,
+    ] = await Promise.all([
+      db.select({ id: chartOfAccountsTable.id, code: chartOfAccountsTable.code, type: chartOfAccountsTable.type })
+        .from(chartOfAccountsTable),
+      db.select({
+        debitAccountId: generalJournalTable.debitAccountId,
+        creditAccountId: generalJournalTable.creditAccountId,
+        amount: generalJournalTable.amount,
+      }).from(generalJournalTable),
+      db.select({ type: vouchersTable.type, status: vouchersTable.status, createdAt: vouchersTable.createdAt })
+        .from(vouchersTable)
+        .where(and(
+          gte(vouchersTable.createdAt, todayStart),
+          lte(vouchersTable.createdAt, todayEnd),
+          eq(vouchersTable.status, "posted"),
+        )),
+      db.select({ id: vouchersTable.id })
+        .from(vouchersTable)
+        .where(eq(vouchersTable.status, "draft")),
+      db.select({
+        status: quotationsTable.status,
+        createdAt: quotationsTable.createdAt,
+        updatedAt: quotationsTable.updatedAt,
+      }).from(quotationsTable),
+      db.select({ id: invoicesTable.id })
+        .from(invoicesTable)
+        .where(or(eq(invoicesTable.status, "pending"), eq(invoicesTable.status, "partial"))),
+      db.select({ amount: paymentsTable.amount })
+        .from(paymentsTable)
+        .where(and(
+          gte(paymentsTable.paidAt, todayStart),
+          lte(paymentsTable.paidAt, todayEnd),
+        )),
+      db.select({ id: hotelRequestsTable.id })
+        .from(hotelRequestsTable)
+        .where(or(
+          eq(hotelRequestsTable.status, "pending"),
+          eq(hotelRequestsTable.status, "sent_to_vendor"),
+        )),
+    ]);
+
+    // Build account maps
+    const msfrAcct = allAccounts.find(a => a.code === "MSFR");
+    const partyAcctIds = new Set(allAccounts.filter(a => a.type === "party_ledger").map(a => a.id));
+    const vendorAcctIds = new Set(allAccounts.filter(a => a.type === "vendor_ledger").map(a => a.id));
+
+    // Compute cash balance, receivables, payables from general journal
+    let cashBalance = 0;
+    let totalReceivables = 0;
+    let totalPayables = 0;
+    for (const e of allJournal) {
+      const amt = parseFloat(e.amount ?? "0");
+      if (msfrAcct) {
+        if (e.debitAccountId === msfrAcct.id) cashBalance += amt;
+        if (e.creditAccountId === msfrAcct.id) cashBalance -= amt;
+      }
+      if (partyAcctIds.has(e.debitAccountId ?? -1)) totalReceivables += amt;
+      if (partyAcctIds.has(e.creditAccountId ?? -1)) totalReceivables -= amt;
+      if (vendorAcctIds.has(e.creditAccountId ?? -1)) totalPayables += amt;
+      if (vendorAcctIds.has(e.debitAccountId ?? -1)) totalPayables -= amt;
+    }
+
+    // Today's customer collections (RV vouchers posted today)
+    const todayRvCount = todayVouchers.filter(v => v.type === "RV").length;
+    // Today's vendor payments (PV vouchers posted today)
+    const todayPvCount = todayVouchers.filter(v => v.type === "PV").length;
+
+    // Today's revenue = payments received today (from invoice payments)
+    const todayRevenue = todayPayments.reduce((s, p) => s + parseFloat(p.amount ?? "0"), 0);
+
+    // Today's quotations
+    const todayQuotations = allQuotations.filter(q =>
+      q.createdAt >= todayStart && q.createdAt <= todayEnd
+    ).length;
+    const todayAcceptedQuotations = allQuotations.filter(q =>
+      q.status === "accepted" && q.updatedAt >= todayStart && q.updatedAt <= todayEnd
+    ).length;
+
+    return res.json({
+      cashBalance: Math.round(cashBalance * 100) / 100,
+      totalReceivables: Math.round(Math.max(0, totalReceivables) * 100) / 100,
+      totalPayables: Math.round(Math.max(0, totalPayables) * 100) / 100,
+      todayRevenue: Math.round(todayRevenue * 100) / 100,
+      todayCustomerCollections: todayRvCount,
+      todayVendorPayments: todayPvCount,
+      pendingCollections: pendingInvoices.length,
+      draftVouchersCount: draftVouchers.length,
+      todayQuotations,
+      todayAcceptedQuotations,
+      pendingHotelRequests: pendingHotelRequests.length,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Owner dashboard error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

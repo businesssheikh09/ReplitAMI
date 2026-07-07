@@ -1,23 +1,55 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
-import { clientsTable, clientNotesTable, followUpsTable, usersTable, quotationsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { clientsTable, clientNotesTable, followUpsTable, usersTable, quotationsTable, passengerDocumentsTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 
 const router = Router();
 
 router.get("/clients", requireAuth, async (req, res) => {
   try {
-    const { search, status, country, assignedTo } = req.query as Record<string, string>;
+    const { search, status, country, assignedTo, passport, phone } = req.query as Record<string, string>;
     let clients = await db.select().from(clientsTable);
-    if (search) {
+
+    // Passport search: passengerDocumentsTable links to flight requests, not clients directly.
+    // Search client name/phone/email and also scan hotelInvoices passengerName as proxy.
+    if (passport) {
+      const p = passport.toLowerCase();
+      // passengerDocumentsTable has no clientId; filter clients whose name appears as a
+      // passenger in any doc with matching passport (best-effort name match).
+      const passportDocs = await db.select({
+        passengerName: passengerDocumentsTable.passengerName,
+        passportNumber: passengerDocumentsTable.passportNumber,
+      }).from(passengerDocumentsTable);
+      const matchedNames = new Set(
+        passportDocs
+          .filter(d => (d.passportNumber ?? "").toLowerCase().includes(p))
+          .map(d => (d.passengerName ?? "").toLowerCase().trim())
+          .filter(n => n.length > 2)
+      );
+      if (matchedNames.size > 0) {
+        clients = clients.filter(c =>
+          matchedNames.has(c.name.toLowerCase().trim())
+        );
+      } else {
+        clients = [];
+      }
+    } else if (search) {
       const s = search.toLowerCase();
       clients = clients.filter(c =>
         c.name.toLowerCase().includes(s) ||
         c.email.toLowerCase().includes(s) ||
-        c.phone.toLowerCase().includes(s)
+        c.phone.toLowerCase().includes(s) ||
+        (c.whatsapp ?? "").toLowerCase().includes(s)
+      );
+    } else if (phone) {
+      const p = phone.toLowerCase();
+      clients = clients.filter(c =>
+        c.phone.toLowerCase().includes(p) ||
+        (c.whatsapp ?? "").toLowerCase().includes(p)
       );
     }
+
     if (status) clients = clients.filter(c => c.leadStatus === status);
     if (country) clients = clients.filter(c => c.country === country);
     if (assignedTo) clients = clients.filter(c => c.assignedTo === parseInt(assignedTo));

@@ -81,6 +81,16 @@ const SHORTCUT_TILES: Array<{ _section: string } | ShortcutTile> = [
   { href: "/accounting/reports",           icon: ClipboardCheck, label: "Booking Validation",    color: "bg-gradient-to-br from-green-700 to-green-500",  route: "/accounting/reports" },
   { href: "/reports",                      icon: FileBarChart,   label: "Reports",               color: "bg-gradient-to-br from-orange-700 to-orange-500",route: "/accounting/reports" },
 
+  { _section: "Owner Reports" },
+  { href: "/accounting/trial-balance",     icon: Scale,          label: "Trial Balance",         color: "bg-gradient-to-br from-blue-900 to-blue-700",    route: "/accounting/trial-balance" },
+  { href: "/accounting/balance-sheet",     icon: BarChart3,      label: "Balance Sheet",         color: "bg-gradient-to-br from-indigo-900 to-indigo-700",route: "/accounting/balance-sheet" },
+  { href: "/accounting/pnl",               icon: TrendingUp,     label: "Profit & Loss",         color: "bg-gradient-to-br from-emerald-900 to-emerald-700",route: "/accounting/pnl" },
+  { href: "/accounting/reports",           icon: Banknote,       label: "Cash Book",             color: "bg-gradient-to-br from-teal-900 to-teal-700",    route: "/accounting/reports" },
+  { href: "/accounting/reports",           icon: Receipt,        label: "Receipt Book",          color: "bg-gradient-to-br from-cyan-900 to-cyan-700",    route: "/accounting/reports" },
+  { href: "/accounting/reports",           icon: CreditCard,     label: "Payment Book",          color: "bg-gradient-to-br from-violet-900 to-violet-700",route: "/accounting/reports" },
+  { href: "/accounting/vouchers",          icon: Clock,          label: "Pending Vouchers",      color: "bg-gradient-to-br from-amber-800 to-amber-600",  route: "/accounting/vouchers", roles: ["management", "admin", "accounts"] },
+  { href: "/hotel-invoices",               icon: Hotel,          label: "Invoices",              color: "bg-gradient-to-br from-rose-800 to-rose-600",    route: "/hotel-invoices" },
+
   { _section: "Operations" },
   { href: "/flights",                      icon: Plane,          label: "Flights",               color: "bg-gradient-to-br from-orange-600 to-amber-500", route: "/flights" },
   { href: "/hotel-requests",               icon: Hotel,          label: "Hotel Requests",        color: "bg-gradient-to-br from-teal-600 to-teal-400",    route: "/hotel-requests" },
@@ -222,6 +232,25 @@ export default function Dashboard() {
   const isSales      = ["sales", "management", "admin"].includes(role ?? "");
   const isAdmin      = ["management", "admin"].includes(role ?? "");
 
+  const { data: ownerData } = useQuery<{
+    cashBalance: number;
+    totalReceivables: number;
+    totalPayables: number;
+    todayRevenue: number;
+    todayCustomerCollections: number;
+    todayVendorPayments: number;
+    pendingCollections: number;
+    draftVouchersCount: number;
+    todayQuotations: number;
+    todayAcceptedQuotations: number;
+    pendingHotelRequests: number;
+  }>({
+    queryKey: ["dashboard-owner"],
+    queryFn: () => fetch("/api/dashboard/owner", { headers }).then((r) => r.json()),
+    enabled: !!token && isManagement,
+    refetchInterval: 5 * 60_000,
+  });
+
   const { data: autoSummary } = useQuery<{
     enabled: number;
     running: number;
@@ -251,6 +280,44 @@ export default function Dashboard() {
           <div className="text-base font-bold text-white mt-0.5">FY {getFiscalYear()}</div>
         </div>
       </div>
+
+      {/* ── Owner Morning View (management/admin only) ── */}
+      {isManagement && ownerData && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-amber-200" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 px-2">Owner Morning View</span>
+            <div className="flex-1 h-px bg-amber-200" />
+          </div>
+
+          {/* Financial Position */}
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-1">Financial Position</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatWidget icon={Banknote}        label="Cash Balance (PKR)"    value={`PKR ${Number(ownerData.cashBalance).toLocaleString()}`}         href="/accounting/reports" color="bg-teal-700" />
+            <StatWidget icon={TrendingUp}      label="Receivables (PKR)"     value={`PKR ${Number(ownerData.totalReceivables).toLocaleString()}`}     href="/accounting/reports" color="bg-blue-700" />
+            <StatWidget icon={ArrowRightLeft}  label="Payables (PKR)"        value={`PKR ${Number(ownerData.totalPayables).toLocaleString()}`}        href="/accounting/reports" color="bg-rose-700" />
+            <StatWidget icon={Clock}           label="Draft Vouchers"        value={ownerData.draftVouchersCount}                                      href="/accounting/vouchers" color="bg-amber-600" alert />
+          </div>
+
+          {/* Today's Activity */}
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-1 mt-2">Today's Activity</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatWidget icon={DollarSign}      label="Revenue Today (PKR)"   value={ownerData.todayRevenue > 0 ? `PKR ${Number(ownerData.todayRevenue).toLocaleString()}` : "PKR 0"} href="/accounting/reports" color="bg-emerald-700" />
+            <StatWidget icon={Receipt}         label="Collections Today"     value={ownerData.todayCustomerCollections}                                href="/accounting/vouchers" color="bg-green-600" />
+            <StatWidget icon={CreditCard}      label="Vendor Pmts Today"     value={ownerData.todayVendorPayments}                                     href="/accounting/vouchers" color="bg-violet-600" />
+            <StatWidget icon={FileText}        label="Quotations Today"      value={ownerData.todayQuotations}                                         href="/quotations"          color="bg-sky-600" />
+          </div>
+
+          {/* Pending / Outstanding */}
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-1 mt-2">Pending / Outstanding</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatWidget icon={AlertCircle}     label="Pending Collections"   value={ownerData.pendingCollections}      href="/hotel-invoices"   color="bg-orange-600" alert />
+            <StatWidget icon={CheckCircle2}    label="Accepted Today"        value={ownerData.todayAcceptedQuotations} href="/quotations"       color="bg-green-700" />
+            <StatWidget icon={Hotel}           label="Hotel Req. Pending"    value={ownerData.pendingHotelRequests}    href="/hotel-requests"   color="bg-cyan-700"   alert />
+            <StatWidget icon={Wallet}          label="Open Invoices"         value={ownerData.pendingCollections}      href="/hotel-invoices"   color="bg-indigo-600" />
+          </div>
+        </div>
+      )}
 
       {/* ── Quick Launch Grid (AMI style) ── */}
       <Card className="shadow-sm">

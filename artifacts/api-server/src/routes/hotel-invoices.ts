@@ -75,7 +75,17 @@ router.get("/invoices/hotel/next-dn", requireAuth, async (req, res) => {
 
 router.get("/invoices/hotel", requireAuth, async (req, res) => {
   try {
-    const rows = await db.select().from(hotelInvoicesTable).orderBy(desc(hotelInvoicesTable.id));
+    const { search } = req.query as Record<string, string>;
+    let rows = await db.select().from(hotelInvoicesTable).orderBy(desc(hotelInvoicesTable.id));
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(r =>
+        (r.dnNumber ?? "").toLowerCase().includes(q) ||
+        (r.passengerName ?? "").toLowerCase().includes(q) ||
+        (r.cnfNumber ?? "").toLowerCase().includes(q) ||
+        (r.reference ?? "").toLowerCase().includes(q)
+      );
+    }
     const lookup = await buildLookup();
     return res.json(rows.map(r => serializeInvoice(r, lookup)));
   } catch (err) {
