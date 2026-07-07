@@ -1,0 +1,302 @@
+TASK: BUSINESS FLOW UAT 03 — CUSTOMER PAYMENT COLLECTION
+
+IMPORTANT
+
+Read the complete repository and previous UAT reports.
+
+Do NOT fix bugs.
+Do NOT redesign modules.
+Do NOT jump to another flow.
+Only test and document.
+
+==================================================
+
+BUSINESS SCENARIO
+
+Customer has accepted the quotation and invoice/DN has been created.
+
+Now customer pays money.
+
+Test full customer payment flow exactly like Al Musafir International office:
+
+Quotation / Booking / Invoice
+
+↓
+
+Customer pays advance or full amount
+
+↓
+
+Receipt Voucher is created
+
+↓
+
+Ledger updates
+
+↓
+
+Outstanding amount updates
+
+↓
+
+Reports reflect payment
+
+==================================================
+
+STEP 1 — Locate Customer Receivable
+
+Use the customer and invoice/DN created in UAT-02.
+
+Verify:
+
+Customer name
+
+Invoice number
+
+DN number
+
+Amount receivable
+
+Currency
+
+Outstanding amount
+
+Linked quotation / booking reference if available
+
+PASS / FAIL
+
+==================================================
+
+STEP 2 — Receive Partial Payment
+
+Record partial payment from customer.
+
+Example:
+
+Invoice amount: full amount from UAT-02
+
+Receive: 50%
+
+Payment mode:
+
+Cash or Bank
+
+Verify:
+
+Receipt voucher created
+
+Voucher number generated
+
+Debit account correct
+
+Credit account correct
+
+Narration includes customer + invoice/DN reference
+
+Currency correct
+
+Exchange rate stored
+
+PASS / FAIL
+
+==================================================
+
+STEP 3 — Accounting Verification
+
+Verify:
+
+Customer ledger updated
+
+Cash/bank ledger updated
+
+Outstanding reduced correctly
+
+Trial balance remains balanced
+
+General journal has correct DR/CR
+
+No duplicate posting
+
+No zero amount entry
+
+No wrong account entry
+
+PASS / FAIL
+
+==================================================
+
+STEP 4 — Print Receipt
+
+Print receipt voucher.
+
+Review:
+
+Logo
+
+Company name
+
+Customer name
+
+Amount
+
+Currency
+
+Amount in words
+
+Invoice/DN reference
+
+Payment mode
+
+Prepared by
+
+Approved by
+
+Signature
+
+Footer
+
+A4 layout
+
+WhatsApp PDF readability
+
+PASS / FAIL
+
+==================================================
+
+STEP 5 — Receive Remaining Payment
+
+Receive remaining balance.
+
+Verify:
+
+Second receipt created
+
+Outstanding becomes zero
+
+Invoice/DN status becomes paid if supported
+
+Customer ledger closing balance correct
+
+Reports reflect full payment
+
+PASS / FAIL
+
+==================================================
+
+STEP 6 — Overpayment Test
+
+Try receiving more than outstanding amount.
+
+Verify:
+
+System blocks overpayment
+
+OR
+
+System records advance balance clearly
+
+Document actual behaviour.
+
+PASS / FAIL
+
+==================================================
+
+STEP 7 — Advance Payment Test
+
+Create advance receipt before invoice/booking.
+
+Verify:
+
+Advance appears in customer ledger
+
+Later adjustment against invoice is possible
+
+Remaining advance is visible
+
+PASS / FAIL
+
+==================================================
+
+STEP 8 — Search Review
+
+Search receipt/payment by:
+
+Receipt number
+
+Customer name
+
+Invoice number
+
+DN number
+
+Mobile
+
+Payment date
+
+Payment mode
+
+Amount
+
+Verify filters, sorting, speed, pagination.
+
+PASS / FAIL
+
+==================================================
+
+STEP 9 — Owner Review
+
+As business owner, verify:
+
+Can I see today’s collections?
+
+Can I see pending receivables?
+
+Can I see party-wise outstanding?
+
+Can I see cash received?
+
+Can I see bank received?
+
+Can I print customer statement?
+
+Can I know who collected the money?
+
+Can I prevent duplicate receipts?
+
+List gaps.
+
+==================================================
+
+FINAL REPORT
+
+Do NOT fix anything.
+
+Provide only:
+
+Business Flow Status
+
+PASS / FAIL
+
+Accounting Score
+
+Calculation Score
+
+UI Score
+
+Printing Score
+
+Search Score
+
+Owner Visibility Score
+
+Bug List
+
+Business Gaps
+
+Suggested Improvements
+
+Production Readiness
+
+STOP.
+
+Wait for UAT-04.
