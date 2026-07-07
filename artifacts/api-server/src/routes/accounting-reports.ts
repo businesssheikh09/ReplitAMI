@@ -11,6 +11,8 @@ import {
   hotelsTable,
   transportBookingsTable,
   currencyTransactionsTable,
+  paymentsTable,
+  invoicesTable,
 } from "@workspace/db";
 import { eq, desc, gte, lte, and, sql, or, asc, inArray, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
@@ -144,16 +146,50 @@ router.get("/accounting/reports/party-statement", requireAuth, async (req, res) 
     const detailMap = await getVoucherDetails(rawVouchers.map((v) => v.id));
     const vouchers = rawVouchers.map((v) => { const d = detailMap.get(v.id) ?? { amount: 0, detail: null }; return { ...v, amount: d.amount, detail: d.detail }; });
 
+    // Payments on this client's invoices (from the invoice payment system)
+    let payments: {
+      id: number; invoiceId: number; receiptNumber: string | null;
+      amount: string; method: string; notes: string | null;
+      collectedBy: number | null; paidAt: Date;
+    }[] = [];
+    if (pid) {
+      const clientInvoices = await db
+        .select({ id: invoicesTable.id })
+        .from(invoicesTable)
+        .where(eq(invoicesTable.clientId, pid));
+      if (clientInvoices.length > 0) {
+        const invIds = clientInvoices.map((i) => i.id);
+        payments = await db
+          .select({
+            id: paymentsTable.id,
+            invoiceId: paymentsTable.invoiceId,
+            receiptNumber: paymentsTable.receiptNumber,
+            amount: paymentsTable.amount,
+            method: paymentsTable.method,
+            notes: paymentsTable.notes,
+            collectedBy: paymentsTable.collectedBy,
+            paidAt: paymentsTable.paidAt,
+          })
+          .from(paymentsTable)
+          .where(inArray(paymentsTable.invoiceId, invIds))
+          .orderBy(asc(paymentsTable.paidAt));
+        if (from) payments = payments.filter((p) => p.paidAt >= new Date(from));
+        if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); payments = payments.filter((p) => p.paidAt <= t); }
+      }
+    }
+
     const totalSales = hotelBookings.reduce((s, h) => s + parseFloat(h.receivableSar ?? "0"), 0);
     const netVouchers = vouchers.reduce((s, v) => s + v.amount, 0);
-    const closingBalance = totalSales - netVouchers;
+    const totalPayments = payments.reduce((s, p) => s + parseFloat(p.amount), 0);
+    const closingBalance = totalSales - netVouchers - totalPayments;
 
     return res.json({
       party,
       isAllMode,
       hotelBookings,
       vouchers,
-      summary: { totalSales, netVouchers, closingBalance, isAdvance: closingBalance < 0 },
+      payments,
+      summary: { totalSales, netVouchers, totalPayments, closingBalance, isAdvance: closingBalance < 0 },
     });
   } catch (err) {
     req.log.error({ err }, "Party statement error");
@@ -542,6 +578,24 @@ router.get("/accounting/reports/receipt-book", requireAuth, async (req, res) => 
     const clientMap = new Map(clients.map((c) => [c.id, c.name]));
     const vendorMap = new Map(vendors.map((v) => [v.id, v.name]));
 
+    // Also fetch payments table entries (RCT-* receipt numbers)
+    let paymentRecords = await db
+      .select({
+        id: paymentsTable.id,
+        invoiceId: paymentsTable.invoiceId,
+        receiptNumber: paymentsTable.receiptNumber,
+        amount: paymentsTable.amount,
+        method: paymentsTable.method,
+        notes: paymentsTable.notes,
+        collectedBy: paymentsTable.collectedBy,
+        paidAt: paymentsTable.paidAt,
+      })
+      .from(paymentsTable)
+      .orderBy(asc(paymentsTable.paidAt));
+
+    if (from) paymentRecords = paymentRecords.filter((p) => p.paidAt >= new Date(from));
+    if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); paymentRecords = paymentRecords.filter((p) => p.paidAt <= t); }
+
     const voucherRows = vouchers.map((v) => ({
       source: "voucher" as const,
       ref: v.voucherNumber,
@@ -562,7 +616,18 @@ router.get("/accounting/reports/receipt-book", requireAuth, async (req, res) => 
       amount: parseFloat(e.amount),
     }));
 
-    return res.json({ rows: [...voucherRows, ...journalRows].sort((a, b) => a.date.localeCompare(b.date)) });
+    const paymentRows = paymentRecords.map((p) => ({
+      source: "payment" as const,
+      ref: p.receiptNumber ?? `PMT-${p.id}`,
+      date: p.paidAt instanceof Date ? p.paidAt.toISOString().slice(0, 10) : String(p.paidAt).slice(0, 10),
+      narration: p.notes ?? `Invoice #${p.invoiceId} — ${p.method} payment`,
+      partyName: null as string | null,
+      vendorName: null as string | null,
+      amount: parseFloat(p.amount),
+    }));
+
+    const allRows = [...voucherRows, ...journalRows, ...paymentRows].sort((a, b) => a.date.localeCompare(b.date));
+    return res.json({ rows: allRows });
   } catch (err) {
     req.log.error({ err }, "Receipt book error");
     return res.status(500).json({ error: "Internal server error" });

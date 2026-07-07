@@ -306,8 +306,8 @@ router.post("/accounting/vouchers/:id/post", requireAuth, async (req, res) => {
 
     const [voucher] = await db.select().from(vouchersTable).where(eq(vouchersTable.id, id));
     if (!voucher) return res.status(404).json({ error: "Voucher not found" });
-    if (voucher.status !== "approved") {
-      return res.status(400).json({ error: `Voucher must be 'approved' before posting (current: ${voucher.status})` });
+    if (!["approved", "draft"].includes(voucher.status)) {
+      return res.status(400).json({ error: `Voucher must be 'draft' or 'approved' before posting (current: ${voucher.status})` });
     }
 
     const lines = await db

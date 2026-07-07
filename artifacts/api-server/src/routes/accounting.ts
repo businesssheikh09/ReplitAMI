@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { invoicesTable, paymentsTable, expensesTable, clientsTable, vendorsTable, documentsTable, chartOfAccountsTable, generalJournalTable } from "@workspace/db";
-import { eq, desc, asc, or, sql } from "drizzle-orm";
-import { postInvoicePayment, postInvoiceCreated, nextEntryNumber, ensureAccounts } from "../services/journal-poster.js";
+import { invoicesTable, paymentsTable, expensesTable, clientsTable, vendorsTable, documentsTable, chartOfAccountsTable, generalJournalTable, hotelInvoicesTable, vouchersTable } from "@workspace/db";
+import { eq, desc, asc, or, sql, inArray } from "drizzle-orm";
+import { postInvoicePayment, postInvoiceCreated, nextEntryNumber, ensureAccounts, getClientSubLedger, getVendorSubLedger } from "../services/journal-poster.js";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router = Router();
@@ -499,6 +499,96 @@ router.get("/accounting/trial-balance",requireAuth, async (req, res) => {
     return res.json({ rows, grandDr, grandCr, isBalanced, period: { from: from ?? null, to: to ?? null } });
   } catch (err) {
     req.log.error({ err }, "Trial balance error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Admin: Migrate legacy PARTY/VENDOR journal entries to sub-ledger accounts ──
+// One-time migration: updates old aggregate-code entries to individual C-{id}/V-{id} accounts.
+router.post("/accounting/admin/migrate-subledger", requireAuth, async (req, res) => {
+  try {
+    // Find aggregate PARTY and VENDOR accounts
+    const allAccounts = await db.select().from(chartOfAccountsTable);
+    const partyAcct = allAccounts.find((a) => a.code === "PARTY");
+    const vendorAcct = allAccounts.find((a) => a.code === "VENDOR");
+    if (!partyAcct && !vendorAcct) {
+      return res.json({ migrated: 0, skipped: 0, message: "No PARTY/VENDOR accounts found — nothing to migrate" });
+    }
+
+    const legacyIds = [partyAcct?.id, vendorAcct?.id].filter(Boolean) as number[];
+
+    // Load all journal entries referencing legacy accounts
+    const allEntries = await db.select().from(generalJournalTable);
+    const legacyEntries = allEntries.filter(
+      (e) => legacyIds.includes(e.debitAccountId) || legacyIds.includes(e.creditAccountId)
+    );
+
+    // Load supporting data for source lookups
+    const [allInvoices, allHotelInvs, allVouchers] = await Promise.all([
+      db.select({ id: invoicesTable.id, clientId: invoicesTable.clientId, vendorId: invoicesTable.vendorId }).from(invoicesTable),
+      db.select({ id: hotelInvoicesTable.id, partyId: hotelInvoicesTable.partyId, vendorId: hotelInvoicesTable.vendorId }).from(hotelInvoicesTable),
+      db.select({ id: vouchersTable.id, partyId: vouchersTable.partyId, vendorId: vouchersTable.vendorId }).from(vouchersTable),
+    ]);
+    const invoiceMap = new Map(allInvoices.map((i) => [i.id, i]));
+    const hotelMap = new Map(allHotelInvs.map((h) => [h.id, h]));
+    const voucherMap = new Map(allVouchers.map((v) => [v.id, v]));
+
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const entry of legacyEntries) {
+      let newDebitId: number | null = null;
+      let newCreditId: number | null = null;
+      let clientId: number | null = null;
+      let vendorId: number | null = null;
+
+      // Determine client/vendor from source
+      const st = entry.sourceType ?? "";
+      const sid = entry.sourceId ?? 0;
+      if ((st === "invoice_created" || st === "invoice_payment") && sid) {
+        const inv = invoiceMap.get(sid);
+        if (inv) { clientId = inv.clientId ?? null; vendorId = inv.vendorId ?? null; }
+      } else if (st === "hotel_invoice" && sid) {
+        const h = hotelMap.get(sid);
+        if (h) { clientId = h.partyId ?? null; vendorId = h.vendorId ?? null; }
+      } else if ((st.startsWith("voucher_")) && sid) {
+        const v = voucherMap.get(sid);
+        if (v) { clientId = v.partyId ?? null; vendorId = v.vendorId ?? null; }
+      }
+
+      // Map debit account
+      if (partyAcct && entry.debitAccountId === partyAcct.id) {
+        if (clientId) newDebitId = await getClientSubLedger(clientId);
+        else if (vendorId) newDebitId = await getVendorSubLedger(vendorId);
+      } else if (vendorAcct && entry.debitAccountId === vendorAcct.id) {
+        if (vendorId) newDebitId = await getVendorSubLedger(vendorId);
+        else if (clientId) newDebitId = await getClientSubLedger(clientId);
+      }
+
+      // Map credit account
+      if (partyAcct && entry.creditAccountId === partyAcct.id) {
+        if (clientId) newCreditId = await getClientSubLedger(clientId);
+        else if (vendorId) newCreditId = await getVendorSubLedger(vendorId);
+      } else if (vendorAcct && entry.creditAccountId === vendorAcct.id) {
+        if (vendorId) newCreditId = await getVendorSubLedger(vendorId);
+        else if (clientId) newCreditId = await getClientSubLedger(clientId);
+      }
+
+      if (!newDebitId && !newCreditId) { skipped++; continue; }
+
+      await db
+        .update(generalJournalTable)
+        .set({
+          ...(newDebitId ? { debitAccountId: newDebitId } : {}),
+          ...(newCreditId ? { creditAccountId: newCreditId } : {}),
+        })
+        .where(eq(generalJournalTable.id, entry.id));
+      migrated++;
+    }
+
+    return res.json({ migrated, skipped, total: legacyEntries.length, message: `Migrated ${migrated} entries, skipped ${skipped}` });
+  } catch (err) {
+    req.log.error({ err }, "Sub-ledger migration error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
