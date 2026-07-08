@@ -46,13 +46,23 @@ router.get("/invoices", requireAuth, async (req, res) => {
 
 router.post("/invoices", requireAuth, async (req, res) => {
   try {
+    const required = ["amount", "dueDate"] as const;
+    const missing = required.filter(f => {
+      const v = req.body[f];
+      return v === undefined || v === null || String(v).trim() === "";
+    });
+    if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
+    if (Number.isNaN(new Date(req.body.dueDate).getTime())) {
+      return res.status(400).json({ error: "Invalid field: dueDate must be a valid date" });
+    }
+
     const [invoice] = await db.insert(invoicesTable).values({
       invoiceNumber: await generateInvoiceNumber(),
       type: req.body.type || "customer",
       clientId: req.body.clientId || null,
       vendorId: req.body.vendorId || null,
       quotationId: req.body.quotationId || null,
-      amount: req.body.amount.toString(),
+      amount: (req.body.amount ?? 0).toString(),
       paidAmount: "0",
       currency: req.body.currency || "USD",
       status: "draft",

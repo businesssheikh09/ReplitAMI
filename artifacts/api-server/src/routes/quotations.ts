@@ -50,6 +50,16 @@ router.get("/quotations", requireAuth, async (req, res) => {
 
 router.post("/quotations", requireAuth, async (req, res) => {
   try {
+    const required = ["clientId", "title", "validUntil"] as const;
+    const missing = required.filter(f => {
+      const v = req.body[f];
+      return v === undefined || v === null || String(v).trim() === "";
+    });
+    if (missing.length) return res.status(400).json({ error: `Missing required field(s): ${missing.join(", ")}` });
+    if (Number.isNaN(new Date(req.body.validUntil).getTime())) {
+      return res.status(400).json({ error: "Invalid field: validUntil must be a valid date" });
+    }
+
     const [quotation] = await db.insert(quotationsTable).values({
       clientId: req.body.clientId,
       referenceNo: await generateRef(),
