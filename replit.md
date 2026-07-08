@@ -46,6 +46,14 @@ Al Musafir International — an Umrah travel agency ERP. Staff (roles: managemen
 
 - Do NOT push to GitHub until the user explicitly approves.
 
+## Security & Ops
+
+- **CORS**: production origin allowlist is `https://erp.almusafirinternational.com`, `https://portal.almusafirinternational.com`, `https://almusafirinternational.com`, `https://www.almusafirinternational.com` (set via `NODE_ENV=production` in `artifacts/api-server/src/app.ts`). In non-production, any `localhost` origin is allowed.
+- **Rate limiting**: `/api/auth/login` and `/api/portal/login` are limited to 10 requests/IP per 15 min; all other `/api/auth/*` routes to 30/IP per 15 min (`artifacts/api-server/src/middlewares/rate-limit.ts`). `app.set("trust proxy", 1)` in `app.ts` is required for this to key off real client IPs — Replit's shared reverse proxy sets `X-Forwarded-For`, so leaving `trust proxy` at its default (false) breaks IP-based rate limiting.
+- **Test data cleanup**: `pnpm --filter @workspace/scripts run cleanup-test-data` (dry run) / `-- --confirm` (delete) removes obvious QA/smoke test clients, `TEST-REG*`/`REGDN*`/`REGRDN*` hotel invoices, and known test user accounts. It only deletes rows with zero related records elsewhere — anything with real activity is skipped and reported for manual review, never force-deleted.
+- **DB backups**: `pnpm --filter @workspace/scripts run backup-db` dumps Postgres to `backups/<timestamp>.sql.gz` (gitignored) and prunes backups older than 14 days. Schedule it daily via an OS cron entry or the existing node-cron scheduler in api-server. Restore with `gunzip -c backups/<file>.sql.gz | psql "$DATABASE_URL"`.
+- **Deployment target**: this app should be deployed on a **Reserved VM**, not Autoscale. The api-server runs stateful background work (node-cron scheduled jobs, a persistent WhatsApp/Baileys session under `artifacts/api-server/whatsapp-session/`) that would be lost or duplicated across Autoscale's ephemeral, multi-instance scaling.
+
 ## Gotchas
 
 - ERP endpoints must use `requireAuth`; only intentionally public routes stay open. Verify with an unauth request expecting 401.

@@ -6,6 +6,8 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "generate-map": "esbuild src/generate-project-map.ts --bundle --platform=node --format=cjs --external:pdfkit --outfile=gen-map.cjs && node gen-map.cjs",
+    "cleanup-test-data": "bash src/cleanup-test-data.sh",
+    "backup-db": "bash src/backup-db.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

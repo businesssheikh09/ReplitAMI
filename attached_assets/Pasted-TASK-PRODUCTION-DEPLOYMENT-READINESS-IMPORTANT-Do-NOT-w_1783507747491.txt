@@ -1,0 +1,149 @@
+TASK: PRODUCTION DEPLOYMENT READINESS
+
+IMPORTANT
+
+Do NOT write code.
+
+Do NOT modify any files.
+
+Do NOT change the database.
+
+Do NOT refactor anything.
+
+Do NOT create new features.
+
+Do NOT improve UI.
+
+Read the repository and inspect the current project.
+
+Your objective is to prepare this ERP for production deployment.
+
+Generate a complete Deployment Readiness Report.
+
+==================================================
+
+SECTION 1 — Environment Variables
+
+List every required environment variable.
+
+For each one provide:
+
+- Variable Name
+- Required / Optional
+- Description
+- Example value (dummy only)
+
+==================================================
+
+SECTION 2 — Database
+
+Verify production database readiness.
+
+Check:
+
+- migrations
+- indexes
+- constraints
+- backups
+- seed data
+- test data that should be removed
+
+==================================================
+
+SECTION 3 — Production Checklist
+
+Generate a checklist for deployment.
+
+Include:
+
+- Environment variables
+- Build command
+- Start command
+- Health check
+- SSL
+- Domain
+- API
+- Database
+- File storage
+- OCR
+- WhatsApp
+- Cron jobs
+- Background workers
+
+==================================================
+
+SECTION 4 — Replit Deployment
+
+Explain exactly what settings should be used when deploying this project on Replit.
+
+Do not deploy.
+
+Only document.
+
+==================================================
+
+SECTION 5 — Hostinger
+
+List exactly what DNS records or settings are required to connect:
+
+erp.almusafirinternational.com
+
+Do not assume anything.
+
+==================================================
+
+SECTION 6 — Security
+
+Check production readiness.
+
+Authentication
+
+Authorization
+
+Secrets
+
+HTTPS
+
+Cookies
+
+Sessions
+
+CORS
+
+Rate limiting
+
+Backup strategy
+
+==================================================
+
+SECTION 7 — Go Live Risks
+
+List every remaining blocker before production.
+
+Separate into:
+
+Critical
+
+High
+
+Medium
+
+Low
+
+==================================================
+
+FINAL OUTPUT
+
+Return only:
+
+1. Deployment Checklist
+
+2. Missing Information
+
+3. Production Readiness %
+
+4. Estimated deployment time
+
+STOP.
+
+Do NOT modify the repository.

@@ -5,11 +5,14 @@ import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth.js";
+import { loginRateLimiter, authRateLimiter } from "../middlewares/rate-limit.js";
 import { verifyPassword, hashPassword, writeAuthAudit } from "../lib/security.js";
 
 const router = Router();
 
-router.post("/auth/login", async (req, res) => {
+router.use("/auth", authRateLimiter);
+
+router.post("/auth/login", loginRateLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {

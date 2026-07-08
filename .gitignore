@@ -50,3 +50,6 @@ Thumbs.db
 
 # WhatsApp session auth state (contains credentials, never commit)
 artifacts/api-server/whatsapp-session/
+
+# Local DB backups (contain real data, never commit)
+backups/

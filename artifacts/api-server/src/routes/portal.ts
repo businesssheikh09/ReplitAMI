@@ -5,6 +5,7 @@ import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "../middlewares/auth.js";
 import { requirePortalAuth } from "../middlewares/portal-auth.js";
+import { loginRateLimiter } from "../middlewares/rate-limit.js";
 import { scanDocument } from "../services/document-scan.js";
 import { getSweepStatus } from "../services/inventory-sweep.js";
 
@@ -64,7 +65,7 @@ router.post("/portal/register", async (req, res) => {
   }
 });
 
-router.post("/portal/login", async (req, res) => {
+router.post("/portal/login", loginRateLimiter, async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
     if (!emailOrPhone || !password) return res.status(400).json({ error: "emailOrPhone and password required" });
