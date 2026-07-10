@@ -341,6 +341,7 @@ router.get("/dashboard/owner", requireAuth, async (req, res) => {
         .where(eq(vouchersTable.status, "draft")),
       db.select({
         status: quotationsTable.status,
+        totalAmount: quotationsTable.totalAmount,
         createdAt: quotationsTable.createdAt,
         updatedAt: quotationsTable.updatedAt,
       }).from(quotationsTable),
@@ -363,31 +364,60 @@ router.get("/dashboard/owner", requireAuth, async (req, res) => {
 
     // Build account maps
     const msfrAcct = allAccounts.find(a => a.code === "MSFR");
-    const partyAcctIds = new Set(allAccounts.filter(a => a.type === "party_ledger").map(a => a.id));
+    // party_ledger = C-{id} sub-ledger accounts; also include the aggregate PARTY account
+    // (invoices created without an explicit clientId post to PARTY aggregate, type "asset")
+    const partyAcctIds  = new Set(allAccounts.filter(a => a.type === "party_ledger").map(a => a.id));
+    const partyAggAcct  = allAccounts.find(a => a.code === "PARTY");
+    if (partyAggAcct) partyAcctIds.add(partyAggAcct.id);
+    // vendor_ledger = V-{id} sub-ledger accounts; also include the aggregate VENDOR account
     const vendorAcctIds = new Set(allAccounts.filter(a => a.type === "vendor_ledger").map(a => a.id));
+    const vendorAggAcct = allAccounts.find(a => a.code === "VENDOR");
+    if (vendorAggAcct) vendorAcctIds.add(vendorAggAcct.id);
+    // Revenue accounts (HOTEL, AIR, UMRA, FOREX …) — source of truth for revenue/gross profit
+    const revAcctIds  = new Set(allAccounts.filter(a => a.type === "revenue").map(a => a.id));
+    // Liability accounts (aggregate VENDOR etc.) — used to detect vendor cost entries
+    const liabAcctIds = new Set(allAccounts.filter(a => a.type === "liability").map(a => a.id));
 
-    // Compute cash balance, receivables, payables from general journal
-    let cashBalance = 0;
+    // Single-pass journal loop — computes all monetary KPIs
+    let cashBalance      = 0;
     let totalReceivables = 0;
-    let totalPayables = 0;
+    let totalPayables    = 0;
+    // Revenue = credits to revenue accounts (invoice created / hotel DN receivable posted)
+    let totalRevenue     = 0;
+    // Cost of sales = debits to revenue accounts where credit is vendor/liability
+    // (hotel DN payable side: DR HOTEL / CR V-{id} or VENDOR)
+    let costOfSales      = 0;
+    // Collections = credits to party sub-ledger accounts (payment received: DR MSFR / CR C-{id})
+    let totalCollections = 0;
+
     for (const e of allJournal) {
       const amt = parseFloat(e.amount ?? "0");
       if (msfrAcct) {
-        if (e.debitAccountId === msfrAcct.id) cashBalance += amt;
+        if (e.debitAccountId  === msfrAcct.id) cashBalance += amt;
         if (e.creditAccountId === msfrAcct.id) cashBalance -= amt;
       }
-      if (partyAcctIds.has(e.debitAccountId ?? -1)) totalReceivables += amt;
-      if (partyAcctIds.has(e.creditAccountId ?? -1)) totalReceivables -= amt;
+      if (partyAcctIds.has(e.debitAccountId  ?? -1)) totalReceivables += amt;
+      if (partyAcctIds.has(e.creditAccountId ?? -1)) { totalReceivables -= amt; totalCollections += amt; }
       if (vendorAcctIds.has(e.creditAccountId ?? -1)) totalPayables += amt;
-      if (vendorAcctIds.has(e.debitAccountId ?? -1)) totalPayables -= amt;
+      if (vendorAcctIds.has(e.debitAccountId  ?? -1)) totalPayables -= amt;
+      if (revAcctIds.has(e.creditAccountId ?? -1)) totalRevenue += amt;
+      if (revAcctIds.has(e.debitAccountId ?? -1) &&
+          (vendorAcctIds.has(e.creditAccountId ?? -1) || liabAcctIds.has(e.creditAccountId ?? -1))) {
+        costOfSales += amt;
+      }
     }
+
+    // Confirmed Sales = sum of totalAmount on all accepted quotations (booked value)
+    const confirmedSalesAmount = allQuotations
+      .filter(q => q.status === "accepted")
+      .reduce((s, q) => s + parseFloat(q.totalAmount ?? "0"), 0);
 
     // Today's customer collections (RV vouchers posted today)
     const todayRvCount = todayVouchers.filter(v => v.type === "RV").length;
     // Today's vendor payments (PV vouchers posted today)
     const todayPvCount = todayVouchers.filter(v => v.type === "PV").length;
 
-    // Today's revenue = payments received today (from invoice payments)
+    // todayRevenue kept for backward-compat (payments-based, legacy label)
     const todayRevenue = todayPayments.reduce((s, p) => s + parseFloat(p.amount ?? "0"), 0);
 
     // Today's quotations
@@ -399,17 +429,27 @@ router.get("/dashboard/owner", requireAuth, async (req, res) => {
     ).length;
 
     return res.json({
-      cashBalance: Math.round(cashBalance * 100) / 100,
-      totalReceivables: Math.round(Math.max(0, totalReceivables) * 100) / 100,
-      totalPayables: Math.round(Math.max(0, totalPayables) * 100) / 100,
-      todayRevenue: Math.round(todayRevenue * 100) / 100,
+      // ── Accounting KPIs (source of truth: general journal) ──
+      cashBalance:           Math.round(cashBalance * 100) / 100,
+      totalReceivables:      Math.round(Math.max(0, totalReceivables) * 100) / 100,
+      totalPayables:         Math.round(Math.max(0, totalPayables) * 100) / 100,
+      // Revenue = posted customer invoice / DN sales (journal credits to revenue accounts)
+      totalRevenue:          Math.round(totalRevenue * 100) / 100,
+      // Collections = payments received (journal credits to party sub-ledger accounts)
+      totalCollections:      Math.round(totalCollections * 100) / 100,
+      // Gross Profit = Revenue − vendor cost (journal debits to revenue where CR is vendor/liability)
+      grossProfit:           Math.round((totalRevenue - costOfSales) * 100) / 100,
+      // Confirmed Sales = sum of accepted quotation amounts (booked value, not yet invoiced)
+      confirmedSalesAmount:  Math.round(confirmedSalesAmount * 100) / 100,
+      // ── Legacy / operational fields (backward-compatible) ──
+      todayRevenue:          Math.round(todayRevenue * 100) / 100,
       todayCustomerCollections: todayRvCount,
-      todayVendorPayments: todayPvCount,
-      pendingCollections: pendingInvoices.length,
-      draftVouchersCount: draftVouchers.length,
+      todayVendorPayments:   todayPvCount,
+      pendingCollections:    pendingInvoices.length,
+      draftVouchersCount:    draftVouchers.length,
       todayQuotations,
       todayAcceptedQuotations,
-      pendingHotelRequests: pendingHotelRequests.length,
+      pendingHotelRequests:  pendingHotelRequests.length,
     });
   } catch (err) {
     req.log.error({ err }, "Owner dashboard error");
