@@ -34,6 +34,7 @@ const PRODUCTION_ALLOWED_ORIGINS = [
   "https://portal.almusafirinternational.com",
   "https://almusafirinternational.com",
   "https://www.almusafirinternational.com",
+  "https://umrah-gateway-pro.replit.app",
 ];
 
 app.use(
@@ -45,7 +46,8 @@ app.use(
             if (!origin || PRODUCTION_ALLOWED_ORIGINS.includes(origin)) {
               callback(null, true);
             } else {
-              callback(new Error("Not allowed by CORS"));
+              // Pass null + false so cors sends a 403, not an unhandled Error → 500
+              callback(null, false);
             }
           },
         }
